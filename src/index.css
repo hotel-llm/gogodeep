@@ -1,0 +1,116 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 222 47% 3%;
+    --foreground: 210 40% 98%;
+
+    --card: 217 33% 7%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 217 33% 7%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 225 75% 55%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 217 33% 12%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217 33% 12%;
+    --muted-foreground: 215 20% 55%;
+
+    --accent: 217 33% 14%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217 33% 14%;
+    --input: 217 33% 14%;
+    --ring: 225 75% 55%;
+
+    --radius: 0.75rem;
+
+    --signal-red: 0 72% 51%;
+    --signal-yellow: 45 100% 51%;
+    --signal-green: 142 72% 45%;
+
+    --sidebar-background: 217 33% 5%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 225 75% 55%;
+    --sidebar-primary-foreground: 210 40% 98%;
+    --sidebar-accent: 217 33% 12%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217 33% 14%;
+    --sidebar-ring: 225 75% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: -0.025em;
+  }
+}
+
+/* Liquid glass background */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes liquid-drift {
+  0%, 100% { transform: translate(0%, 0%) scale(1); }
+  25% { transform: translate(10%, -15%) scale(1.1); }
+  50% { transform: translate(-5%, 10%) scale(0.95); }
+  75% { transform: translate(-10%, -5%) scale(1.05); }
+}
+
+.liquid-glass-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.liquid-glass-bg::before,
+.liquid-glass-bg::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(120px);
+  opacity: 0.12;
+}
+
+.liquid-glass-bg::before {
+  width: 600px;
+  height: 600px;
+  background: hsl(225 75% 55%);
+  top: -10%;
+  left: -5%;
+  animation: liquid-drift 20s ease-in-out infinite;
+}
+
+.liquid-glass-bg::after {
+  width: 500px;
+  height: 500px;
+  background: hsl(215 80% 45%);
+  bottom: -10%;
+  right: -5%;
+  animation: liquid-drift 25s ease-in-out infinite reverse;
+}
