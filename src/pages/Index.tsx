@@ -309,14 +309,28 @@ const PRACTICE_QS = [
   "Solve ∫x·cos(2x) dx. What is the key decision at the first step?",
 ];
 
+const PHYSICS_QS = [
+  "A ball is projected at 30° to the horizontal at 20 m/s. Calculate the maximum height reached.",
+  "Find the horizontal range of a projectile launched at 45° with initial speed 15 m/s. Ignore air resistance.",
+  "At what launch angle is horizontal range maximised? Explain using horizontal and vertical components.",
+  "A stone is thrown horizontally from a 75 m cliff at 12 m/s. Find the time of flight and landing distance.",
+];
+
 const DemoPanel = () => {
   const [phase, setPhase] = useState(0);
+  const [slide, setSlide] = useState(0); // 0 = math, 1 = physics
 
   useEffect(() => {
     const durations = [1800, 2400, 1400, 7500];
-    const t = setTimeout(() => setPhase((p) => (p + 1) % 4), durations[phase]);
+    const t = setTimeout(() => {
+      const next = (phase + 1) % 4;
+      setPhase(next);
+      if (next === 0) setSlide((s) => (s + 1) % 2);
+    }, durations[phase]);
     return () => clearTimeout(t);
   }, [phase]);
+
+  const fileName = slide === 0 ? "Math AA Mock Test 2.JPG" : "Physics AS Forces Practice.jpg";
 
   return (
     <div className="relative h-[480px] overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
@@ -368,7 +382,7 @@ const DemoPanel = () => {
             </div>
             <div className="flex items-center gap-1.5 rounded-md border border-border bg-secondary/60 px-3 py-1.5">
               <Camera className="h-3 w-3 text-muted-foreground" />
-              <span className="text-[11px] text-muted-foreground">Math AA Mock Test 2.JPG</span>
+              <span className="text-[11px] text-muted-foreground">{fileName}</span>
             </div>
           </div>
         )}
@@ -396,7 +410,7 @@ const DemoPanel = () => {
             />
             <div className="flex items-center gap-1.5 rounded-md border border-border bg-secondary/60 px-3 py-1.5">
               <Camera className="h-3 w-3 text-muted-foreground" />
-              <span className="text-[11px] text-muted-foreground">Math AA Mock Test 2.JPG</span>
+              <span className="text-[11px] text-muted-foreground">{fileName}</span>
             </div>
             <div className="absolute bottom-4 left-4 right-4 flex items-center gap-2 rounded-lg border border-border bg-card/90 px-3 py-2 backdrop-blur-sm">
               <Loader2 className="h-3 w-3 animate-spin text-primary" />
@@ -405,8 +419,8 @@ const DemoPanel = () => {
           </div>
         )}
 
-        {/* Phase 3: results */}
-        {phase === 3 && (
+        {/* Phase 3: results — Math */}
+        {phase === 3 && slide === 0 && (
           <div className="animate-fade-up flex h-full flex-col p-5">
             <div className="mb-2 flex items-center gap-2">
               <span className="rounded-full border border-destructive/20 bg-destructive/10 px-3 py-1 text-xs font-semibold text-destructive">
@@ -416,9 +430,7 @@ const DemoPanel = () => {
             </div>
             <p className="mb-2 text-sm font-bold text-foreground">Math AA Mock Test 2 Review</p>
 
-            {/* Two-column insight block */}
             <div className="mb-3 flex gap-2">
-              {/* Graph: x² curve with axes */}
               <div className="shrink-0 rounded-lg border border-border bg-secondary/40 p-2">
                 <svg viewBox="0 0 72 60" className="h-14 w-14" fill="none">
                   <line x1="6" y1="54" x2="68" y2="54" stroke="hsl(215 20% 45%)" strokeWidth="0.8" />
@@ -434,8 +446,6 @@ const DemoPanel = () => {
                   <text x="12" y="44" fontSize="5" fill="hsl(225 75% 65%)">x²</text>
                 </svg>
               </div>
-
-              {/* Explanation */}
               <div className="flex flex-col justify-center gap-1.5">
                 <p className="text-xs leading-relaxed text-muted-foreground">
                   You seem to have made a mistake — you applied u-substitution instead of integration by parts on ∫x·eˣdx.
@@ -449,6 +459,65 @@ const DemoPanel = () => {
             <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">Targeted practice</p>
             <div className="flex-1 space-y-2 overflow-y-auto pr-1">
               {PRACTICE_QS.map((q, i) => (
+                <div key={i} className="flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
+                  <span className="mt-0.5 shrink-0 text-xs font-bold text-primary">{i + 1}.</span>
+                  <span className="flex-1 text-xs leading-relaxed text-foreground">{q}</span>
+                  <button className="ml-1 mt-0.5 shrink-0 rounded p-0.5 text-muted-foreground hover:text-primary">
+                    <Camera className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Phase 3: results — Physics */}
+        {phase === 3 && slide === 1 && (
+          <div className="animate-fade-up flex h-full flex-col p-5">
+            <div className="mb-2 flex items-center gap-2">
+              <span className="rounded-full border border-destructive/20 bg-destructive/10 px-3 py-1 text-xs font-semibold text-destructive">
+                Careless Error
+              </span>
+              <span className="text-xs text-muted-foreground">Projectile Motion · AS Physics</span>
+            </div>
+            <p className="mb-2 text-sm font-bold text-foreground">Physics AS Forces Practice Review</p>
+
+
+            <div className="mb-3 flex gap-2">
+              {/* Projectile trajectory diagram */}
+              <div className="shrink-0 rounded-lg border border-border bg-secondary/40 p-2">
+                <svg viewBox="0 0 72 60" className="h-14 w-14" fill="none">
+                  {/* ground */}
+                  <line x1="6" y1="52" x2="66" y2="52" stroke="hsl(215 20% 45%)" strokeWidth="0.8" />
+                  {/* parabola trajectory */}
+                  <path d="M10,52 Q36,10 62,52" stroke="hsl(225 75% 55%)" strokeWidth="1.5" fill="none" />
+                  {/* launch vector */}
+                  <line x1="10" y1="52" x2="20" y2="36" stroke="hsl(215 20% 65%)" strokeWidth="1" />
+                  {/* horizontal dashed component */}
+                  <line x1="10" y1="52" x2="20" y2="52" stroke="hsl(215 20% 55%)" strokeWidth="0.8" strokeDasharray="2,1" />
+                  {/* angle arc */}
+                  <path d="M15,52 Q14,49 13,47" stroke="hsl(215 20% 55%)" strokeWidth="0.7" fill="none" />
+                  {/* labels */}
+                  <text x="21" y="43" fontSize="5" fill="hsl(225 75% 65%)">v₀</text>
+                  <text x="14" y="56.5" fontSize="4.5" fill="hsl(215 20% 65%)">θ</text>
+                  {/* launch and landing dots */}
+                  <circle cx="10" cy="52" r="1.5" fill="hsl(225 75% 55%)" />
+                  <circle cx="62" cy="52" r="1.5" fill="hsl(225 75% 55%)" />
+                </svg>
+              </div>
+              <div className="flex flex-col justify-center gap-1.5">
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  You swapped sin and cos — you used v·sinθ for the horizontal component instead of v·cosθ.
+                </p>
+                <p className="text-[11px] leading-relaxed text-muted-foreground/70">
+                  Rule: vₓ = v cosθ (horizontal), vᵧ = v sinθ (vertical). The horizontal component always uses cos.
+                </p>
+              </div>
+            </div>
+
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">Targeted practice</p>
+            <div className="flex-1 space-y-2 overflow-y-auto pr-1">
+              {PHYSICS_QS.map((q, i) => (
                 <div key={i} className="flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
                   <span className="mt-0.5 shrink-0 text-xs font-bold text-primary">{i + 1}.</span>
                   <span className="flex-1 text-xs leading-relaxed text-foreground">{q}</span>

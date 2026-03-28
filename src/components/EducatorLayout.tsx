@@ -1,22 +1,11 @@
 import * as React from "react";
-import { Plus, Upload } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { useState } from "react";
+import { Plus, PanelLeft } from "lucide-react";
+import { Link } from "react-router-dom";
 
 import HistorySidebar from "@/components/HistorySidebar";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import {
-  Sidebar,
-  SidebarHeader,
-  SidebarInset,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarProvider,
-  SidebarRail,
-  SidebarSeparator,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
-
 
 export default function EducatorLayout({
   title,
@@ -24,63 +13,85 @@ export default function EducatorLayout({
   children,
   className,
 }: {
-  title: string;
+  title?: string;
   subtitle?: string;
   children: React.ReactNode;
   className?: string;
 }) {
-  const location = useLocation();
+  const [open, setOpen] = useState(true);
 
   return (
-    <SidebarProvider defaultOpen={true}>
-      <div className="relative z-10 mt-14 flex h-[calc(100vh-3.5rem)] overflow-hidden">
-          <Sidebar
-            variant="sidebar"
-            collapsible="icon"
-            className="border-r border-border bg-card text-sidebar-foreground"
-            style={{ top: "3.5rem", height: "calc(100vh - 3.5rem)" }}
-          >
-            <SidebarHeader className="overflow-hidden p-3">
-              {/* Trigger row — always visible */}
-              <div className="flex items-center justify-end">
-                <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
-              </div>
+    <div className="relative z-10 mt-14 flex h-[calc(100vh-3.5rem)] overflow-hidden">
 
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={location.pathname === "/lab"} tooltip="Upload">
-                    <Link to="/lab" className="flex items-center gap-2">
-                      <Upload className="h-4 w-4 shrink-0" />
-                      <span className="truncate text-sm group-data-[collapsible=icon]:hidden">Upload</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild tooltip="New scan" className="group-data-[collapsible=icon]:hidden">
-                    <Link to="/lab" className="flex items-center gap-2 text-primary">
-                      <Plus className="h-4 w-4 shrink-0" />
-                      <span className="truncate text-sm">New scan</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarHeader>
+      {/* ── Sidebar ───────────────────────────────────────────────────────────── */}
+      <aside
+        className={cn(
+          "flex h-full flex-shrink-0 flex-col overflow-hidden border-r border-border bg-card transition-[width] duration-200 ease-in-out",
+          open ? "w-60" : "w-0"
+        )}
+      >
+        {/* Inner container stays 240px so content doesn't reflow during transition */}
+        <div className="flex h-full w-60 flex-col">
+          {/* Header */}
+          <div className="flex items-center justify-between border-b border-border px-3 py-2.5">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+              Diagnostic Lab
+            </span>
+            <button
+              onClick={() => setOpen(false)}
+              className="rounded p-1 text-muted-foreground hover:text-foreground"
+              title="Collapse sidebar"
+            >
+              <PanelLeft className="h-4 w-4" />
+            </button>
+          </div>
 
-            <SidebarSeparator className="bg-border" />
+          {/* New Scan button */}
+          <div className="p-3">
+            <Link to="/lab">
+              <Button className="w-full gap-2 bg-primary text-sm font-semibold hover:bg-primary/90">
+                <Plus className="h-4 w-4" />
+                New Scan
+              </Button>
+            </Link>
+          </div>
+
+          <div className="border-t border-border" />
+
+          {/* Scrollable scan history */}
+          <div className="min-h-0 flex-1 overflow-y-auto">
             <HistorySidebar />
-            <SidebarRail />
-          </Sidebar>
+          </div>
+        </div>
+      </aside>
 
-          <SidebarInset className={cn("overflow-y-auto", className)}>
-            <div className="container max-w-6xl py-6 sm:py-8">
-              <div className="mb-6 flex flex-col gap-1">
-                <h1 className="text-2xl font-bold tracking-tight text-foreground">{title}</h1>
-                {subtitle ? <p className="text-sm text-muted-foreground">{subtitle}</p> : null}
-              </div>
-              {children}
+      {/* ── Main content ──────────────────────────────────────────────────────── */}
+      <div className={cn("flex min-w-0 flex-1 flex-col overflow-hidden", className)}>
+        {/* Sticky top bar with toggle */}
+        <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-border bg-card/80 px-4 py-2.5 backdrop-blur-sm">
+          <button
+            onClick={() => setOpen((v) => !v)}
+            className="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
+            title={open ? "Collapse sidebar" : "Expand sidebar"}
+          >
+            <PanelLeft className="h-4 w-4" />
+          </button>
+          {title && (
+            <div className="min-w-0">
+              <h1 className="truncate text-xl font-bold tracking-tight text-foreground">{title}</h1>
+              {subtitle && <p className="truncate text-sm text-muted-foreground">{subtitle}</p>}
             </div>
-          </SidebarInset>
+          )}
+        </div>
+
+        {/* Page content */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="container max-w-6xl py-6 sm:py-8">
+            {children}
+          </div>
+        </div>
       </div>
-    </SidebarProvider>
+
+    </div>
   );
 }
