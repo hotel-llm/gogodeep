@@ -54,11 +54,23 @@ const Pricing = () => {
     setLoadingPro(true);
     try {
       const { data, error } = await supabase.functions.invoke("create-checkout", {});
-      if (error) throw error;
+
+      // Try to surface the real error message from the response body
+      if (error) {
+        let detail = error.message;
+        try {
+          const body = await (error as any).context?.json?.();
+          if (body?.error) detail = body.error;
+        } catch {
+          // ignore parse failure
+        }
+        throw new Error(detail);
+      }
+
       if (data?.url) {
         window.location.href = data.url;
       } else {
-        throw new Error("No checkout URL returned");
+        throw new Error(data?.error ?? "No checkout URL returned");
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
