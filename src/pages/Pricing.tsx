@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, Loader2, Sparkles, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -22,10 +22,10 @@ const plans = [
     name: "Pro",
     price: "9.99",
     cadence: "/month",
-    subtitle: "For active tutors and daily use",
+    subtitle: "For active tutors and students who want to get ahead.",
     features: ["Everything in Free", "Unlimited scans", "Save scan history", "Learning dashboard"],
     cta: "Upgrade to Pro",
-    ctaLink: null, // handled via checkout
+    ctaLink: null,
     featured: true,
   },
   {
@@ -43,6 +43,19 @@ const plans = [
 const Pricing = () => {
   const navigate = useNavigate();
   const [loadingPro, setLoadingPro] = useState(false);
+  const [userPlan, setUserPlan] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return;
+      const { data } = await (supabase as any)
+        .from("profiles")
+        .select("plan")
+        .eq("id", user.id)
+        .single();
+      setUserPlan(data?.plan ?? "free");
+    });
+  }, []);
 
   const handleProUpgrade = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -71,6 +84,8 @@ const Pricing = () => {
     }
   };
 
+  const isPro = userPlan === "pro";
+
   return (
     <PageTransition>
       <div className="relative z-10 min-h-screen pt-14">
@@ -86,67 +101,81 @@ const Pricing = () => {
           </div>
 
           <div className="mx-auto mt-14 grid max-w-5xl gap-6 md:grid-cols-3">
-            {plans.map((plan) => (
-              <Card
-                key={plan.name}
-                className={`flex flex-col border p-8 transition-all ${
-                  plan.featured
-                    ? "border-primary/40 bg-primary/5 shadow-lg shadow-primary/10"
-                    : "border-border bg-card"
-                }`}
-              >
-                <div className="mb-4 flex items-center justify-between">
-                  <h2 className="text-xl font-bold text-foreground">{plan.name}</h2>
-                  {plan.featured && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">
-                      <Sparkles className="h-3 w-3" />
-                      Popular
-                    </span>
-                  )}
-                </div>
+            {plans.map((plan) => {
+              const isActivePlan = plan.name === "Pro" && isPro;
 
-                <p className="text-sm text-muted-foreground">{plan.subtitle}</p>
-                <div className="mt-6">
-                  {plan.price === "Custom" ? (
-                    <span className="text-4xl font-extrabold text-foreground">Custom</span>
+              return (
+                <Card
+                  key={plan.name}
+                  className={`flex flex-col border p-8 transition-all ${
+                    isActivePlan
+                      ? "border-primary bg-primary/5 shadow-xl shadow-primary/20"
+                      : plan.featured
+                      ? "border-primary/40 bg-primary/5 shadow-lg shadow-primary/10"
+                      : "border-border bg-card"
+                  }`}
+                >
+                  <div className="mb-4 flex items-center justify-between">
+                    <h2 className="text-xl font-bold text-foreground">{plan.name}</h2>
+                    {isActivePlan ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">
+                        <Check className="h-3 w-3" />
+                        Active
+                      </span>
+                    ) : plan.featured ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">
+                        <Sparkles className="h-3 w-3" />
+                        Popular
+                      </span>
+                    ) : null}
+                  </div>
+
+                  <p className="text-sm text-muted-foreground">{plan.subtitle}</p>
+                  <div className="mt-6">
+                    {plan.price === "Custom" ? (
+                      <span className="text-4xl font-extrabold text-foreground">Custom</span>
+                    ) : (
+                      <>
+                        <span className="text-4xl font-extrabold text-foreground">${plan.price}</span>
+                        <span className="ml-1 text-sm text-muted-foreground">{plan.cadence}</span>
+                      </>
+                    )}
+                  </div>
+
+                  <ul className="mt-8 flex-1 space-y-3 text-sm text-muted-foreground">
+                    {plan.features.map((feature) => (
+                      <li key={feature} className="flex items-start gap-2">
+                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                        <span>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  {plan.ctaLink ? (
+                    <Link to={plan.ctaLink}>
+                      <Button className="mt-8 w-full bg-secondary text-foreground hover:bg-accent">
+                        {plan.name === "School / Team" && <Users className="mr-2 h-4 w-4" />}
+                        {plan.cta}
+                      </Button>
+                    </Link>
+                  ) : isActivePlan ? (
+                    <Button disabled className="mt-8 w-full bg-primary/20 text-primary cursor-default">
+                      <Check className="mr-2 h-4 w-4" />
+                      You're on Pro
+                    </Button>
                   ) : (
-                    <>
-                      <span className="text-4xl font-extrabold text-foreground">${plan.price}</span>
-                      <span className="ml-1 text-sm text-muted-foreground">{plan.cadence}</span>
-                    </>
-                  )}
-                </div>
-
-                <ul className="mt-8 flex-1 space-y-3 text-sm text-muted-foreground">
-                  {plan.features.map((feature) => (
-                    <li key={feature} className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                {plan.ctaLink ? (
-                  <Link to={plan.ctaLink}>
-                    <Button className="mt-8 w-full bg-secondary text-foreground hover:bg-accent">
-                      {plan.name === "School / Team" && <Users className="mr-2 h-4 w-4" />}
+                    <Button
+                      onClick={handleProUpgrade}
+                      disabled={loadingPro}
+                      className="mt-8 w-full bg-primary hover:bg-primary/90"
+                    >
+                      {loadingPro && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       {plan.cta}
                     </Button>
-                  </Link>
-                ) : (
-                  <Button
-                    onClick={handleProUpgrade}
-                    disabled={loadingPro}
-                    className="mt-8 w-full bg-primary hover:bg-primary/90"
-                  >
-                    {loadingPro ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : null}
-                    {plan.cta}
-                  </Button>
-                )}
-              </Card>
-            ))}
+                  )}
+                </Card>
+              );
+            })}
           </div>
         </div>
       </div>
