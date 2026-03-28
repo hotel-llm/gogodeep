@@ -283,7 +283,7 @@ const DemoPanel = () => {
         <div className="h-2.5 w-2.5 rounded-full bg-destructive/50" />
         <div className="h-2.5 w-2.5 rounded-full" style={{ background: "hsl(var(--signal-yellow) / 0.5)" }} />
         <div className="h-2.5 w-2.5 rounded-full" style={{ background: "hsl(var(--signal-green) / 0.5)" }} />
-        <span className="ml-3 text-xs text-muted-foreground">Diagnostic Lab — live demo</span>
+        <span className="ml-3 text-xs text-muted-foreground">Gogodeep live demo</span>
       </div>
 
       <div className="relative h-[calc(100%-41px)]">
@@ -300,7 +300,7 @@ const DemoPanel = () => {
 
         {/* Phase 1: paper sliding in */}
         {phase === 1 && (
-          <div className="flex h-full items-center justify-center p-8">
+          <div className="flex h-full flex-col items-center justify-center gap-3 p-8">
             <div className="animate-slide-in-paper w-64 rounded-xl bg-amber-50 p-5 shadow-xl">
               <div className="mb-3 h-3 w-2/3 rounded bg-gray-600" />
               <div className="space-y-2">
@@ -324,12 +324,16 @@ const DemoPanel = () => {
                 <div className="h-2 w-3/5 rounded bg-gray-300" />
               </div>
             </div>
+            <div className="flex items-center gap-1.5 rounded-md border border-border bg-secondary/60 px-3 py-1.5">
+              <Camera className="h-3 w-3 text-muted-foreground" />
+              <span className="text-[11px] text-muted-foreground">Math AA Mock Test 2.JPG</span>
+            </div>
           </div>
         )}
 
         {/* Phase 2: scanning */}
         {phase === 2 && (
-          <div className="relative flex h-full items-center justify-center p-8">
+          <div className="relative flex h-full flex-col items-center justify-center gap-3 p-8">
             <div className="w-64 rounded-xl bg-amber-50 p-5 opacity-60 shadow-xl">
               <div className="mb-3 h-3 w-2/3 rounded bg-gray-400" />
               <div className="space-y-2">
@@ -348,6 +352,10 @@ const DemoPanel = () => {
               className="animate-scan-sweep absolute inset-x-6 h-px"
               style={{ background: "hsl(var(--primary))", boxShadow: "0 0 10px 2px hsl(var(--primary) / 0.5)" }}
             />
+            <div className="flex items-center gap-1.5 rounded-md border border-border bg-secondary/60 px-3 py-1.5">
+              <Camera className="h-3 w-3 text-muted-foreground" />
+              <span className="text-[11px] text-muted-foreground">Math AA Mock Test 2.JPG</span>
+            </div>
             <div className="absolute bottom-4 left-4 right-4 flex items-center gap-2 rounded-lg border border-border bg-card/90 px-3 py-2 backdrop-blur-sm">
               <Loader2 className="h-3 w-3 animate-spin text-primary" />
               <span className="text-xs text-muted-foreground">Analysing misconception…</span>
@@ -358,22 +366,53 @@ const DemoPanel = () => {
         {/* Phase 3: results */}
         {phase === 3 && (
           <div className="animate-fade-up flex h-full flex-col p-5">
-            <div className="mb-3 flex items-center gap-2">
+            <div className="mb-2 flex items-center gap-2">
               <span className="rounded-full border border-destructive/20 bg-destructive/10 px-3 py-1 text-xs font-semibold text-destructive">
                 Conceptual Gap
               </span>
               <span className="text-xs text-muted-foreground">Integration · Calculus</span>
             </div>
-            <p className="mb-1 text-sm font-bold text-foreground">Integration by Parts — wrong method applied</p>
-            <p className="mb-4 text-xs leading-relaxed text-muted-foreground">
-              Student used u-substitution on ∫x·eˣdx. The product of two unrelated functions signals integration by parts, not substitution.
-            </p>
+            <p className="mb-2 text-sm font-bold text-foreground">Math AA Mock Test 2 Review</p>
+
+            {/* Two-column insight block */}
+            <div className="mb-3 flex gap-2">
+              {/* Graph: x² curve with axes */}
+              <div className="shrink-0 rounded-lg border border-border bg-secondary/40 p-2">
+                <svg viewBox="0 0 72 60" className="h-14 w-14" fill="none">
+                  <line x1="6" y1="54" x2="68" y2="54" stroke="hsl(215 20% 45%)" strokeWidth="0.8" />
+                  <line x1="36" y1="4" x2="36" y2="54" stroke="hsl(215 20% 45%)" strokeWidth="0.8" />
+                  <path
+                    d="M10,52 Q20,40 36,8 Q52,40 62,52"
+                    stroke="hsl(225 75% 55%)"
+                    strokeWidth="1.5"
+                    strokeLinejoin="round"
+                  />
+                  <text x="60" y="52" fontSize="5.5" fill="hsl(215 20% 65%)">x</text>
+                  <text x="38" y="9" fontSize="5.5" fill="hsl(215 20% 65%)">y</text>
+                  <text x="12" y="44" fontSize="5" fill="hsl(225 75% 65%)">x²</text>
+                </svg>
+              </div>
+
+              {/* Explanation */}
+              <div className="flex flex-col justify-center gap-1.5">
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  You seem to have made a mistake — you applied u-substitution instead of integration by parts on ∫x·eˣdx.
+                </p>
+                <p className="text-[11px] leading-relaxed text-muted-foreground/70">
+                  When two unrelated functions multiply (here x and eˣ), use IBP: ∫u dv = uv − ∫v du.
+                </p>
+              </div>
+            </div>
+
             <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">Targeted practice</p>
             <div className="flex-1 space-y-2 overflow-y-auto pr-1">
               {PRACTICE_QS.map((q, i) => (
-                <div key={i} className="flex gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3">
+                <div key={i} className="flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
                   <span className="mt-0.5 shrink-0 text-xs font-bold text-primary">{i + 1}.</span>
-                  <span className="text-xs leading-relaxed text-foreground">{q}</span>
+                  <span className="flex-1 text-xs leading-relaxed text-foreground">{q}</span>
+                  <button className="ml-1 mt-0.5 shrink-0 rounded p-0.5 text-muted-foreground hover:text-primary">
+                    <Camera className="h-3.5 w-3.5" />
+                  </button>
                 </div>
               ))}
             </div>
