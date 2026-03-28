@@ -1,8 +1,11 @@
-import { Check, Sparkles, Users } from "lucide-react";
+import { useState } from "react";
+import { Check, Loader2, Sparkles, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import PageTransition from "@/components/PageTransition";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const plans = [
   {
@@ -22,7 +25,7 @@ const plans = [
     subtitle: "For active tutors and daily use",
     features: ["Everything in Free", "Unlimited scans", "Save scan history", "Learning dashboard"],
     cta: "Upgrade to Pro",
-    ctaLink: "/signup",
+    ctaLink: null, // handled via checkout
     featured: true,
   },
   {
@@ -32,12 +35,38 @@ const plans = [
     subtitle: "For schools and multi-student teams",
     features: ["Bulk student licenses", "Teacher dashboard", "Analytics for learning gaps", "SSO integration"],
     cta: "Contact Us",
-    ctaLink: "mailto:hello@gogodeep.ai",
+    ctaLink: "/contact",
     featured: false,
   },
 ];
 
 const Pricing = () => {
+  const navigate = useNavigate();
+  const [loadingPro, setLoadingPro] = useState(false);
+
+  const handleProUpgrade = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      navigate("/signup");
+      return;
+    }
+
+    setLoadingPro(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-checkout", {});
+      if (error) throw error;
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error("No checkout URL returned");
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      toast.error(`Checkout failed: ${message}`);
+      setLoadingPro(false);
+    }
+  };
+
   return (
     <PageTransition>
       <div className="relative z-10 min-h-screen pt-14">
@@ -93,23 +122,24 @@ const Pricing = () => {
                   ))}
                 </ul>
 
-                {plan.ctaLink.startsWith("mailto") ? (
-                  <a href={plan.ctaLink}>
-                    <Button variant="outline" className="mt-8 w-full border-border">
-                      <Users className="mr-2 h-4 w-4" />
-                      {plan.cta}
-                    </Button>
-                  </a>
-                ) : (
+                {plan.ctaLink ? (
                   <Link to={plan.ctaLink}>
-                    <Button
-                      className={`mt-8 w-full ${
-                        plan.featured ? "bg-primary hover:bg-primary/90" : "bg-secondary text-foreground hover:bg-accent"
-                      }`}
-                    >
+                    <Button className="mt-8 w-full bg-secondary text-foreground hover:bg-accent">
+                      {plan.name === "School / Team" && <Users className="mr-2 h-4 w-4" />}
                       {plan.cta}
                     </Button>
                   </Link>
+                ) : (
+                  <Button
+                    onClick={handleProUpgrade}
+                    disabled={loadingPro}
+                    className="mt-8 w-full bg-primary hover:bg-primary/90"
+                  >
+                    {loadingPro ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : null}
+                    {plan.cta}
+                  </Button>
                 )}
               </Card>
             ))}

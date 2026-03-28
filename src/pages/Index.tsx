@@ -1,11 +1,12 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
-import { Camera, Microscope, Route, ArrowRight, ScanLine, Zap, TriangleAlert, BookOpen, TrendingUp, Upload, Loader2 } from "lucide-react";
+import { Camera, Microscope, Route, ArrowRight, ScanLine, TriangleAlert, BookOpen, TrendingUp, Upload, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import PageTransition from "@/components/PageTransition";
 import gogodeepLogo from "@/assets/gogodeep-logo.png";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import type { User } from "@supabase/supabase-js";
 
 const steps = [
@@ -25,29 +26,58 @@ type ErrorLog = {
 type DashboardData = {
   totalScans: number;
   scanCredits: number | null;
+  plan: string;
   conceptualCount: number;
-  proceduralCount: number;
+  conceptsLearned: number;
   topTags: { tag: string; count: number }[];
   recentTopics: string[];
 };
+
+function useUtcResetCountdown() {
+  const getSecondsLeft = () => {
+    const now = new Date();
+    const midnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+    return Math.floor((midnight.getTime() - now.getTime()) / 1000);
+  };
+  const [secs, setSecs] = useState(getSecondsLeft);
+  useEffect(() => {
+    const id = setInterval(() => setSecs(getSecondsLeft()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  const s = secs % 60;
+  return `${h}h ${String(m).padStart(2, "0")}m ${String(s).padStart(2, "0")}s`;
+}
 
 const Dashboard = ({ user }: { user: User }) => {
   const username = user.user_metadata?.username ?? user.email?.split("@")[0] ?? "there";
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const resetCountdown = useUtcResetCountdown();
+  const location = useLocation();
+
+  // Show success toast when redirected back from Stripe
+  useEffect(() => {
+    if (new URLSearchParams(location.search).get("upgraded") === "1") {
+      toast.success("You're now on Pro — enjoy unlimited scans!");
+      window.history.replaceState({}, "", "/");
+    }
+  }, [location.search]);
 
   useEffect(() => {
     const load = async () => {
       const [logsRes, profileRes] = await Promise.all([
         (supabase as any).from("error_logs").select("error_category, specific_error_tag, topic").eq("student_id", user.id),
-        (supabase as any).from("profiles").select("scan_credits").eq("id", user.id).single(),
+        (supabase as any).from("profiles").select("scan_credits, plan").eq("id", user.id).single(),
       ]);
 
       const logs: ErrorLog[] = logsRes.data ?? [];
       const scanCredits = profileRes.data?.scan_credits ?? null;
+      const plan: string = profileRes.data?.plan ?? "free";
 
       const conceptualCount = logs.filter((l) => l.error_category?.toLowerCase() === "conceptual").length;
-      const proceduralCount = logs.filter((l) => l.error_category?.toLowerCase() !== "conceptual").length;
+      const conceptsLearned = new Set(logs.map((l) => l.topic).filter(Boolean)).size;
 
       const tagCounts: Record<string, number> = {};
       for (const l of logs) {
@@ -65,14 +95,13 @@ const Dashboard = ({ user }: { user: User }) => {
         .slice(-3)
         .reverse() as string[];
 
-      setData({ totalScans: logs.length, scanCredits, conceptualCount, proceduralCount, topTags, recentTopics });
+      setData({ totalScans: logs.length, scanCredits, plan, conceptualCount, conceptsLearned, topTags, recentTopics });
       setLoading(false);
     };
     load();
   }, [user.id]);
 
   const conceptualPct = data && data.totalScans > 0 ? Math.round((data.conceptualCount / data.totalScans) * 100) : 0;
-  const proceduralPct = data && data.totalScans > 0 ? Math.round((data.proceduralCount / data.totalScans) * 100) : 0;
 
   return (
     <PageTransition>
@@ -106,11 +135,21 @@ const Dashboard = ({ user }: { user: User }) => {
             </Card>
 
             <Card className="border-border bg-card p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Credits Left</p>
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Credits Left</p>
+                {!loading && data?.plan !== "pro" && (
+                  <Link to="/pricing" className="shrink-0 text-[10px] font-semibold text-primary hover:underline">Upgrade →</Link>
+                )}
+                {!loading && data?.plan === "pro" && (
+                  <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">Pro</span>
+                )}
+              </div>
               <p className="mt-2 text-4xl font-extrabold text-foreground">
-                {loading ? "—" : data?.scanCredits ?? 0}
+                {loading ? "—" : data?.plan === "pro" ? "∞" : (data?.scanCredits ?? 3)}
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">Remaining scan credits</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {data?.plan === "pro" ? "Unlimited scans" : `of 3 daily · resets in ${resetCountdown}`}
+              </p>
             </Card>
 
             <Card className="border-border bg-card p-5">
@@ -122,11 +161,11 @@ const Dashboard = ({ user }: { user: User }) => {
             </Card>
 
             <Card className="border-border bg-card p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Procedural Slips</p>
-              <p className="mt-2 text-4xl font-extrabold" style={{ color: "hsl(var(--signal-yellow))" }}>
-                {loading ? "—" : data?.proceduralCount ?? 0}
+              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Concepts Learned</p>
+              <p className="mt-2 text-4xl font-extrabold" style={{ color: "hsl(var(--signal-green))" }}>
+                {loading ? "—" : data?.conceptsLearned ?? 0}
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">Process correction needed</p>
+              <p className="mt-1 text-xs text-muted-foreground">Unique topics diagnosed</p>
             </Card>
           </div>
 
@@ -171,14 +210,17 @@ const Dashboard = ({ user }: { user: User }) => {
                   <div>
                     <div className="mb-2 flex items-center justify-between text-sm">
                       <span className="flex items-center gap-1.5 font-medium text-foreground">
-                        <Zap className="h-3.5 w-3.5" style={{ color: "hsl(var(--signal-yellow))" }} /> Procedural
+                        <BookOpen className="h-3.5 w-3.5" style={{ color: "hsl(var(--signal-green))" }} /> Concepts Learned
                       </span>
-                      <span className="text-muted-foreground">{data.proceduralCount} ({proceduralPct}%)</span>
+                      <span className="text-muted-foreground">{data.conceptsLearned} unique topics</span>
                     </div>
                     <div className="h-2.5 w-full overflow-hidden rounded-full bg-secondary">
                       <div
                         className="h-full rounded-full transition-all duration-700"
-                        style={{ width: `${proceduralPct}%`, background: "hsl(var(--signal-yellow))" }}
+                        style={{
+                          width: data.totalScans > 0 ? `${Math.min(Math.round((data.conceptsLearned / data.totalScans) * 100), 100)}%` : "0%",
+                          background: "hsl(var(--signal-green))",
+                        }}
                       />
                     </div>
                   </div>

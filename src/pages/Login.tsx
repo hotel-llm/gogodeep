@@ -33,7 +33,6 @@ const Login = () => {
         return;
       }
 
-      toast.success("Welcome back.");
       if (pendingReport) {
         navigate("/report", { replace: true, state: pendingReport });
       } else {

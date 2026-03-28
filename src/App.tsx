@@ -10,6 +10,7 @@ import Index from "./pages/Index";
 import DiagnosticLab from "./pages/DiagnosticLab";
 import BlindSpotReport from "./pages/BlindSpotReport";
 import Pricing from "./pages/Pricing";
+import Contact from "./pages/Contact";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import NotFound from "./pages/NotFound";
@@ -34,6 +35,7 @@ function AnimatedRoutes() {
         />
         <Route path="/report" element={<BlindSpotReport />} />
         <Route path="/pricing" element={<Pricing />} />
+        <Route path="/contact" element={<Contact />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AnimatePresence>

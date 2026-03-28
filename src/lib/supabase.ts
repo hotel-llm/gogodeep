@@ -17,11 +17,16 @@ export async function checkScanCredits(): Promise<ScanCreditState> {
 
   const { data, error } = await (supabase as any)
     .from("profiles")
-    .select("scan_credits")
+    .select("scan_credits, plan")
     .eq("id", user.id)
     .single();
 
   if (error) {
+    return { allowed: true, credits: null };
+  }
+
+  // Pro users have unlimited scans
+  if ((data as any)?.plan === "pro") {
     return { allowed: true, credits: null };
   }
 
