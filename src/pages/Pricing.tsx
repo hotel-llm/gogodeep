@@ -53,19 +53,11 @@ const Pricing = () => {
 
     setLoadingPro(true);
     try {
-      const { data, error } = await supabase.functions.invoke("create-checkout", {});
+      const { data, error } = await supabase.functions.invoke("create-checkout", {
+        body: { userId: user.id, email: user.email },
+      });
 
-      // Try to surface the real error message from the response body
-      if (error) {
-        let detail = error.message;
-        try {
-          const body = await (error as any).context?.json?.();
-          if (body?.error) detail = body.error;
-        } catch {
-          // ignore parse failure
-        }
-        throw new Error(detail);
-      }
+      if (error) throw error;
 
       if (data?.url) {
         window.location.href = data.url;

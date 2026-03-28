@@ -1,18 +1,17 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
-// @ts-ignore — Deno/esm.sh module, not resolved by tsc
-import Stripe from "https://esm.sh/stripe@14?target=deno";
-// @ts-ignore — Deno/esm.sh module, not resolved by tsc
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
 // @ts-ignore
-const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, {
-  apiVersion: "2023-10-16",
-});
+import Stripe from "https://esm.sh/stripe@14?target=deno&no-check";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+// @ts-ignore
+const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, {
+  apiVersion: "2023-10-16",
+  httpClient: Stripe.createFetchHttpClient(),
+});
 
 // @ts-ignore
 Deno.serve(async (req: Request) => {
@@ -21,38 +20,32 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    // @ts-ignore
-    const supabase = createClient(
-      // @ts-ignore
-      Deno.env.get("SUPABASE_URL")!,
-      // @ts-ignore
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: req.headers.get("Authorization")! } } }
-    );
+    const { userId, email } = await req.json();
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
+    if (!userId || !email) {
+      return new Response(JSON.stringify({ error: "Missing userId or email" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // @ts-ignore
+    const priceId = Deno.env.get("STRIPE_PRO_PRICE_ID");
+    // @ts-ignore
+    const siteUrl = Deno.env.get("SITE_URL") ?? "https://gogodeep.com";
+
+    if (!priceId) {
+      return new Response(JSON.stringify({ error: "STRIPE_PRO_PRICE_ID not set" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const session = await stripe.checkout.sessions.create({
-      customer_email: user.email,
-      line_items: [
-        {
-          // @ts-ignore
-          price: Deno.env.get("STRIPE_PRO_PRICE_ID")!,
-          quantity: 1,
-        },
-      ],
+      customer_email: email,
+      line_items: [{ price: priceId, quantity: 1 }],
       mode: "subscription",
-      // @ts-ignore
-      success_url: `${Deno.env.get("SITE_URL") ?? "https://gogodeep.com"}/dashboard?upgraded=1`,
-      // @ts-ignore
-      cancel_url: `${Deno.env.get("SITE_URL") ?? "https://gogodeep.com"}/pricing`,
-      metadata: { userId: user.id },
+      success_url: `${siteUrl}/?upgraded=1`,
+      cancel_url: `${siteUrl}/pricing`,
+      metadata: { userId },
     });
 
     return new Response(JSON.stringify({ url: session.url }), {
@@ -61,7 +54,6 @@ Deno.serve(async (req: Request) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return new Response(JSON.stringify({ error: message }), {
-      status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
