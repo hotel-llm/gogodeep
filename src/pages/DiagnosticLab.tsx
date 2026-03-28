@@ -52,7 +52,20 @@ const DiagnosticLab = () => {
 
         stepTimers.forEach(clearTimeout);
 
-        if (error) throw error;
+        if (error) {
+          const msg = (error as any)?.message ?? String(error);
+          toast.error(`Scan failed: ${msg}`);
+          setIsAnalyzing(false);
+          setScanStep(0);
+          return;
+        }
+
+        if ((data as any)?.error) {
+          toast.error(`Scan failed: ${(data as any).error}`);
+          setIsAnalyzing(false);
+          setScanStep(0);
+          return;
+        }
 
         const inputStatus = (data as any)?.input_status as string | undefined;
         if (inputStatus && inputStatus !== "ok") {
@@ -89,7 +102,8 @@ const DiagnosticLab = () => {
         navigate("/report", { state: { imageUrl: url, diagnosis: data } });
       } catch (err: unknown) {
         console.error("Analysis failed:", err);
-        toast.error("Something went wrong while scanning. Check your connection and try again.");
+        const msg = err instanceof Error ? err.message : String(err);
+        toast.error(`Scan failed: ${msg}`);
         setIsAnalyzing(false);
         setScanStep(0);
       }
