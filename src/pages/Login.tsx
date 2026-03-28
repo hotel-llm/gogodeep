@@ -16,7 +16,9 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const redirectTo = (location.state as { from?: string } | null)?.from ?? "/lab";
+  const locationState = location.state as { from?: string; pendingReport?: { imageUrl: string; diagnosis: unknown } } | null;
+  const redirectTo = locationState?.from ?? "/lab";
+  const pendingReport = locationState?.pendingReport;
 
   const onLogin = async (e: FormEvent) => {
     e.preventDefault();
@@ -32,7 +34,11 @@ const Login = () => {
       }
 
       toast.success("Welcome back.");
-      navigate(redirectTo, { replace: true });
+      if (pendingReport) {
+        navigate("/report", { replace: true, state: pendingReport });
+      } else {
+        navigate(redirectTo, { replace: true });
+      }
     } catch (err) {
       setIsLoading(false);
       console.error("Login exception:", err);

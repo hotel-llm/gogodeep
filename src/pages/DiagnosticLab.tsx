@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { useNavigate, Link } from "react-router-dom";
 import { Upload, Loader2, Microscope, Image as ImageIcon, ArrowRight, Lock, ScanLine } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,6 +20,8 @@ const DiagnosticLab = () => {
   const [scanStep, setScanStep] = useState(0);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [remainingCredits, setRemainingCredits] = useState<number | null>(null);
+  const [showLoginGate, setShowLoginGate] = useState(false);
+  const pendingNavRef = useRef<{ imageUrl: string; diagnosis: unknown } | null>(null);
   const navigate = useNavigate();
 
   const analyzeImage = useCallback(
@@ -75,6 +77,14 @@ const DiagnosticLab = () => {
           specific_error_tag: (data as any)?.error_tag ?? null,
           error_category: (data as any)?.error_category ?? null,
         });
+
+        if (!user?.id) {
+          pendingNavRef.current = { imageUrl: url, diagnosis: data };
+          setIsAnalyzing(false);
+          setScanStep(0);
+          setShowLoginGate(true);
+          return;
+        }
 
         navigate("/report", { state: { imageUrl: url, diagnosis: data } });
       } catch (err: unknown) {
@@ -265,6 +275,28 @@ const DiagnosticLab = () => {
               View plans
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showLoginGate} onOpenChange={setShowLoginGate}>
+        <DialogContent className="border border-border bg-card sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Your diagnosis is ready</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              Create a free account to see your results and track your progress over time.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-2 flex flex-col gap-2">
+            <Link to="/signup" state={{ pendingReport: pendingNavRef.current }}>
+              <Button className="w-full bg-primary hover:bg-primary/90">
+                Sign up free — see my results
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
+            <Link to="/login" state={{ pendingReport: pendingNavRef.current }}>
+              <Button variant="outline" className="w-full border-border">Already have an account? Log in</Button>
+            </Link>
           </div>
         </DialogContent>
       </Dialog>

@@ -1,6 +1,6 @@
 import { FormEvent, useState } from "react";
-import { Link } from "react-router-dom";
-import { Loader2, Mail, Lock, CheckCircle2 } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Loader2, Mail, Lock, User } from "lucide-react";
 import gogodeepLogo from "@/assets/gogodeep-logo.png";
 import { toast } from "sonner";
 
@@ -11,8 +11,12 @@ import { Card } from "@/components/ui/card";
 import PageTransition from "@/components/PageTransition";
 
 const Signup = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const pendingReport = (location.state as { pendingReport?: { imageUrl: string; diagnosis: unknown } } | null)?.pendingReport;
+
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
-  const [confirmEmail, setConfirmEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -22,12 +26,12 @@ const Signup = () => {
 
   const onSignup = async (e: FormEvent) => {
     e.preventDefault();
-    if (!isValidEmail(email)) {
-      toast.error("Please enter a valid email address.");
+    if (!username.trim()) {
+      toast.error("Please enter a username.");
       return;
     }
-    if (email !== confirmEmail) {
-      toast.error("Email addresses do not match.");
+    if (!isValidEmail(email)) {
+      toast.error("Please enter a valid email address.");
       return;
     }
     if (password.length < 8) {
@@ -40,24 +44,27 @@ const Signup = () => {
     }
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email,
         password,
-        options: { emailRedirectTo: window.location.origin },
+        options: {
+          data: { username: username.trim() },
+        },
       });
       setIsLoading(false);
 
       if (error) {
-        console.error("Signup error:", error);
         toast.error(error.message);
         return;
       }
 
-      console.log("Signup success:", data);
-      setSuccess(true);
+      if (pendingReport) {
+        navigate("/report", { replace: true, state: pendingReport });
+      } else {
+        setSuccess(true);
+      }
     } catch (err) {
       setIsLoading(false);
-      console.error("Signup exception:", err);
       toast.error("An unexpected error occurred. Please try again.");
     }
   };
@@ -96,6 +103,14 @@ const Signup = () => {
 
             <form onSubmit={onSignup} className="space-y-4">
               <div className="space-y-2">
+                <label htmlFor="signup-username" className="text-xs font-medium text-muted-foreground">Username</label>
+                <div className="relative">
+                  <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input id="signup-username" type="text" autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} className="border-border bg-secondary pl-9" placeholder="yourname" required />
+                </div>
+              </div>
+
+              <div className="space-y-2">
                 <label htmlFor="signup-email" className="text-xs font-medium text-muted-foreground">Email</label>
                 <div className="relative">
                   <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -103,17 +118,6 @@ const Signup = () => {
                 </div>
                 {email.length > 0 && !isValidEmail(email) && (
                   <p className="text-xs text-destructive">Please enter a valid email address.</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <label htmlFor="signup-confirm-email" className="text-xs font-medium text-muted-foreground">Confirm Email</label>
-                <div className="relative">
-                  <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input id="signup-confirm-email" type="email" autoComplete="email" value={confirmEmail} onChange={(e) => setConfirmEmail(e.target.value)} className="border-border bg-secondary pl-9" placeholder="name@example.com" required />
-                </div>
-                {confirmEmail.length > 0 && confirmEmail !== email && (
-                  <p className="text-xs text-destructive">Email addresses do not match.</p>
                 )}
               </div>
 

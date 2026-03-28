@@ -42,7 +42,7 @@ export default function HistorySidebar({ className }: { className?: string }) {
   const items = useMemo(() => historyQuery.data ?? [], [historyQuery.data]);
 
   return (
-    <SidebarContent className={cn(className)}>
+    <SidebarContent className={cn("group-data-[collapsible=icon]:hidden", className)}>
       <SidebarGroup>
         <SidebarGroupLabel className="gap-2">
           <History className="h-4 w-4" />

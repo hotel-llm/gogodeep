@@ -1,6 +1,5 @@
 import * as React from "react";
-import { LayoutDashboard, Microscope } from "lucide-react";
-import gogodeepLogo from "@/assets/gogodeep-logo.png";
+import { Plus, Upload } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
 import HistorySidebar from "@/components/HistorySidebar";
@@ -18,28 +17,6 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 
-function NavItem({
-  to,
-  icon: Icon,
-  label,
-  isActive,
-}: {
-  to: string;
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  isActive: boolean;
-}) {
-  return (
-    <SidebarMenuItem>
-      <SidebarMenuButton asChild isActive={isActive} tooltip={label}>
-        <Link to={to} className="flex items-center gap-2">
-          <Icon className="h-4 w-4" />
-          <span className="text-sm">{label}</span>
-        </Link>
-      </SidebarMenuButton>
-    </SidebarMenuItem>
-  );
-}
 
 export default function EducatorLayout({
   title,
@@ -56,30 +33,36 @@ export default function EducatorLayout({
 
   return (
     <SidebarProvider defaultOpen={true}>
-      <div className="relative z-10 min-h-screen pt-14">
-        <div className="relative">
+      <div className="relative z-10 mt-14 flex h-[calc(100vh-3.5rem)] overflow-hidden">
           <Sidebar
             variant="sidebar"
             collapsible="icon"
             className="border-r border-border bg-card text-sidebar-foreground"
+            style={{ top: "3.5rem", height: "calc(100vh - 3.5rem)" }}
           >
-            <SidebarHeader className="gap-3 p-3">
-              <div className="flex items-center justify-between gap-2">
-                <Link to="/" className="flex items-center gap-2">
-                  <img src={gogodeepLogo} alt="Gogodeep" className="h-5 w-5 object-contain" />
-                  <span className="text-xs font-bold tracking-tight text-foreground">Gogodeep</span>
-                </Link>
+            <SidebarHeader className="overflow-hidden p-3">
+              {/* Trigger row — always visible */}
+              <div className="flex items-center justify-end">
                 <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
               </div>
 
-              <div className="rounded-lg border border-border bg-secondary px-3 py-2">
-                <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Workspace</div>
-                <div className="mt-0.5 text-xs text-foreground">Labs & recent scans</div>
-              </div>
-
               <SidebarMenu>
-                <NavItem to="/" icon={LayoutDashboard} label="Home" isActive={location.pathname === "/"} />
-                <NavItem to="/lab" icon={Microscope} label="Lab" isActive={location.pathname === "/lab"} />
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={location.pathname === "/lab"} tooltip="Upload">
+                    <Link to="/lab" className="flex items-center gap-2">
+                      <Upload className="h-4 w-4 shrink-0" />
+                      <span className="truncate text-sm group-data-[collapsible=icon]:hidden">Upload</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild tooltip="New scan" className="group-data-[collapsible=icon]:hidden">
+                    <Link to="/lab" className="flex items-center gap-2 text-primary">
+                      <Plus className="h-4 w-4 shrink-0" />
+                      <span className="truncate text-sm">New scan</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               </SidebarMenu>
             </SidebarHeader>
 
@@ -88,16 +71,15 @@ export default function EducatorLayout({
             <SidebarRail />
           </Sidebar>
 
-          <SidebarInset className={cn(className)}>
-            <div className="container max-w-6xl py-8 sm:py-10">
-              <div className="mb-8 flex flex-col gap-1">
+          <SidebarInset className={cn("overflow-y-auto", className)}>
+            <div className="container max-w-6xl py-6 sm:py-8">
+              <div className="mb-6 flex flex-col gap-1">
                 <h1 className="text-2xl font-bold tracking-tight text-foreground">{title}</h1>
                 {subtitle ? <p className="text-sm text-muted-foreground">{subtitle}</p> : null}
               </div>
               {children}
             </div>
           </SidebarInset>
-        </div>
       </div>
     </SidebarProvider>
   );

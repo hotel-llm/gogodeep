@@ -27,11 +27,9 @@ function AnimatedRoutes() {
         <Route
           path="/lab"
           element={
-            <ProtectedRoute>
-              <ErrorBoundary>
-                <DiagnosticLab />
-              </ErrorBoundary>
-            </ProtectedRoute>
+            <ErrorBoundary>
+              <DiagnosticLab />
+            </ErrorBoundary>
           }
         />
         <Route path="/report" element={<BlindSpotReport />} />

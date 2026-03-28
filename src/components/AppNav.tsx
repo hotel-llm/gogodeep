@@ -67,7 +67,7 @@ const AppNav = () => {
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="ml-2 h-8 gap-2 border-border text-xs text-foreground">
                   <UserCircle2 className="h-4 w-4 text-muted-foreground" />
-                  Account
+                  {user.user_metadata?.username ?? user.email?.split("@")[0] ?? "Account"}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-60 border border-border bg-card">
