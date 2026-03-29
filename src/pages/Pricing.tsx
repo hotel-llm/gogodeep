@@ -28,23 +28,6 @@ const plans = [
     featured: false,
   },
   {
-    id: "deep",
-    name: "Deep",
-    price: "14.99",
-    cadence: "/month",
-    subtitle: "For students with the mentality to win.",
-    features: [
-      { text: "Unlimited scans", included: true },
-      { text: "Unlimited targeted questions", included: true },
-      { text: "Unlimited recap quizzes", included: true },
-      { text: "Quiz customization", included: true },
-      { text: "Underlying concepts", included: true },
-    ] as PlanFeature[],
-    cta: "Upgrade to Deep",
-    ctaLink: null,
-    featured: true,
-  },
-  {
     id: "intermediate",
     name: "Intermediate",
     price: "9.99",
@@ -60,6 +43,23 @@ const plans = [
     cta: "Upgrade to Intermediate",
     ctaLink: null,
     featured: false,
+  },
+  {
+    id: "deep",
+    name: "Deep",
+    price: "14.99",
+    cadence: "/month",
+    subtitle: "For students with the mentality to win.",
+    features: [
+      { text: "Unlimited scans", included: true },
+      { text: "Unlimited targeted questions", included: true },
+      { text: "Unlimited recap quizzes", included: true },
+      { text: "Quiz customization", included: true },
+      { text: "Underlying concepts", included: true },
+    ] as PlanFeature[],
+    cta: "Upgrade to Deep",
+    ctaLink: null,
+    featured: true,
   },
 ];
 
@@ -131,9 +131,7 @@ const Pricing = () => {
               return (
                 <Card
                   key={plan.id}
-                  className={`flex flex-col border transition-all w-full ${
-                    plan.id === "deep" ? "p-10 scale-[1.04]" : plan.id === "intermediate" ? "p-9 scale-[1.02]" : "p-8"
-                  } ${
+                  className={`flex flex-col border p-8 transition-all w-full hover:scale-[1.03] ${
                     isActivePlan
                       ? "border-primary bg-primary/5 shadow-xl shadow-primary/20"
                       : plan.featured
