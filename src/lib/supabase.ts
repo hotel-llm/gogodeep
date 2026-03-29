@@ -1,5 +1,11 @@
 import { supabase } from "@/integrations/supabase/client";
 
+export const SCAN_LIMITS: Record<string, number | null> = {
+  free: 3,
+  intermediate: 10,
+  deep: null,
+};
+
 export type ScanCreditState = {
   allowed: boolean;
   credits: number | null;
@@ -25,8 +31,9 @@ export async function checkScanCredits(): Promise<ScanCreditState> {
   }
 
   const plan = (data as any)?.plan ?? "free";
+  const limit = SCAN_LIMITS[plan] ?? SCAN_LIMITS.free;
 
-  if (plan === "deep") return { allowed: true, credits: null };
+  if (limit === null) return { allowed: true, credits: null };
 
   const today = new Date().toISOString().split("T")[0];
   const resetDate = (data as any)?.scan_reset_date ?? "";
@@ -41,7 +48,6 @@ export async function checkScanCredits(): Promise<ScanCreditState> {
 
   const used = isNewDay ? 0 : ((data as any)?.daily_scan_count ?? 0);
   const bonusScans = (data as any)?.bonus_scans ?? 0;
-  const limit = plan === "intermediate" ? 15 : 3;
   const remaining = Math.max(0, limit - used) + bonusScans;
   return { allowed: remaining > 0, credits: remaining };
 }

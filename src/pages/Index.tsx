@@ -1,11 +1,12 @@
 import { Link, useLocation } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
-import { Camera, Microscope, Route, ArrowRight, ScanLine, TriangleAlert, BookOpen, TrendingUp, Upload, Loader2, Flame, ChevronRight } from "lucide-react";
+import { Camera, Microscope, Route, ArrowRight, ScanLine, TriangleAlert, BookOpen, TrendingUp, Upload, Loader2, Flame, ChevronRight, BrainCircuit, CheckCircle2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import PageTransition from "@/components/PageTransition";
 import gogodeepLogo from "@/assets/gogodeep-logo.png";
 import { supabase } from "@/integrations/supabase/client";
+import { SCAN_LIMITS } from "@/lib/supabase";
 import { toast } from "sonner";
 import type { User } from "@supabase/supabase-js";
 
@@ -55,10 +56,28 @@ function useUtcResetCountdown() {
   return `${h}h ${String(m).padStart(2, "0")}m ${String(s).padStart(2, "0")}s`;
 }
 
+type QuizQuestion = {
+  topic: string;
+  question: string;
+  options: string[];
+  correct: number;
+  explanation: string;
+};
+
+type QuizState = {
+  questions: QuizQuestion[];
+  current: number;
+  selected: number | null;
+  score: number;
+  finished: boolean;
+};
+
 const Dashboard = ({ user }: { user: User }) => {
   const username = user.user_metadata?.username ?? user.email?.split("@")[0] ?? "there";
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [quiz, setQuiz] = useState<QuizState | null>(null);
+  const [quizLoading, setQuizLoading] = useState(false);
   const resetCountdown = useUtcResetCountdown();
   const location = useLocation();
 
@@ -86,9 +105,8 @@ const Dashboard = ({ user }: { user: User }) => {
         await (supabase as any).from("profiles").update({ daily_scan_count: 0, scan_reset_date: today }).eq("id", user.id);
       }
       const used = isNewDay ? 0 : (profileRes.data?.daily_scan_count ?? 0);
-      const bonusScans: number = profileRes.data?.bonus_scans ?? 0;
-      const limit = plan === "deep" ? null : plan === "intermediate" ? 15 : 3;
-      const creditsLeft = limit === null ? null : Math.max(0, limit - used) + bonusScans;
+      let bonusScans: number = profileRes.data?.bonus_scans ?? 0;
+      const limit = SCAN_LIMITS[plan] ?? SCAN_LIMITS.free;
 
       // Streak logic
       const lastLogin: string = profileRes.data?.last_login_date ?? "";
@@ -97,13 +115,16 @@ const Dashboard = ({ user }: { user: User }) => {
         loginStreak = lastLogin === yesterday ? loginStreak + 1 : 1;
         const streakUpdates: Record<string, unknown> = { last_login_date: today, login_streak: loginStreak };
         if (loginStreak >= 7) {
-          loginStreak = 0;
+          bonusScans += 5;
           streakUpdates.login_streak = 0;
-          streakUpdates.bonus_scans = bonusScans + 5;
+          streakUpdates.bonus_scans = bonusScans;
           toast.success("7-day streak! You've earned 5 bonus credits.");
+          // keep loginStreak at 7 locally so the bar displays complete
         }
         await (supabase as any).from("profiles").update(streakUpdates).eq("id", user.id);
       }
+
+      const creditsLeft = limit === null ? null : Math.max(0, limit - used) + bonusScans;
 
       const conceptualCount = logs.filter((l) => l.error_category?.toLowerCase() === "conceptual").length;
       const conceptsLearned = new Set(logs.map((l) => l.topic).filter(Boolean)).size;
@@ -131,6 +152,36 @@ const Dashboard = ({ user }: { user: User }) => {
     };
     load();
   }, [user.id]);
+
+  const startQuiz = async () => {
+    const topics = (data?.topTags?.length ? data.topTags.map((t) => t.tag) : data?.recentScans?.map((s) => s.label)) ?? [];
+    if (!topics.length) { toast.error("Run some scans first to generate a quiz."); return; }
+    setQuizLoading(true);
+    try {
+      const { data: result, error } = await supabase.functions.invoke("generate-quiz", { body: { topics: topics.slice(0, 5) } });
+      if (error || result?.error) throw new Error(error?.message ?? result?.error);
+      setQuiz({ questions: result.questions, current: 0, selected: null, score: 0, finished: false });
+    } catch (e) {
+      toast.error("Failed to generate quiz. Try again.");
+    } finally {
+      setQuizLoading(false);
+    }
+  };
+
+  const selectAnswer = (i: number) => {
+    if (!quiz || quiz.selected !== null) return;
+    setQuiz((q) => ({ ...q!, selected: i }));
+  };
+
+  const nextQuestion = () => {
+    setQuiz((q) => {
+      if (!q) return q;
+      const correct = q.selected === q.questions[q.current].correct;
+      const newScore = q.score + (correct ? 1 : 0);
+      const isLast = q.current === q.questions.length - 1;
+      return { ...q, score: newScore, current: isLast ? q.current : q.current + 1, selected: null, finished: isLast };
+    });
+  };
 
   const conceptualPct = data && data.totalScans > 0 ? Math.round((data.conceptualCount / data.totalScans) * 100) : 0;
 
@@ -178,7 +229,7 @@ const Dashboard = ({ user }: { user: User }) => {
                 {loading ? "—" : data?.creditsLeft === null ? "∞" : data?.creditsLeft}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                {data?.creditsLeft === null ? "Unlimited scans" : `of ${data?.plan === "intermediate" ? 15 : 3} daily · resets in ${resetCountdown}`}
+                {data?.creditsLeft === null ? "Unlimited scans" : `of ${SCAN_LIMITS[data?.plan ?? "free"] ?? SCAN_LIMITS.free} daily · resets in ${resetCountdown}`}
               </p>
             </Card>
 
@@ -199,7 +250,7 @@ const Dashboard = ({ user }: { user: User }) => {
             </Card>
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid gap-6 lg:grid-cols-3">
 
             {/* Error breakdown */}
             <Card className="border-border bg-card p-6">
@@ -308,6 +359,89 @@ const Dashboard = ({ user }: { user: User }) => {
                 </div>
               )}
             </Card>
+
+            {/* Recap Quiz */}
+            <Card className="border-border bg-card p-6">
+              <div className="mb-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <BrainCircuit className="h-4 w-4 text-primary" />
+                  <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Recap Quiz</p>
+                </div>
+                {quiz && !quiz.finished && (
+                  <span className="text-xs text-muted-foreground">{quiz.current + 1} / {quiz.questions.length}</span>
+                )}
+              </div>
+
+              {!quiz ? (
+                <div className="flex flex-col items-center gap-3 py-4 text-center">
+                  <p className="text-sm text-muted-foreground">Test yourself on your previous concepts.</p>
+                  <Button
+                    size="sm"
+                    className="bg-primary hover:bg-primary/90"
+                    onClick={startQuiz}
+                    disabled={quizLoading || loading || !data?.totalScans}
+                  >
+                    {quizLoading ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null}
+                    {quizLoading ? "Generating..." : "Start Quiz"}
+                  </Button>
+                </div>
+              ) : quiz.finished ? (
+                <div className="flex flex-col items-center gap-3 py-4 text-center">
+                  <p className="text-2xl font-extrabold text-foreground">{quiz.score} / {quiz.questions.length}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {quiz.score === quiz.questions.length ? "Perfect score!" : quiz.score >= quiz.questions.length / 2 ? "Good work. Keep going." : "Keep practising. You'll get there."}
+                  </p>
+                  <Button size="sm" variant="outline" className="border-border mt-1" onClick={() => setQuiz(null)}>
+                    Try again
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-primary mb-2">{quiz.questions[quiz.current].topic}</p>
+                    <p className="text-sm font-medium text-foreground">{quiz.questions[quiz.current].question}</p>
+                  </div>
+                  <div className="space-y-2">
+                    {quiz.questions[quiz.current].options.map((opt, i) => {
+                      const answered = quiz.selected !== null;
+                      const isCorrect = i === quiz.questions[quiz.current].correct;
+                      const isSelected = i === quiz.selected;
+                      return (
+                        <button
+                          key={i}
+                          onClick={() => selectAnswer(i)}
+                          disabled={answered}
+                          className={`flex items-center gap-2 w-full rounded-lg border px-4 py-2.5 text-left text-sm transition-colors ${
+                            !answered
+                              ? "border-border bg-secondary hover:border-primary/50 hover:bg-accent"
+                              : isCorrect
+                              ? "border-green-500/50 bg-green-500/10 text-foreground"
+                              : isSelected
+                              ? "border-destructive/50 bg-destructive/10 text-foreground"
+                              : "border-border bg-secondary text-muted-foreground"
+                          }`}
+                        >
+                          {answered && isCorrect && <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-green-500" />}
+                          {answered && isSelected && !isCorrect && <XCircle className="h-3.5 w-3.5 shrink-0 text-destructive" />}
+                          {opt}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {quiz.selected !== null && (
+                    <div className="space-y-3">
+                      <p className="text-xs text-muted-foreground">{quiz.questions[quiz.current].explanation}</p>
+                      <div className="flex justify-end">
+                        <Button size="sm" className="bg-primary hover:bg-primary/90" onClick={nextQuestion}>
+                          {quiz.current === quiz.questions.length - 1 ? "Finish" : "Next"}
+                          <ArrowRight className="ml-2 h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </Card>
           </div>
 
           {/* Streaks */}
@@ -339,7 +473,13 @@ const Dashboard = ({ user }: { user: User }) => {
                 <div
                   key={i}
                   className={`h-2.5 flex-1 rounded-full transition-colors ${
-                    i < (data?.loginStreak ?? 0) ? "bg-primary" : "bg-secondary"
+                    i === 6
+                      ? i < (data?.loginStreak ?? 0)
+                        ? "bg-yellow-400"
+                        : "bg-yellow-400/20"
+                      : i < (data?.loginStreak ?? 0)
+                      ? "bg-primary"
+                      : "bg-secondary"
                   }`}
                 />
               ))}

@@ -7,37 +7,57 @@ import PageTransition from "@/components/PageTransition";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+type PlanFeature = { text: string; included: boolean };
+
 const plans = [
   {
     id: "shallow",
     name: "Shallow",
     price: "0",
-    cadence: "/mo",
-    subtitle: "Try the core diagnostic loop",
-    features: ["3 AI scans per day", "Full diagnostic report", "Practice questions"],
+    cadence: "/month",
+    subtitle: "Try the core diagnostic loop.",
+    features: [
+      { text: "3 scans per day", included: true },
+      { text: "Targeted questions", included: false },
+      { text: "Recap quizzes", included: false },
+      { text: "Quiz customization", included: false },
+      { text: "Underlying concepts", included: false },
+    ] as PlanFeature[],
     cta: "Start Free",
     ctaLink: "/signup",
     featured: false,
-  },
-  {
-    id: "intermediate",
-    name: "Intermediate",
-    price: "9.99",
-    cadence: "/month",
-    subtitle: "For active tutors and students who want to get ahead.",
-    features: ["15 AI scans per day (5×)", "5× more practice questions", "Full scan history", "Learning dashboard"],
-    cta: "Upgrade to Intermediate",
-    ctaLink: null,
-    featured: true,
   },
   {
     id: "deep",
     name: "Deep",
     price: "14.99",
     cadence: "/month",
-    subtitle: "For power users who want no limits.",
-    features: ["Everything in Intermediate", "Unlimited scans", "Unlimited practice questions"],
+    subtitle: "For students with the mentality to win.",
+    features: [
+      { text: "Unlimited scans", included: true },
+      { text: "Unlimited targeted questions", included: true },
+      { text: "Unlimited recap quizzes", included: true },
+      { text: "Quiz customization", included: true },
+      { text: "Underlying concepts", included: true },
+    ] as PlanFeature[],
     cta: "Upgrade to Deep",
+    ctaLink: null,
+    featured: true,
+  },
+  {
+    id: "intermediate",
+    name: "Intermediate",
+    price: "9.99",
+    cadence: "/month",
+    subtitle: "For active students who want to get ahead.",
+    features: [
+      { text: "10 scans per day", included: true },
+      { text: "3 targeted questions per scan", included: true },
+      { text: "1 recap quiz a day", included: true },
+      { text: "Quiz customization", included: true },
+      { text: "Underlying concepts", included: true },
+    ] as PlanFeature[],
+    cta: "Upgrade to Intermediate",
     ctaLink: null,
     featured: false,
   },
@@ -111,11 +131,13 @@ const Pricing = () => {
               return (
                 <Card
                   key={plan.id}
-                  className={`flex flex-col border p-8 transition-all w-full ${
+                  className={`flex flex-col border transition-all w-full ${
+                    plan.id === "deep" ? "p-10 scale-[1.04]" : plan.id === "intermediate" ? "p-9 scale-[1.02]" : "p-8"
+                  } ${
                     isActivePlan
                       ? "border-primary bg-primary/5 shadow-xl shadow-primary/20"
                       : plan.featured
-                      ? "border-primary/40 bg-primary/5 shadow-lg shadow-primary/10"
+                      ? "border-yellow-400/40 bg-yellow-400/5 shadow-lg shadow-yellow-400/10"
                       : "border-border bg-card"
                   }`}
                 >
@@ -127,24 +149,26 @@ const Pricing = () => {
                         Active
                       </span>
                     ) : plan.featured ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-yellow-400/20 px-3 py-1 text-xs font-semibold text-yellow-400">
                         <Sparkles className="h-3 w-3" />
                         Popular
                       </span>
                     ) : null}
                   </div>
 
-                  <p className="text-sm text-muted-foreground">{plan.subtitle}</p>
+                  <p className="min-h-[2.5rem] text-sm text-muted-foreground">{plan.subtitle}</p>
                   <div className="mt-6 h-14 flex items-end">
                     <span className="text-4xl font-extrabold text-foreground">${plan.price}</span>
                     <span className="ml-1 mb-1 text-sm text-muted-foreground">{plan.cadence}</span>
                   </div>
 
-                  <ul className="mt-8 flex-1 space-y-3 text-sm text-muted-foreground">
+                  <ul className="mt-8 flex-1 space-y-3 text-sm">
                     {plan.features.map((feature) => (
-                      <li key={feature} className="flex items-start gap-2">
-                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                        <span>{feature}</span>
+                      <li key={feature.text} className="flex items-start gap-2">
+                        {feature.included
+                          ? <Check className={`mt-0.5 h-4 w-4 shrink-0 ${plan.featured ? "text-yellow-400" : "text-primary"}`} />
+                          : <X className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/40" />}
+                        <span className={feature.included ? "text-muted-foreground" : "text-muted-foreground/40"}>{feature.text}</span>
                       </li>
                     ))}
                   </ul>
@@ -168,7 +192,7 @@ const Pricing = () => {
                     <Button
                       onClick={() => handleUpgrade(plan.id)}
                       disabled={loadingPlan === plan.id}
-                      className="mt-8 w-full bg-primary hover:bg-primary/90"
+                      className={`mt-8 w-full ${plan.featured ? "bg-yellow-400 hover:bg-yellow-400/90 text-black" : "bg-primary hover:bg-primary/90"}`}
                     >
                       {loadingPlan === plan.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       {plan.cta}
