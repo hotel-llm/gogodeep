@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { Plus, Folder, ChevronRight, ChevronDown, Trash2, FolderOpen } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -286,6 +287,7 @@ function ScanRow({
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!open) return;
@@ -296,10 +298,24 @@ function ScanRow({
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
+  function handleRowClick(e: React.MouseEvent) {
+    // Don't navigate if clicking the folder button or its dropdown
+    if ((e.target as HTMLElement).closest("[data-folder-btn]")) return;
+    const raw = localStorage.getItem(`gogodeep_scan_${scan.id}`);
+    if (!raw) return; // no stored data for old scans
+    try {
+      const stored = JSON.parse(raw);
+      navigate("/report", { state: stored });
+    } catch {
+      // ignore
+    }
+  }
+
   return (
     <div
       ref={ref}
-      className="group relative flex min-w-0 items-start gap-1 rounded-md px-1 py-1.5 hover:bg-secondary/60"
+      onClick={handleRowClick}
+      className="group relative flex min-w-0 cursor-pointer items-start gap-1 rounded-md px-1 py-1.5 hover:bg-secondary/60"
     >
       <div className="min-w-0 flex-1">
         <p className="truncate text-xs font-medium text-foreground">{scanLabel(scan)}</p>
@@ -311,7 +327,8 @@ function ScanRow({
       </div>
 
       <button
-        onClick={() => setOpen((v) => !v)}
+        data-folder-btn
+        onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
         className="mt-0.5 hidden shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground group-hover:block"
         title="Move to folder"
       >

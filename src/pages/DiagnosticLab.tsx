@@ -1,6 +1,6 @@
 import { useMemo, useState, useCallback, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Upload, Loader2, Microscope, ArrowRight, Lock } from "lucide-react";
+import { Upload, Loader2, Microscope, ArrowRight, Lock, Search, BookOpen } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -12,12 +12,15 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 
 const SCAN_STEPS = ["Uploading", "Analysis", "Mapping gaps"] as const;
 
+type ScanMode = "guide" | "identify";
+
 const DiagnosticLab = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [scanStep, setScanStep] = useState(0);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [showModeDialog, setShowModeDialog] = useState(false);
   const [remainingCredits, setRemainingCredits] = useState<number | null>(null);
   const [showLoginGate, setShowLoginGate] = useState(false);
   const pendingNavRef = useRef<{ imageUrl: string; diagnosis: unknown } | null>(null);
@@ -25,7 +28,7 @@ const DiagnosticLab = () => {
   const queryClient = useQueryClient();
 
   const analyzeImage = useCallback(
-    async (file: File) => {
+    async (file: File, mode: ScanMode) => {
       setIsAnalyzing(true);
       setScanStep(0);
 
@@ -47,7 +50,7 @@ const DiagnosticLab = () => {
         );
 
         const { data, error } = await supabase.functions.invoke("diagnose-image", {
-          body: { image: base64, mimeType: file.type },
+          body: { image: base64, mimeType: file.type, mode },
         });
 
         stepTimers.forEach(clearTimeout);
@@ -72,7 +75,7 @@ const DiagnosticLab = () => {
           toast.error(
             inputStatus === "blurry"
               ? "Image is too blurry to read. Please retake a clearer photo."
-              : "That doesn't look like student STEM working. Please upload a clear PNG or JPG of the work."
+              : "That doesn't look like a STEM image. Please upload a clear PNG or JPG."
           );
           setIsAnalyzing(false);
           setScanStep(0);
@@ -83,16 +86,33 @@ const DiagnosticLab = () => {
           data: { user },
         } = await supabase.auth.getUser();
 
-        await (supabase as any).from("error_logs").insert({
-          student_id: user?.id ?? null,
-          subject: "STEM",
-          topic: (data as any)?.error_tag ?? null,
-          specific_error_tag: (data as any)?.error_tag ?? null,
-          error_category: (data as any)?.error_category ?? null,
-        });
+        const topic = mode === "guide"
+          ? (data as any)?.question_summary ?? null
+          : (data as any)?.error_tag ?? null;
+
+        const { data: insertedScan } = await (supabase as any)
+          .from("error_logs")
+          .insert({
+            student_id: user?.id ?? null,
+            subject: "STEM",
+            topic,
+            specific_error_tag: mode === "identify" ? ((data as any)?.error_tag ?? null) : null,
+            error_category: mode === "identify" ? ((data as any)?.error_category ?? null) : null,
+          })
+          .select("id")
+          .single();
 
         if (user?.id) {
           await (supabase as any).rpc("increment_scan_count", { user_id: user.id });
+        }
+
+        // Store full result in localStorage so sidebar can reload it
+        const scanId = insertedScan?.id;
+        if (scanId) {
+          localStorage.setItem(
+            `gogodeep_scan_${scanId}`,
+            JSON.stringify({ imageBase64: base64, mimeType: file.type, diagnosis: data, mode })
+          );
         }
 
         queryClient.invalidateQueries({ queryKey: ["history", "error_logs"] });
@@ -105,7 +125,7 @@ const DiagnosticLab = () => {
           return;
         }
 
-        navigate("/report", { state: { imageUrl: url, diagnosis: data } });
+        navigate("/report", { state: { imageUrl: url, diagnosis: data, mode, scanId } });
       } catch (err: unknown) {
         console.error("Analysis failed:", err);
         const msg = err instanceof Error ? err.message : String(err);
@@ -114,7 +134,7 @@ const DiagnosticLab = () => {
         setScanStep(0);
       }
     },
-    [navigate]
+    [navigate, queryClient]
   );
 
   const canAnalyze = useMemo(() => !!selectedFile && !isAnalyzing, [selectedFile, isAnalyzing]);
@@ -140,6 +160,16 @@ const DiagnosticLab = () => {
     }
     setSelectedFile(file);
   }, []);
+
+  const handleRunScan = () => {
+    if (!selectedFile) { toast.error("Select an image first."); return; }
+    setShowModeDialog(true);
+  };
+
+  const handleModeSelect = (mode: ScanMode) => {
+    setShowModeDialog(false);
+    if (selectedFile) analyzeImage(selectedFile, mode);
+  };
 
   return (
     <EducatorLayout title="Diagnostic Lab" subtitle="Upload a question for us to guide you through, or upload your working on a difficult question for us to identify the error.">
@@ -201,10 +231,7 @@ const DiagnosticLab = () => {
               <Button
                 type="button"
                 className="bg-primary hover:bg-primary/90"
-                onClick={() => {
-                  if (!selectedFile) { toast.error("Select an image first."); return; }
-                  analyzeImage(selectedFile);
-                }}
+                onClick={handleRunScan}
                 disabled={!canAnalyze}
               >
                 <Microscope className="mr-2 h-4 w-4" />
@@ -214,6 +241,40 @@ const DiagnosticLab = () => {
           </div>
         </div>
       </div>
+
+      {/* Mode selection dialog */}
+      <Dialog open={showModeDialog} onOpenChange={setShowModeDialog}>
+        <DialogContent className="border border-border bg-card sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">What do you need?</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              Choose how you want us to analyse your image.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-2 grid grid-cols-2 gap-3">
+            <button
+              onClick={() => handleModeSelect("guide")}
+              className="flex flex-col items-start gap-3 rounded-xl border border-border bg-secondary/50 p-5 text-left transition-all hover:border-primary/60 hover:bg-primary/5"
+            >
+              <BookOpen className="h-6 w-6 text-primary" />
+              <div>
+                <p className="font-semibold text-foreground">Guide me</p>
+                <p className="mt-1 text-xs text-muted-foreground">I have a question I need help solving step by step.</p>
+              </div>
+            </button>
+            <button
+              onClick={() => handleModeSelect("identify")}
+              className="flex flex-col items-start gap-3 rounded-xl border border-border bg-secondary/50 p-5 text-left transition-all hover:border-primary/60 hover:bg-primary/5"
+            >
+              <Search className="h-6 w-6 text-primary" />
+              <div>
+                <p className="font-semibold text-foreground">Find my error</p>
+                <p className="mt-1 text-xs text-muted-foreground">I attempted a question and want to know where I went wrong.</p>
+              </div>
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showUpgradeModal} onOpenChange={setShowUpgradeModal}>
         <DialogContent className="border border-border bg-card sm:max-w-md">
@@ -226,9 +287,6 @@ const DiagnosticLab = () => {
               You're out of scan credits{remainingCredits !== null ? ` (${remainingCredits} left)` : ""}. Upgrade for unlimited scans.
             </DialogDescription>
           </DialogHeader>
-          <div className="rounded-lg border border-border bg-secondary p-4 text-sm text-muted-foreground">
-            Pro includes unlimited scans, full history, and a learning dashboard.
-          </div>
           <div className="mt-4 flex justify-end gap-2">
             <Button variant="outline" className="border-border" onClick={() => setShowUpgradeModal(false)}>Not now</Button>
             <Button className="bg-primary hover:bg-primary/90" onClick={() => navigate("/pricing")}>
