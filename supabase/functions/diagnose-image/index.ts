@@ -14,111 +14,105 @@ serve(async (req) => {
   try {
     const { image, mimeType } = await req.json();
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!ANTHROPIC_API_KEY) {
       return new Response(
-        JSON.stringify({ error: "LOVABLE_API_KEY is not configured" }),
+        JSON.stringify({ error: "ANTHROPIC_API_KEY is not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const systemPrompt = `You are an expert STEM tutor specializing in diagnosing errors in student work (math, physics, chemistry).
-
-Analyze the uploaded image of a student's incorrect working. Identify the EXACT point where the logic breaks down.
-
-If the image is NOT a photo of STEM student working (e.g. a cat, a meme, scenery) OR it is too blurry to read, you MUST still return structured output, but set input_status accordingly and make the explanation a clear instruction to re-upload a readable photo of the student's work.
-
-You MUST respond using the following tool.`;
-
-    const userPrompt = `Analyze this student's work. Find the specific error, categorize it, explain what went wrong in 2-3 sentences, and generate 3 targeted practice problems that test exactly that weakness.`;
-
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 1024,
+        system: `You are an expert STEM tutor specializing in diagnosing errors in student work (math, physics, chemistry).
+
+Analyze the uploaded image of a student's incorrect working. Identify the EXACT point where the logic breaks down.
+
+If the image is NOT a photo of STEM student working (e.g. a cat, a meme, scenery) OR it is too blurry to read, you MUST still use the tool, but set input_status accordingly and make the explanation a clear instruction to re-upload a readable photo of the student's work.
+
+You MUST respond using the diagnose_error tool.`,
         messages: [
-          { role: "system", content: systemPrompt },
           {
             role: "user",
             content: [
-              { type: "text", text: userPrompt },
               {
-                type: "image_url",
-                image_url: {
-                  url: `data:${mimeType || "image/png"};base64,${image}`,
+                type: "image",
+                source: {
+                  type: "base64",
+                  media_type: mimeType || "image/png",
+                  data: image,
                 },
+              },
+              {
+                type: "text",
+                text: "Analyze this student's work. Find the specific error, categorize it, explain what went wrong in 2-3 sentences, and generate 3 targeted practice problems that test exactly that weakness.",
               },
             ],
           },
         ],
         tools: [
           {
-            type: "function",
-            function: {
-              name: "diagnose_error",
-              description: "Return a structured diagnosis of the student's error with practice problems.",
-              parameters: {
-                type: "object",
-                properties: {
-                  error_category: {
-                    type: "string",
-                    enum: ["Conceptual", "Procedural", "Computational", "Notational"],
-                    description: "The broad category of the error",
-                  },
-                  error_tag: {
-                    type: "string",
-                    description: "A specific short label for the error, e.g. 'Unit Conversion', 'Sign Error', 'Formula Rearrangement'",
-                  },
-                  explanation: {
-                    type: "string",
-                    description: "A clear 2-3 sentence explanation of exactly where and why the logic broke down",
-                  },
-                  practice_problems: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        id: { type: "number" },
-                        question: { type: "string" },
-                        answer: { type: "string" },
-                      },
-                      required: ["id", "question", "answer"],
-                    },
-                    description: "Exactly 3 practice problems targeting this specific weakness",
-                  },
-                  input_status: {
-                    type: "string",
-                    enum: ["ok", "blurry", "not_stem"],
-                    description: "Set to 'ok' for readable STEM work; otherwise indicate why the input cannot be diagnosed.",
-                  },
+            name: "diagnose_error",
+            description: "Return a structured diagnosis of the student's error with practice problems.",
+            input_schema: {
+              type: "object",
+              properties: {
+                error_category: {
+                  type: "string",
+                  enum: ["Conceptual", "Procedural", "Computational", "Notational"],
+                  description: "The broad category of the error",
                 },
-                required: ["error_category", "error_tag", "explanation", "practice_problems"],
+                error_tag: {
+                  type: "string",
+                  description: "A specific short label for the error, e.g. 'Unit Conversion', 'Sign Error', 'Formula Rearrangement'",
+                },
+                explanation: {
+                  type: "string",
+                  description: "A clear 2-3 sentence explanation of exactly where and why the logic broke down",
+                },
+                practice_problems: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      id: { type: "number" },
+                      question: { type: "string" },
+                      answer: { type: "string" },
+                    },
+                    required: ["id", "question", "answer"],
+                  },
+                  description: "Exactly 3 practice problems targeting this specific weakness",
+                },
+                input_status: {
+                  type: "string",
+                  enum: ["ok", "blurry", "not_stem"],
+                  description: "Set to 'ok' for readable STEM work; otherwise indicate why the input cannot be diagnosed.",
+                },
               },
+              required: ["error_category", "error_tag", "explanation", "practice_problems", "input_status"],
             },
           },
         ],
-        tool_choice: { type: "function", function: { name: "diagnose_error" } },
+        tool_choice: { type: "tool", name: "diagnose_error" },
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
+      console.error("Anthropic API error:", response.status, errorText);
 
       if (response.status === 429) {
         return new Response(
           JSON.stringify({ error: "Rate limited. Please try again in a moment." }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "Credits exhausted. Please add funds in Settings." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
@@ -129,18 +123,16 @@ You MUST respond using the following tool.`;
     }
 
     const data = await response.json();
-    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+    const toolUse = data.content?.find((block: any) => block.type === "tool_use");
 
-    if (!toolCall) {
+    if (!toolUse) {
       return new Response(
         JSON.stringify({ error: "AI did not return structured output" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const diagnosis = JSON.parse(toolCall.function.arguments);
-
-    return new Response(JSON.stringify(diagnosis), {
+    return new Response(JSON.stringify(toolUse.input), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {

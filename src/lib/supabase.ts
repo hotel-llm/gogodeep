@@ -10,14 +10,13 @@ export async function checkScanCredits(): Promise<ScanCreditState> {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // If there is no signed-in user yet, allow local usage flow.
   if (!user) {
     return { allowed: true, credits: null };
   }
 
   const { data, error } = await (supabase as any)
     .from("profiles")
-    .select("scan_credits, plan")
+    .select("daily_scan_count, scan_reset_date, plan, bonus_scans")
     .eq("id", user.id)
     .single();
 
@@ -25,12 +24,24 @@ export async function checkScanCredits(): Promise<ScanCreditState> {
     return { allowed: true, credits: null };
   }
 
-  // Pro users have unlimited scans
-  if ((data as any)?.plan === "pro") {
-    return { allowed: true, credits: null };
+  const plan = (data as any)?.plan ?? "free";
+
+  if (plan === "deep") return { allowed: true, credits: null };
+
+  const today = new Date().toISOString().split("T")[0];
+  const resetDate = (data as any)?.scan_reset_date ?? "";
+  const isNewDay = resetDate < today;
+
+  if (isNewDay) {
+    await (supabase as any)
+      .from("profiles")
+      .update({ daily_scan_count: 0, scan_reset_date: today })
+      .eq("id", user.id);
   }
 
-  const credits = (data as any)?.scan_credits ?? 0;
-  return { allowed: credits > 0, credits };
+  const used = isNewDay ? 0 : ((data as any)?.daily_scan_count ?? 0);
+  const bonusScans = (data as any)?.bonus_scans ?? 0;
+  const limit = plan === "intermediate" ? 15 : 3;
+  const remaining = Math.max(0, limit - used) + bonusScans;
+  return { allowed: remaining > 0, credits: remaining };
 }
-

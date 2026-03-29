@@ -1,6 +1,6 @@
 import { useMemo, useState, useCallback, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Upload, Loader2, Microscope, ArrowRight, Lock, ScanLine } from "lucide-react";
+import { Upload, Loader2, Microscope, ArrowRight, Lock } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -91,6 +91,10 @@ const DiagnosticLab = () => {
           error_category: (data as any)?.error_category ?? null,
         });
 
+        if (user?.id) {
+          await (supabase as any).rpc("increment_scan_count", { user_id: user.id });
+        }
+
         queryClient.invalidateQueries({ queryKey: ["history", "error_logs"] });
 
         if (!user?.id) {
@@ -138,24 +142,9 @@ const DiagnosticLab = () => {
   }, []);
 
   return (
-    <EducatorLayout title="Diagnostic Lab" subtitle="Upload your working — a test problem, handwritten notes, whiteboard, or typed solution.">
+    <EducatorLayout title="Diagnostic Lab" subtitle="Upload a question for us to guide you through, or upload your working on a difficult question for us to identify the error.">
       <div className="mx-auto max-w-2xl">
         <div className="rounded-xl border border-border bg-card">
-          <div className="border-b border-border p-5">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Diagnostic bay</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Well-lit photo, full page in frame. PNG or JPG up to ~10 MB.
-                </p>
-              </div>
-              <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary px-3 py-2 text-xs text-muted-foreground">
-                <ScanLine className="h-3.5 w-3.5 shrink-0 text-primary" />
-                Structured report + practice
-              </div>
-            </div>
-          </div>
-
           <div className="p-5 sm:p-6">
             <label
               onDragOver={(e) => { e.preventDefault(); if (!isAnalyzing) setIsDragging(true); }}
@@ -189,11 +178,11 @@ const DiagnosticLab = () => {
                   )}
                   <div>
                     <p className="text-sm font-semibold tracking-tight text-foreground">
-                      {selectedFile ? selectedFile.name : "Place work in the bay"}
+                      {selectedFile ? selectedFile.name : "Drop a file or tap to browse"}
                     </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {selectedFile ? "Ready to scan — click Run scan below" : "Drop a file or tap to browse"}
-                    </p>
+                    {selectedFile && (
+                      <p className="mt-1 text-xs text-muted-foreground">Ready to scan. Click Run scan below.</p>
+                    )}
                   </div>
                 </div>
               )}
@@ -261,7 +250,7 @@ const DiagnosticLab = () => {
           <div className="mt-2 flex flex-col gap-2">
             <Link to="/signup" state={{ pendingReport: pendingNavRef.current }}>
               <Button className="w-full bg-primary hover:bg-primary/90">
-                Sign up free — see my results
+                Sign up free to see my results
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>

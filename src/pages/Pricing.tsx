@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check, Loader2, Sparkles, Users } from "lucide-react";
+import { Check, Loader2, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Link, useNavigate } from "react-router-dom";
@@ -9,7 +9,8 @@ import { toast } from "sonner";
 
 const plans = [
   {
-    name: "Free",
+    id: "shallow",
+    name: "Shallow",
     price: "0",
     cadence: "/mo",
     subtitle: "Try the core diagnostic loop",
@@ -19,30 +20,32 @@ const plans = [
     featured: false,
   },
   {
-    name: "Pro",
+    id: "intermediate",
+    name: "Intermediate",
     price: "9.99",
     cadence: "/month",
     subtitle: "For active tutors and students who want to get ahead.",
-    features: ["Everything in Free", "Unlimited scans", "Save scan history", "Learning dashboard"],
-    cta: "Upgrade to Pro",
+    features: ["15 AI scans per day (5×)", "5× more practice questions", "Full scan history", "Learning dashboard"],
+    cta: "Upgrade to Intermediate",
     ctaLink: null,
     featured: true,
   },
   {
-    name: "School / Team",
-    price: "Custom",
-    cadence: "",
-    subtitle: "For schools and multi-student teams",
-    features: ["Bulk student licenses", "Teacher dashboard", "Analytics for learning gaps", "SSO integration"],
-    cta: "Contact Us",
-    ctaLink: "/contact",
+    id: "deep",
+    name: "Deep",
+    price: "14.99",
+    cadence: "/month",
+    subtitle: "For power users who want no limits.",
+    features: ["Everything in Intermediate", "Unlimited scans", "Unlimited practice questions"],
+    cta: "Upgrade to Deep",
+    ctaLink: null,
     featured: false,
   },
 ];
 
 const Pricing = () => {
   const navigate = useNavigate();
-  const [loadingPro, setLoadingPro] = useState(false);
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [userPlan, setUserPlan] = useState<string | null>(null);
 
   useEffect(() => {
@@ -57,17 +60,17 @@ const Pricing = () => {
     });
   }, []);
 
-  const handleProUpgrade = async () => {
+  const handleUpgrade = async (planId: string) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       navigate("/signup");
       return;
     }
 
-    setLoadingPro(true);
+    setLoadingPlan(planId);
     try {
       const { data, error } = await supabase.functions.invoke("create-checkout", {
-        body: { userId: user.id, email: user.email },
+        body: { userId: user.id, email: user.email, planId },
       });
 
       if (error) throw error;
@@ -80,11 +83,11 @@ const Pricing = () => {
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       toast.error(`Checkout failed: ${message}`);
-      setLoadingPro(false);
+      setLoadingPlan(null);
     }
   };
 
-  const isPro = userPlan === "pro";
+  const isPaid = userPlan === "intermediate" || userPlan === "deep";
 
   return (
     <PageTransition>
@@ -102,12 +105,13 @@ const Pricing = () => {
 
           <div className="mx-auto mt-14 grid max-w-5xl gap-6 md:grid-cols-3">
             {plans.map((plan) => {
-              const isActivePlan = plan.name === "Pro" && isPro;
+              const isActivePlan = userPlan === plan.id;
+              const isShallowOnPaidPlan = plan.id === "shallow" && isPaid;
 
               return (
                 <Card
-                  key={plan.name}
-                  className={`flex flex-col border p-8 transition-all ${
+                  key={plan.id}
+                  className={`flex flex-col border p-8 transition-all w-full ${
                     isActivePlan
                       ? "border-primary bg-primary/5 shadow-xl shadow-primary/20"
                       : plan.featured
@@ -131,15 +135,9 @@ const Pricing = () => {
                   </div>
 
                   <p className="text-sm text-muted-foreground">{plan.subtitle}</p>
-                  <div className="mt-6">
-                    {plan.price === "Custom" ? (
-                      <span className="text-4xl font-extrabold text-foreground">Custom</span>
-                    ) : (
-                      <>
-                        <span className="text-4xl font-extrabold text-foreground">${plan.price}</span>
-                        <span className="ml-1 text-sm text-muted-foreground">{plan.cadence}</span>
-                      </>
-                    )}
+                  <div className="mt-6 h-14 flex items-end">
+                    <span className="text-4xl font-extrabold text-foreground">${plan.price}</span>
+                    <span className="ml-1 mb-1 text-sm text-muted-foreground">{plan.cadence}</span>
                   </div>
 
                   <ul className="mt-8 flex-1 space-y-3 text-sm text-muted-foreground">
@@ -151,25 +149,28 @@ const Pricing = () => {
                     ))}
                   </ul>
 
-                  {plan.ctaLink ? (
+                  {isShallowOnPaidPlan ? (
+                    <div className="mt-8 flex justify-center">
+                      <X className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                  ) : plan.ctaLink ? (
                     <Link to={plan.ctaLink}>
                       <Button className="mt-8 w-full bg-secondary text-foreground hover:bg-accent">
-                        {plan.name === "School / Team" && <Users className="mr-2 h-4 w-4" />}
                         {plan.cta}
                       </Button>
                     </Link>
                   ) : isActivePlan ? (
                     <Button disabled className="mt-8 w-full bg-primary/20 text-primary cursor-default">
                       <Check className="mr-2 h-4 w-4" />
-                      You're on Pro
+                      Current plan
                     </Button>
                   ) : (
                     <Button
-                      onClick={handleProUpgrade}
-                      disabled={loadingPro}
+                      onClick={() => handleUpgrade(plan.id)}
+                      disabled={loadingPlan === plan.id}
                       className="mt-8 w-full bg-primary hover:bg-primary/90"
                     >
-                      {loadingPro && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      {loadingPlan === plan.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       {plan.cta}
                     </Button>
                   )}
@@ -177,6 +178,14 @@ const Pricing = () => {
               );
             })}
           </div>
+
+          <p className="mt-12 text-center text-sm text-muted-foreground">
+            For schools and teams,{" "}
+            <Link to="/contact" className="text-primary underline underline-offset-2 hover:text-primary/80">
+              contact us
+            </Link>
+            .
+          </p>
         </div>
       </div>
     </PageTransition>

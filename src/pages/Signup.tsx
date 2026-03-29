@@ -106,7 +106,7 @@ const Signup = () => {
                 <label htmlFor="signup-username" className="text-xs font-medium text-muted-foreground">Username</label>
                 <div className="relative">
                   <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input id="signup-username" type="text" autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} className="border-border bg-secondary pl-9" placeholder="yourname" required />
+                  <Input id="signup-username" type="text" autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} className="border-border bg-secondary pl-9" placeholder="Your name" required />
                 </div>
               </div>
 

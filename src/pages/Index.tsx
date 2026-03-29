@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
-import { Camera, Microscope, Route, ArrowRight, ScanLine, TriangleAlert, BookOpen, TrendingUp, Upload, Loader2 } from "lucide-react";
+import { Camera, Microscope, Route, ArrowRight, ScanLine, TriangleAlert, BookOpen, TrendingUp, Upload, Loader2, Flame, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import PageTransition from "@/components/PageTransition";
@@ -18,19 +18,24 @@ const steps = [
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 type ErrorLog = {
+  id: string;
   error_category: string | null;
   specific_error_tag: string | null;
   topic: string | null;
+  created_at: string | null;
 };
 
 type DashboardData = {
   totalScans: number;
-  scanCredits: number | null;
+  creditsLeft: number | null;
   plan: string;
   conceptualCount: number;
   conceptsLearned: number;
   topTags: { tag: string; count: number }[];
   recentTopics: string[];
+  recentScans: { id: string; label: string; created_at: string | null }[];
+  loginStreak: number;
+  bonusScans: number;
 };
 
 function useUtcResetCountdown() {
@@ -60,7 +65,7 @@ const Dashboard = ({ user }: { user: User }) => {
   // Show success toast when redirected back from Stripe
   useEffect(() => {
     if (new URLSearchParams(location.search).get("upgraded") === "1") {
-      toast.success("You're now on Pro — enjoy unlimited scans!");
+      toast.success("Plan activated. Enjoy your upgraded scans!");
       window.history.replaceState({}, "", "/");
     }
   }, [location.search]);
@@ -68,13 +73,37 @@ const Dashboard = ({ user }: { user: User }) => {
   useEffect(() => {
     const load = async () => {
       const [logsRes, profileRes] = await Promise.all([
-        (supabase as any).from("error_logs").select("error_category, specific_error_tag, topic").eq("student_id", user.id),
-        (supabase as any).from("profiles").select("scan_credits, plan").eq("id", user.id).single(),
+        (supabase as any).from("error_logs").select("id, error_category, specific_error_tag, topic, created_at").eq("student_id", user.id).order("created_at", { ascending: false }),
+        (supabase as any).from("profiles").select("daily_scan_count, scan_reset_date, plan, login_streak, last_login_date, bonus_scans").eq("id", user.id).single(),
       ]);
 
       const logs: ErrorLog[] = logsRes.data ?? [];
-      const scanCredits = profileRes.data?.scan_credits ?? null;
       const plan: string = profileRes.data?.plan ?? "free";
+      const today = new Date().toISOString().split("T")[0];
+      const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
+      const isNewDay = (profileRes.data?.scan_reset_date ?? "") < today;
+      if (isNewDay) {
+        await (supabase as any).from("profiles").update({ daily_scan_count: 0, scan_reset_date: today }).eq("id", user.id);
+      }
+      const used = isNewDay ? 0 : (profileRes.data?.daily_scan_count ?? 0);
+      const bonusScans: number = profileRes.data?.bonus_scans ?? 0;
+      const limit = plan === "deep" ? null : plan === "intermediate" ? 15 : 3;
+      const creditsLeft = limit === null ? null : Math.max(0, limit - used) + bonusScans;
+
+      // Streak logic
+      const lastLogin: string = profileRes.data?.last_login_date ?? "";
+      let loginStreak: number = profileRes.data?.login_streak ?? 0;
+      if (lastLogin < today) {
+        loginStreak = lastLogin === yesterday ? loginStreak + 1 : 1;
+        const streakUpdates: Record<string, unknown> = { last_login_date: today, login_streak: loginStreak };
+        if (loginStreak >= 7) {
+          loginStreak = 0;
+          streakUpdates.login_streak = 0;
+          streakUpdates.bonus_scans = bonusScans + 5;
+          toast.success("7-day streak! You've earned 5 bonus credits.");
+        }
+        await (supabase as any).from("profiles").update(streakUpdates).eq("id", user.id);
+      }
 
       const conceptualCount = logs.filter((l) => l.error_category?.toLowerCase() === "conceptual").length;
       const conceptsLearned = new Set(logs.map((l) => l.topic).filter(Boolean)).size;
@@ -89,13 +118,15 @@ const Dashboard = ({ user }: { user: User }) => {
         .slice(0, 5)
         .map(([tag, count]) => ({ tag, count }));
 
-      const recentTopics = logs
-        .map((l) => l.topic)
-        .filter(Boolean)
-        .slice(-3)
-        .reverse() as string[];
+      const recentTopics = logs.map((l) => l.topic).filter(Boolean).slice(0, 3) as string[];
 
-      setData({ totalScans: logs.length, scanCredits, plan, conceptualCount, conceptsLearned, topTags, recentTopics });
+      const recentScans = logs.slice(0, 8).map((l) => ({
+        id: l.id,
+        label: l.specific_error_tag ?? l.topic ?? "Unnamed scan",
+        created_at: l.created_at,
+      }));
+
+      setData({ totalScans: logs.length, creditsLeft, plan, conceptualCount, conceptsLearned, topTags, recentTopics, recentScans, loginStreak, bonusScans });
       setLoading(false);
     };
     load();
@@ -137,18 +168,17 @@ const Dashboard = ({ user }: { user: User }) => {
             <Card className="border-border bg-card p-5">
               <div className="flex items-start justify-between gap-2">
                 <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Credits Left</p>
-                {!loading && data?.plan !== "pro" && (
+                {!loading && data?.plan !== "deep" ? (
                   <Link to="/pricing" className="shrink-0 text-[10px] font-semibold text-primary hover:underline">Upgrade →</Link>
-                )}
-                {!loading && data?.plan === "pro" && (
-                  <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">Pro</span>
-                )}
+                ) : !loading ? (
+                  <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary capitalize">{data?.plan}</span>
+                ) : null}
               </div>
               <p className="mt-2 text-4xl font-extrabold text-foreground">
-                {loading ? "—" : data?.plan === "pro" ? "∞" : (data?.scanCredits ?? 3)}
+                {loading ? "—" : data?.creditsLeft === null ? "∞" : data?.creditsLeft}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                {data?.plan === "pro" ? "Unlimited scans" : `of 3 daily · resets in ${resetCountdown}`}
+                {data?.creditsLeft === null ? "Unlimited scans" : `of ${data?.plan === "intermediate" ? 15 : 3} daily · resets in ${resetCountdown}`}
               </p>
             </Card>
 
@@ -189,7 +219,13 @@ const Dashboard = ({ user }: { user: User }) => {
               ) : data?.totalScans === 0 ? (
                 <div className="flex flex-col items-center justify-center py-8 text-center">
                   <BookOpen className="h-8 w-8 text-muted-foreground/40" />
-                  <p className="mt-3 text-sm text-muted-foreground">No scans yet — run your first diagnosis to see your breakdown.</p>
+                  <p className="mt-3 text-sm text-muted-foreground">No scans yet. Run your first diagnosis to see your breakdown.</p>
+                  <Link to="/lab" className="mt-4 inline-block">
+                    <Button size="sm" className="gap-2 bg-primary hover:bg-primary/90">
+                      <ScanLine className="h-3.5 w-3.5" />
+                      Run your first scan
+                    </Button>
+                  </Link>
                 </div>
               ) : (
                 <div className="space-y-5">
@@ -230,11 +266,11 @@ const Dashboard = ({ user }: { user: User }) => {
                       <span className="text-muted-foreground">{data.totalScans} scans</span>
                     </div>
                     <div className="h-2.5 w-full overflow-hidden rounded-full bg-secondary">
-                      {data.scanCredits !== null && (
+                      {data.creditsLeft !== null && (
                         <div
                           className="h-full rounded-full bg-primary transition-all duration-700"
                           style={{
-                            width: `${Math.round((data.totalScans / (data.totalScans + data.scanCredits)) * 100)}%`,
+                            width: `${Math.round((data.totalScans / (data.totalScans + data.creditsLeft)) * 100)}%`,
                           }}
                         />
                       )}
@@ -244,11 +280,11 @@ const Dashboard = ({ user }: { user: User }) => {
               )}
             </Card>
 
-            {/* Top error tags */}
+            {/* Previous Concepts */}
             <Card className="border-border bg-card p-6">
               <div className="mb-5 flex items-center gap-2">
                 <Microscope className="h-4 w-4 text-primary" />
-                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Top Blindspots</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Previous Concepts</p>
               </div>
               {loading ? (
                 <div className="space-y-3">
@@ -256,43 +292,59 @@ const Dashboard = ({ user }: { user: User }) => {
                     <div key={i} className="h-10 w-full rounded-lg bg-secondary animate-pulse" />
                   ))}
                 </div>
-              ) : !data?.topTags.length ? (
+              ) : !data?.recentScans.length ? (
                 <div className="flex flex-col items-center justify-center py-8 text-center">
                   <BookOpen className="h-8 w-8 text-muted-foreground/40" />
-                  <p className="mt-3 text-sm text-muted-foreground">Your most common error patterns will appear here after your first scan.</p>
+                  <p className="mt-3 text-sm text-muted-foreground">Concepts from your scans will appear here.</p>
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {data.topTags.map(({ tag, count }, i) => (
-                    <div key={tag} className="flex items-center justify-between rounded-lg border border-border bg-secondary px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs font-bold text-muted-foreground">#{i + 1}</span>
-                        <span className="text-sm font-medium text-foreground">{tag}</span>
-                      </div>
-                      <span className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
-                        {count}×
-                      </span>
-                    </div>
+                  {data.recentScans.map((scan) => (
+                    <Link key={scan.id} to="/lab" className="flex items-center justify-between rounded-lg border border-border bg-secondary px-4 py-3 hover:bg-accent transition-colors">
+                      <span className="text-sm font-medium text-foreground truncate">{scan.label}</span>
+                      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground ml-2" />
+                    </Link>
                   ))}
                 </div>
               )}
             </Card>
           </div>
 
-          {/* CTA if no scans */}
-          {!loading && data?.totalScans === 0 && (
-            <Card className="mt-6 border-border bg-card p-8 text-center">
-              <Microscope className="mx-auto h-10 w-10 text-primary/60" />
-              <h2 className="mt-4 text-xl font-bold tracking-tight text-foreground">Run your first scan</h2>
-              <p className="mt-2 text-sm text-muted-foreground">Upload a photo of student work and get an instant misconception report.</p>
-              <Link to="/lab" className="mt-6 inline-block">
-                <Button className="gap-2 bg-primary hover:bg-primary/90">
-                  <ArrowRight className="h-4 w-4" />
-                  Go to Diagnostic Lab
-                </Button>
-              </Link>
-            </Card>
-          )}
+          {/* Streaks */}
+          <Card className="mt-6 border-border bg-card p-6">
+            <div className="mb-4 flex items-center gap-2">
+              <Flame className="h-4 w-4 text-primary" />
+              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Login Streak</p>
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-3xl font-extrabold text-foreground">
+                  {loading ? "—" : data?.loginStreak ?? 0}
+                  <span className="ml-1 text-base font-medium text-muted-foreground">/ 7 days</span>
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {loading ? "" : (data?.loginStreak ?? 0) >= 7
+                    ? "Streak complete! 5 bonus credits awarded."
+                    : `${7 - (data?.loginStreak ?? 0)} more day${7 - (data?.loginStreak ?? 0) === 1 ? "" : "s"} to earn 5 bonus credits`}
+                </p>
+              </div>
+              {!loading && (data?.bonusScans ?? 0) > 0 && (
+                <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                  +{data?.bonusScans} bonus
+                </span>
+              )}
+            </div>
+            <div className="mt-4 flex gap-2">
+              {Array.from({ length: 7 }).map((_, i) => (
+                <div
+                  key={i}
+                  className={`h-2.5 flex-1 rounded-full transition-colors ${
+                    i < (data?.loginStreak ?? 0) ? "bg-primary" : "bg-secondary"
+                  }`}
+                />
+              ))}
+            </div>
+          </Card>
 
         </div>
       </div>
@@ -448,7 +500,7 @@ const DemoPanel = () => {
               </div>
               <div className="flex flex-col justify-center gap-1.5">
                 <p className="text-xs leading-relaxed text-muted-foreground">
-                  You seem to have made a mistake — you applied u-substitution instead of integration by parts on ∫x·eˣdx.
+                  You seem to have made a mistake. You applied u-substitution instead of integration by parts on ∫x·eˣdx.
                 </p>
                 <p className="text-[11px] leading-relaxed text-muted-foreground/70">
                   When two unrelated functions multiply (here x and eˣ), use IBP: ∫u dv = uv − ∫v du.
@@ -507,7 +559,7 @@ const DemoPanel = () => {
               </div>
               <div className="flex flex-col justify-center gap-1.5">
                 <p className="text-xs leading-relaxed text-muted-foreground">
-                  You swapped sin and cos — you used v·sinθ for the horizontal component instead of v·cosθ.
+                  You swapped sin and cos. You used v·sinθ for the horizontal component instead of v·cosθ.
                 </p>
                 <p className="text-[11px] leading-relaxed text-muted-foreground/70">
                   Rule: vₓ = v cosθ (horizontal), vᵧ = v sinθ (vertical). The horizontal component always uses cos.

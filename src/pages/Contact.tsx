@@ -35,7 +35,7 @@ const Contact = () => {
     setIsLoading(false);
 
     if (dbError) {
-      setError("Something went wrong — please try again or email us directly at hello@gogodeep.com");
+      setError("Something went wrong. Please try again or email us directly at hello@gogodeep.com");
       return;
     }
 
@@ -52,7 +52,7 @@ const Contact = () => {
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Contact</p>
               <h1 className="mt-4 text-4xl font-extrabold tracking-tight text-foreground">Get in touch</h1>
               <p className="mt-4 text-base text-muted-foreground">
-                Questions about a plan, a bug, or anything else — we read every message.
+                Whether it's a plan question, a bug, or anything else, we read every message and usually take action within a week.
               </p>
             </div>
 
