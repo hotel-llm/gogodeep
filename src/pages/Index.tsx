@@ -487,6 +487,42 @@ const Dashboard = ({ user }: { user: User }) => {
 
 // ─── Landing page ─────────────────────────────────────────────────────────────
 
+const PHYSICS_STEPS = [
+  "Identify the known values: height h = 45 m, initial velocity u = 0, g = 9.8 m/s².",
+  "Choose the right kinematic equation: v² = u² + 2as, which simplifies to v² = 2gh.",
+  "Substitute values: v² = 2 × 9.8 × 45 = 882.",
+  "Take the square root: v = √882 ≈ 29.7 m/s.",
+  "State the final answer: the ball hits the ground at approximately 29.7 m/s.",
+];
+
+const PHYSICS_CONCEPT = "When an object is dropped from rest in free fall, only gravity acts on it. The kinematic equation v² = u² + 2as links velocity, acceleration, and displacement without needing time. With u = 0 and a = g, this simplifies to v = √(2gh). This equation is derived from the work-energy theorem: the gravitational potential energy mgh is fully converted to kinetic energy ½mv².";
+
+const PHYSICS_PRACTICE = [
+  {
+    q: "A ball is dropped from 80 m. Find its speed just before impact.",
+    steps: [
+      "Use v² = 2gh with h = 80 m and g = 9.8 m/s².",
+      "v² = 2 × 9.8 × 80 = 1568.",
+      "v = √1568 ≈ 39.6 m/s.",
+    ],
+  },
+  {
+    q: "From what height must a ball be dropped to reach 30 m/s on impact?",
+    steps: [
+      "Rearrange v² = 2gh for h: h = v²/(2g).",
+      "h = 30² / (2 × 9.8) = 900 / 19.6 ≈ 45.9 m.",
+    ],
+  },
+  {
+    q: "A stone is thrown downward at 5 m/s from 20 m. Find its speed on impact.",
+    steps: [
+      "Now u = 5 m/s, so use v² = u² + 2gh.",
+      "v² = 25 + 2 × 9.8 × 20 = 25 + 392 = 417.",
+      "v = √417 ≈ 20.4 m/s.",
+    ],
+  },
+];
+
 const DEMO_STEPS = [
   "Recognise two functions multiplied together: x and eˣ. This calls for integration by parts.",
   "Set u = x and dv = eˣ dx, so du = dx and v = eˣ.",
@@ -538,11 +574,11 @@ const DemoPanel = () => {
   const [revealedAnswers, setRevealedAnswers] = useState<Set<number>>(new Set());
 
   useEffect(() => {
-    const durations = [2000, 2200, 1800, 16000];
+    const durations = [2000, 2200, 1800, 8000, 2200, 1800, 16000];
     const t = setTimeout(() => {
-      const next = (phase + 1) % 4;
+      const next = (phase + 1) % 7;
       setPhase(next);
-      if (next === 0) {
+      if (next === 0 || next === 3 || next === 6) {
         setTab("steps");
         setRevealedSteps(1);
         setRevealedAnswers(new Set());
@@ -574,8 +610,141 @@ const DemoPanel = () => {
           </div>
         )}
 
-        {/* Phase 1: image slides in */}
+        {/* Phase 1: physics image slides in */}
         {phase === 1 && (
+          <div className="flex h-full flex-col items-center justify-center gap-3 p-8">
+            <div className="animate-slide-in-paper w-64 rounded-xl bg-blue-50 p-5 shadow-xl">
+              <p className="mb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wide">Question 2</p>
+              <div className="mb-2 h-2.5 w-3/5 rounded bg-gray-600" />
+              <div className="space-y-2">
+                <div className="h-2 w-full rounded bg-gray-300" />
+                <div className="h-2 w-4/5 rounded bg-gray-300" />
+                <div className="mt-3 flex items-center justify-center rounded bg-gray-100 py-2">
+                  <span className="font-mono text-sm text-gray-700">v = √(2gh)</span>
+                </div>
+                <div className="h-2 w-3/4 rounded bg-gray-300" />
+                <div className="h-2 w-full rounded bg-gray-200" />
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 rounded-md border border-border bg-secondary/60 px-3 py-1.5">
+              <Camera className="h-3 w-3 text-muted-foreground" />
+              <span className="text-[11px] text-muted-foreground">Physics HW 1.jpg</span>
+            </div>
+          </div>
+        )}
+
+        {/* Phase 2: physics scanning */}
+        {phase === 2 && (
+          <div className="relative flex h-full flex-col items-center justify-center gap-3 p-8">
+            <div className="w-64 rounded-xl bg-blue-50 p-5 opacity-50 shadow-xl">
+              <p className="mb-2 text-[10px] font-bold text-gray-400 uppercase tracking-wide">Question 2</p>
+              <div className="mb-2 h-2.5 w-3/5 rounded bg-gray-300" />
+              <div className="space-y-2">
+                <div className="h-2 w-full rounded bg-gray-200" />
+                <div className="h-2 w-4/5 rounded bg-gray-200" />
+                <div className="mt-3 flex items-center justify-center rounded bg-gray-100 py-2">
+                  <span className="font-mono text-sm text-gray-400">v = √(2gh)</span>
+                </div>
+                <div className="h-2 w-3/4 rounded bg-gray-200" />
+              </div>
+            </div>
+            <div className="animate-scan-sweep absolute inset-x-6 h-px" style={{ background: "hsl(var(--primary))", boxShadow: "0 0 10px 2px hsl(var(--primary) / 0.5)" }} />
+            <div className="absolute bottom-4 left-4 right-4 flex items-center gap-2 rounded-lg border border-border bg-card/90 px-3 py-2 backdrop-blur-sm">
+              <Loader2 className="h-3 w-3 animate-spin text-primary" />
+              <span className="text-xs text-muted-foreground">Mapping the solution path…</span>
+            </div>
+          </div>
+        )}
+
+        {/* Phase 3: physics tabbed results */}
+        {phase === 3 && (
+          <div className="animate-fade-up flex h-full flex-col p-4">
+            <div className="mb-3 flex gap-1 rounded-lg border border-border bg-secondary p-1">
+              {(["steps", "concept", "practice"] as DemoTab[]).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setTab(t)}
+                  className={`flex-1 rounded-md py-1.5 text-[11px] font-semibold transition-colors ${
+                    tab === t ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {t === "steps" ? "Step by Step" : t === "concept" ? "Concept" : "Practice"}
+                </button>
+              ))}
+            </div>
+
+            {tab === "steps" && (
+              <div className="flex-1 space-y-2 overflow-y-auto pr-0.5">
+                <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-primary">Find v = √(2gh), h = 45 m</p>
+                {PHYSICS_STEPS.slice(0, revealedSteps).map((step, i) => (
+                  <div key={i} className="flex items-start gap-2.5 rounded-lg border border-primary/20 bg-primary/5 p-3">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">{i + 1}</span>
+                    <p className="text-xs leading-relaxed text-foreground">{step}</p>
+                  </div>
+                ))}
+                {revealedSteps < PHYSICS_STEPS.length && (
+                  <button
+                    onClick={() => setRevealedSteps((v) => v + 1)}
+                    className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-lg border border-border py-2 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+                  >
+                    Next step <ChevronRight className="h-3 w-3" />
+                  </button>
+                )}
+                {revealedSteps >= PHYSICS_STEPS.length && (
+                  <p className="pt-1 text-center text-[10px] text-muted-foreground/50">All steps revealed.</p>
+                )}
+              </div>
+            )}
+
+            {tab === "concept" && (
+              <div className="flex-1 overflow-y-auto">
+                <div className="rounded-lg border border-border bg-secondary/40 p-4">
+                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-primary">Free Fall & Kinematics</p>
+                  <p className="text-xs leading-relaxed text-muted-foreground">{PHYSICS_CONCEPT}</p>
+                </div>
+              </div>
+            )}
+
+            {tab === "practice" && (
+              <div className="flex-1 space-y-2 overflow-y-auto">
+                <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-primary">Practice Questions</p>
+                {PHYSICS_PRACTICE.map((item, i) => (
+                  <div key={i} className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-start gap-2">
+                        <span className="mt-0.5 shrink-0 text-xs font-bold text-primary">{i + 1}.</span>
+                        <span className="text-xs leading-relaxed text-foreground">{item.q}</span>
+                      </div>
+                      <button
+                        onClick={() => setRevealedAnswers((prev) => {
+                          const next = new Set(prev);
+                          next.has(i) ? next.delete(i) : next.add(i);
+                          return next;
+                        })}
+                        className="shrink-0 text-[10px] font-semibold text-primary underline underline-offset-2 hover:text-primary/80"
+                      >
+                        {revealedAnswers.has(i) ? "Hide" : "Answer"}
+                      </button>
+                    </div>
+                    {revealedAnswers.has(i) && (
+                      <div className="mt-2 space-y-1">
+                        {item.steps.map((step, si) => (
+                          <div key={si} className="flex items-start gap-2 rounded border border-primary/20 bg-card px-2.5 py-1.5">
+                            <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-primary-foreground">{si + 1}</span>
+                            <span className="text-[11px] leading-relaxed text-foreground">{step}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Phase 4: calculus image slides in */}
+        {phase === 4 && (
           <div className="flex h-full flex-col items-center justify-center gap-3 p-8">
             <div className="animate-slide-in-paper w-64 rounded-xl bg-amber-50 p-5 shadow-xl">
               <p className="mb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wide">Question 3</p>
@@ -597,8 +766,8 @@ const DemoPanel = () => {
           </div>
         )}
 
-        {/* Phase 2: scanning */}
-        {phase === 2 && (
+        {/* Phase 5: calculus scanning */}
+        {phase === 5 && (
           <div className="relative flex h-full flex-col items-center justify-center gap-3 p-8">
             <div className="w-64 rounded-xl bg-amber-50 p-5 opacity-50 shadow-xl">
               <p className="mb-2 text-[10px] font-bold text-gray-400 uppercase tracking-wide">Question 3</p>
@@ -620,8 +789,8 @@ const DemoPanel = () => {
           </div>
         )}
 
-        {/* Phase 3: tabbed results */}
-        {phase === 3 && (
+        {/* Phase 6: calculus tabbed results */}
+        {phase === 6 && (
           <div className="animate-fade-up flex h-full flex-col p-4">
             {/* Tab bar */}
             <div className="mb-3 flex gap-1 rounded-lg border border-border bg-secondary p-1">

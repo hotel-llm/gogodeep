@@ -52,7 +52,7 @@ const Contact = () => {
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Contact</p>
               <h1 className="mt-4 text-4xl font-extrabold tracking-tight text-foreground">Get in touch</h1>
               <p className="mt-4 text-base text-muted-foreground">
-                Whether it's a plan question, a bug, or anything else, we read every message and usually take action within a week.
+                Whether it's a question, a bug, or anything else, we read every message and usually take action within a week.
               </p>
             </div>
 

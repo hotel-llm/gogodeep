@@ -67,7 +67,6 @@ export default function WhaleAssistant() {
 
   function handleOpen() {
     if (open) { setOpen(false); return; }
-    if (plan === "free") { setShowUpgrade(true); return; }
     setOpen(true);
     if (messages.length === 0) {
       setMessages([{ role: "assistant", content: GREETING }]);

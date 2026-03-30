@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useLocation, Link, useNavigate } from "react-router-dom";
 import {
   BookOpen, ArrowLeft, TriangleAlert, Lightbulb, ClipboardList,
-  ChevronRight, ArrowRight, FileSearch, Lock, Loader2, Microscope,
+  ChevronRight, ArrowRight, FileSearch, Lock, Loader2, Microscope, CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +43,7 @@ type PracticeItem = { id: number; question: string; answer: string };
 
 type IdentifyDiagnosis = {
   mode: "identify";
+  is_correct?: boolean;
   error_category: string;
   error_tag: string;
   explanation: string;
@@ -266,6 +267,18 @@ function IdentifyErrorTab({ diagnosis }: { diagnosis: IdentifyDiagnosis }) {
     Computational: "bg-orange-400/10 text-orange-400 border-orange-400/20",
     Notational: "bg-blue-400/10 text-blue-400 border-blue-400/20",
   };
+
+  if (diagnosis.is_correct) {
+    return (
+      <div className="rounded-lg border border-green-500/20 bg-green-500/10 p-5">
+        <div className="mb-2 flex items-center gap-2">
+          <CheckCircle2 className="h-4 w-4 text-green-500" />
+          <p className="text-xs font-semibold uppercase tracking-[0.15em] text-green-500">All correct</p>
+        </div>
+        <p className="text-sm leading-relaxed text-foreground">Your working is correct. Check the Concept and Practice tabs to strengthen your understanding.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
