@@ -33,9 +33,7 @@ If the image is NOT a STEM question (e.g. a cat, a meme, scenery) OR it is too b
 You MUST respond using the guide_question tool.`
       : `You are an expert STEM tutor specializing in diagnosing errors in student work (math, physics, chemistry).
 
-Analyze the uploaded image of a student's working. If the work is fully correct, set is_correct to true and leave error_category, error_tag, and explanation as empty strings. If there is an error, set is_correct to false and identify the EXACT point where the logic breaks down.
-
-Either way, always populate underlying_concept and practice_problems.
+Analyze the uploaded image of a student's incorrect working. Identify the EXACT point where the logic breaks down.
 
 If the image is NOT a photo of STEM student working (e.g. a cat, a meme, scenery) OR it is too blurry to read, you MUST still use the tool, but set input_status accordingly and make the explanation a clear instruction to re-upload a readable photo of the student's work.
 
@@ -96,22 +94,18 @@ You MUST respond using the diagnose_error tool.`;
             input_schema: {
               type: "object",
               properties: {
-                is_correct: {
-                  type: "boolean",
-                  description: "Set to true if the student's work is fully correct, false if there is an error.",
-                },
                 error_category: {
                   type: "string",
-                  enum: ["Conceptual", "Procedural", "Computational", "Notational"],
-                  description: "The broad category of the error. Empty string if is_correct is true.",
+                  enum: ["Conceptual", "Procedural", "Computational", "Notational", "Correct"],
+                  description: "The broad category of the error. Use 'Correct' if the student's work is fully correct.",
                 },
                 error_tag: {
                   type: "string",
-                  description: "A specific short label for the error. Empty string if is_correct is true.",
+                  description: "A specific short label for the error, e.g. 'Unit Conversion', 'Sign Error', 'Formula Rearrangement'. Use 'All correct' if the work is fully correct.",
                 },
                 explanation: {
                   type: "string",
-                  description: "A clear 2-3 sentence explanation of exactly where and why the logic broke down. Empty string if is_correct is true.",
+                  description: "A clear 2-3 sentence explanation of exactly where and why the logic broke down. If the work is correct, say so briefly.",
                 },
                 underlying_concept: {
                   type: "string",
@@ -136,7 +130,7 @@ You MUST respond using the diagnose_error tool.`;
                   description: "Set to 'ok' for readable STEM work; otherwise indicate why the input cannot be diagnosed.",
                 },
               },
-              required: ["is_correct", "error_category", "error_tag", "explanation", "underlying_concept", "practice_problems", "input_status"],
+              required: ["error_category", "error_tag", "explanation", "underlying_concept", "practice_problems", "input_status"],
             },
           },
         ];

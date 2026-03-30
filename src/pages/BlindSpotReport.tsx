@@ -43,7 +43,6 @@ type PracticeItem = { id: number; question: string; answer: string };
 
 type IdentifyDiagnosis = {
   mode: "identify";
-  is_correct?: boolean;
   error_category: string;
   error_tag: string;
   explanation: string;
@@ -268,7 +267,7 @@ function IdentifyErrorTab({ diagnosis }: { diagnosis: IdentifyDiagnosis }) {
     Notational: "bg-blue-400/10 text-blue-400 border-blue-400/20",
   };
 
-  if (diagnosis.is_correct) {
+  if (diagnosis.error_category === "Correct") {
     return (
       <div className="rounded-lg border border-green-500/20 bg-green-500/10 p-5">
         <div className="mb-2 flex items-center gap-2">

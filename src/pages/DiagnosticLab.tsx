@@ -1,4 +1,5 @@
 import { useMemo, useState, useCallback, useRef } from "react";
+import heic2any from "heic2any";
 import { useNavigate, Link } from "react-router-dom";
 import { Upload, Loader2, Microscope, ArrowRight, Lock, Search, BookOpen } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -43,14 +44,29 @@ const DiagnosticLab = () => {
 
         const stepTimers = [window.setTimeout(() => setScanStep(1), 500), window.setTimeout(() => setScanStep(2), 1200)];
 
-        const url = URL.createObjectURL(file);
-        const buffer = await file.arrayBuffer();
+        let processedFile: File | Blob = file;
+        let safeMime = file.type === "image/jpg" ? "image/jpeg" : file.type;
+
+        if (file.type === "image/heic" || file.type === "image/heif") {
+          try {
+            const converted = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.9 });
+            processedFile = Array.isArray(converted) ? converted[0] : converted;
+            safeMime = "image/jpeg";
+          } catch {
+            toast.error("Could not convert HEIC image. Please export as JPG and try again.");
+            setScanStep(0); setIsAnalyzing(false);
+            return;
+          }
+        }
+
+        const url = URL.createObjectURL(processedFile);
+        const buffer = await processedFile.arrayBuffer();
         const base64 = btoa(
           new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), "")
         );
 
         const { data, error } = await supabase.functions.invoke("diagnose-image", {
-          body: { image: base64, mimeType: file.type, mode },
+          body: { image: base64, mimeType: safeMime, mode },
         });
 
         stepTimers.forEach(clearTimeout);
@@ -149,8 +165,8 @@ const DiagnosticLab = () => {
     setIsDragging(false);
     const file = e.dataTransfer.files[0];
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please drop an image file (PNG or JPG).");
+    if (!["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp", "image/heic", "image/heif"].includes(file.type)) {
+      toast.error("Unsupported format. Please use JPG, PNG, WebP, or HEIC.");
       return;
     }
     setSelectedFile(file);
@@ -159,8 +175,8 @@ const DiagnosticLab = () => {
   const onFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please select an image file (PNG or JPG).");
+    if (!["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp", "image/heic", "image/heif"].includes(file.type)) {
+      toast.error("Unsupported format. Please use JPG, PNG, WebP, or HEIC.");
       return;
     }
     setSelectedFile(file);
