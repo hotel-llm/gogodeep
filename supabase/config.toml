@@ -15,6 +15,11 @@ enabled = true
 verify_jwt = false
 entrypoint = "./functions/diagnose-image/index.ts"
 
+[functions.chat-assistant]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/chat-assistant/index.ts"
+
 [functions.stripe-webhook]
 enabled = true
 verify_jwt = false

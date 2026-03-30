@@ -207,7 +207,7 @@ export default function HistorySidebar() {
           const items = byFolder[folder.id] ?? [];
           return (
             <div key={folder.id} className="mb-0.5">
-              <div className="group flex items-center gap-1 rounded-md px-1 py-1 hover:bg-secondary/60">
+              <div className="group flex items-center gap-1 rounded-md px-1 py-1 transition-colors duration-150 hover:bg-secondary/60">
                 <button
                   onClick={() => toggleFolder(folder.id)}
                   className="flex min-w-0 flex-1 items-center gap-1.5"
@@ -316,7 +316,7 @@ function ScanRow({
     <div
       ref={ref}
       onClick={handleRowClick}
-      className="group relative flex min-w-0 cursor-pointer items-start gap-1 rounded-md px-1 py-1.5 hover:bg-secondary/60"
+      className="group relative flex min-w-0 cursor-pointer items-start gap-1 rounded-md px-1 py-1.5 transition-colors duration-150 hover:bg-secondary/60"
     >
       <div className="min-w-0 flex-1">
         <p className="truncate text-xs font-medium text-foreground">{scanLabel(scan)}</p>

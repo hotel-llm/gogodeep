@@ -259,7 +259,7 @@ const DiagnosticLab = () => {
           <div className="mt-2 grid grid-cols-2 gap-3">
             <button
               onClick={() => handleModeSelect("guide")}
-              className="flex flex-col items-start gap-3 rounded-xl border border-border bg-secondary/50 p-5 text-left transition-all hover:border-primary/60 hover:bg-primary/5"
+              className="flex flex-col items-start gap-3 rounded-xl border border-border bg-secondary/50 p-5 text-left transition-all duration-200 hover:border-primary/60 hover:bg-primary/5"
             >
               <BookOpen className="h-6 w-6 text-primary" />
               <div>
@@ -269,7 +269,7 @@ const DiagnosticLab = () => {
             </button>
             <button
               onClick={() => handleModeSelect("identify")}
-              className="flex flex-col items-start gap-3 rounded-xl border border-border bg-secondary/50 p-5 text-left transition-all hover:border-primary/60 hover:bg-primary/5"
+              className="flex flex-col items-start gap-3 rounded-xl border border-border bg-secondary/50 p-5 text-left transition-all duration-200 hover:border-primary/60 hover:bg-primary/5"
             >
               <Search className="h-6 w-6 text-primary" />
               <div>
@@ -323,6 +323,7 @@ const DiagnosticLab = () => {
           </div>
         </DialogContent>
       </Dialog>
+
     </EducatorLayout>
   );
 };

@@ -4,6 +4,7 @@ import { Plus, PanelLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import HistorySidebar from "@/components/HistorySidebar";
+import WhaleAssistant from "@/components/WhaleAssistant";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -92,6 +93,7 @@ export default function EducatorLayout({
         </div>
       </div>
 
+      <WhaleAssistant />
     </div>
   );
 }
