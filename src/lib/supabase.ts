@@ -1,5 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 
+export const SCAN_CACHE_KEY = (id: string) => `gogodeep_scan_${id}`;
+
 export const SCAN_LIMITS: Record<string, number | null> = {
   free: 3,
   intermediate: 10,
@@ -10,6 +12,7 @@ export type ScanCreditState = {
   allowed: boolean;
   credits: number | null;
 };
+
 
 export async function checkScanCredits(): Promise<ScanCreditState> {
   const {

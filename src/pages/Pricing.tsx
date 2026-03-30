@@ -49,7 +49,7 @@ const plans = [
     name: "Deep",
     price: "14.99",
     cadence: "/month",
-    subtitle: "For students with the desire to win.",
+    subtitle: "For students with the desire to ace their next test.",
     features: [
       { text: "Unlimited scans", included: true },
       { text: "Unlimited targeted questions", included: true },

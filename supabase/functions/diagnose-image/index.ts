@@ -47,13 +47,17 @@ You MUST respond using the diagnose_error tool.`;
             input_schema: {
               type: "object",
               properties: {
+                concept_label: {
+                  type: "string",
+                  description: "A 2-3 word label for the concept being tested, e.g. 'Quadratic Formula', 'Newton Second Law', 'Mole Ratios'",
+                },
                 question_summary: {
                   type: "string",
                   description: "A one-sentence description of what the question is asking",
                 },
                 underlying_concept: {
                   type: "string",
-                  description: "The key mathematical or scientific concept being tested, explained in 2-3 sentences",
+                  description: "Explain the underlying concept in two parts: first, what the concept is in general (not specific to this problem); second, a clear rule of thumb the student can apply — e.g. 'When you see X, you should Y'. Write 3-4 sentences total.",
                 },
                 steps: {
                   type: "array",
@@ -79,7 +83,7 @@ You MUST respond using the diagnose_error tool.`;
                   description: "Set to 'ok' for readable STEM question; otherwise indicate why the input cannot be processed.",
                 },
               },
-              required: ["question_summary", "underlying_concept", "steps", "practice_problems", "input_status"],
+              required: ["concept_label", "question_summary", "underlying_concept", "steps", "practice_problems", "input_status"],
             },
           },
         ]
@@ -105,7 +109,7 @@ You MUST respond using the diagnose_error tool.`;
                 },
                 underlying_concept: {
                   type: "string",
-                  description: "The key mathematical or scientific concept being tested, explained in 2-3 sentences",
+                  description: "Explain the underlying concept in two parts: first, what the concept is in general (not specific to this problem); second, a clear rule of thumb the student can apply — e.g. 'When you see X, you should Y'. Write 3-4 sentences total.",
                 },
                 practice_problems: {
                   type: "array",

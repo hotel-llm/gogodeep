@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import EducatorLayout from "@/components/EducatorLayout";
-import { checkScanCredits } from "@/lib/supabase";
+import { checkScanCredits, SCAN_CACHE_KEY } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -87,30 +87,35 @@ const DiagnosticLab = () => {
         } = await supabase.auth.getUser();
 
         const topic = mode === "guide"
-          ? (data as any)?.question_summary ?? null
+          ? (data as any)?.concept_label ?? (data as any)?.question_summary ?? null
           : (data as any)?.error_tag ?? null;
 
-        const { data: insertedScan } = await (supabase as any)
-          .from("error_logs")
-          .insert({
-            student_id: user?.id ?? null,
-            subject: "STEM",
-            topic,
-            specific_error_tag: mode === "identify" ? ((data as any)?.error_tag ?? null) : null,
-            error_category: mode === "identify" ? ((data as any)?.error_category ?? null) : null,
-          })
-          .select("id")
-          .single();
+        const [{ data: insertedScan, error: insertError }] = await Promise.all([
+          (supabase as any)
+            .from("error_logs")
+            .insert({
+              student_id: user?.id ?? null,
+              subject: "STEM",
+              topic,
+              specific_error_tag: mode === "identify" ? ((data as any)?.error_tag ?? null) : null,
+              error_category: mode === "identify" ? ((data as any)?.error_category ?? null) : null,
+            })
+            .select("id")
+            .single(),
+          user?.id
+            ? (supabase as any).rpc("increment_scan_count", { user_id: user.id })
+            : Promise.resolve(null),
+        ]);
 
-        if (user?.id) {
-          await (supabase as any).rpc("increment_scan_count", { user_id: user.id });
+        if (insertError) {
+          console.error("error_logs insert failed:", insertError);
+          toast.error(`Scan save failed: ${insertError.message}. Check Supabase RLS policies.`);
         }
 
-        // Store full result in localStorage so sidebar can reload it
         const scanId = insertedScan?.id;
         if (scanId) {
           localStorage.setItem(
-            `gogodeep_scan_${scanId}`,
+            SCAN_CACHE_KEY(scanId),
             JSON.stringify({ imageBase64: base64, mimeType: file.type, diagnosis: data, mode })
           );
         }
@@ -173,7 +178,7 @@ const DiagnosticLab = () => {
 
   return (
     <EducatorLayout title="Diagnostic Lab" subtitle="Upload a question for us to guide you through, or upload your working on a difficult question for us to identify the error.">
-      <div className="mx-auto max-w-2xl">
+      <div className="mx-auto max-w-2xl mt-12">
         <div className="rounded-xl border border-border bg-card">
           <div className="p-5 sm:p-6">
             <label

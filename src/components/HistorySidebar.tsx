@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Plus, Folder, ChevronRight, ChevronDown, Trash2, FolderOpen } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
+import { SCAN_CACHE_KEY } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -258,9 +259,9 @@ export default function HistorySidebar() {
         ) : isError ? (
           <p className="px-1 py-1 text-[11px] text-muted-foreground/70">Couldn't load history.</p>
         ) : unassigned.length === 0 ? (
-          <p className="px-1 py-2 text-[11px] text-muted-foreground/50">
-            {scans.length > 0 ? "All scans are in folders." : "Your scans will show up here."}
-          </p>
+          scans.length === 0 ? (
+            <p className="px-1 py-2 text-[11px] text-muted-foreground/50">Your scans will show up here.</p>
+          ) : null
         ) : (
           <div className="space-y-0.5">
             {unassigned.map((scan) => (
@@ -301,7 +302,7 @@ function ScanRow({
   function handleRowClick(e: React.MouseEvent) {
     // Don't navigate if clicking the folder button or its dropdown
     if ((e.target as HTMLElement).closest("[data-folder-btn]")) return;
-    const raw = localStorage.getItem(`gogodeep_scan_${scan.id}`);
+    const raw = localStorage.getItem(SCAN_CACHE_KEY(scan.id));
     if (!raw) return; // no stored data for old scans
     try {
       const stored = JSON.parse(raw);

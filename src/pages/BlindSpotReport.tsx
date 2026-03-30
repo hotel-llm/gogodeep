@@ -1,13 +1,15 @@
-import { useState } from "react";
-import { useLocation, Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useLocation, Link, useNavigate } from "react-router-dom";
 import {
   BookOpen, ArrowLeft, TriangleAlert, Lightbulb, ClipboardList,
-  ChevronDown, ChevronRight, ArrowRight, FileSearch,
+  ChevronRight, ArrowRight, FileSearch, Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import EducatorLayout from "@/components/EducatorLayout";
+import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
 type PracticeItem = { id: number; question: string; answer: string };
@@ -39,70 +41,179 @@ type NavState = {
   mode?: "guide" | "identify";
 };
 
+type ReportTab = "steps" | "error" | "concept" | "practice";
+
 function resolveImageSrc(state: NavState): string | null {
   if (state.imageUrl) return state.imageUrl;
   if (state.imageBase64 && state.mimeType) return `data:${state.mimeType};base64,${state.imageBase64}`;
   return null;
 }
 
-// ── Practice tab (shared) ────────────────────────────────────────────────────
+// ── Shared upgrade dialog ─────────────────────────────────────────────────────
 
-function PracticeTab({ problems }: { problems: PracticeItem[] }) {
+function UpgradeDialog({ open, onClose, deep = false }: { open: boolean; onClose: () => void; deep?: boolean }) {
+  const navigate = useNavigate();
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="border border-border bg-card sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-foreground">
+            <Lock className={cn("h-4 w-4", deep ? "text-yellow-400" : "text-primary")} />
+            {deep ? "Deep plan required" : "Upgrade to unlock"}
+          </DialogTitle>
+          <DialogDescription className="text-muted-foreground">
+            {deep
+              ? "Generating more practice questions is exclusive to the Deep plan."
+              : "Upgrade to Intermediate or Deep to access full concept explanations and all practice questions."}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="mt-4 flex justify-end gap-2">
+          <Button variant="outline" className="border-border" onClick={onClose}>Not now</Button>
+          <Button
+            className={deep ? "bg-yellow-400 text-black hover:bg-yellow-400/90" : "bg-primary hover:bg-primary/90"}
+            onClick={() => navigate("/pricing")}
+          >
+            {deep ? "Upgrade to Deep" : "View plans"}
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Practice tab ──────────────────────────────────────────────────────────────
+
+function PracticeTab({ problems, plan }: { problems: PracticeItem[]; plan: string }) {
+  const isPaid = plan === "intermediate" || plan === "deep";
+  const isDeep = plan === "deep";
   const [revealed, setRevealed] = useState<Set<number>>(new Set());
+  const [showMore, setShowMore] = useState(false);
+  const [upgradeType, setUpgradeType] = useState<"paid" | "deep" | null>(null);
 
   if (!problems?.length) {
     return <p className="text-sm text-muted-foreground">No practice problems available.</p>;
   }
 
+  const baseCount = isPaid ? 3 : 1;
+  const visibleProblems = showMore ? problems : problems.slice(0, baseCount);
+  const hiddenCount = problems.length - baseCount;
+
   return (
-    <div className="space-y-3">
-      {problems.map((p) => {
-        const open = revealed.has(p.id);
-        return (
-          <div key={p.id} className="rounded-lg border border-border bg-secondary/40 p-4">
-            <div className="flex items-start justify-between gap-3">
-              <p className="text-sm font-medium text-foreground">
-                <span className="mr-2 text-muted-foreground/60">Q{p.id}.</span>
-                {p.question}
-              </p>
-              <button
-                onClick={() => setRevealed((prev) => {
-                  const next = new Set(prev);
-                  open ? next.delete(p.id) : next.add(p.id);
-                  return next;
-                })}
-                className="shrink-0 text-xs text-primary underline underline-offset-2 hover:text-primary/80"
-              >
-                {open ? "Hide" : "Answer"}
-              </button>
+    <>
+      <div className="space-y-3">
+        {visibleProblems.map((p) => {
+          const open = revealed.has(p.id);
+          return (
+            <div key={p.id} className="rounded-lg border border-border bg-secondary/40 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-sm font-medium text-foreground">
+                  <span className="mr-2 text-muted-foreground/60">Q{p.id}.</span>
+                  {p.question}
+                </p>
+                <button
+                  onClick={() => {
+                    if (!isPaid) { setUpgradeType("paid"); return; }
+                    setRevealed((prev) => {
+                      const next = new Set(prev);
+                      open ? next.delete(p.id) : next.add(p.id);
+                      return next;
+                    });
+                  }}
+                  className="shrink-0 text-xs text-primary underline underline-offset-2 hover:text-primary/80"
+                >
+                  {open ? "Hide" : "Answer"}
+                </button>
+              </div>
+              {open && (
+                <p className="mt-3 rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-sm text-foreground">
+                  {p.answer}
+                </p>
+              )}
             </div>
-            {open && (
-              <p className="mt-3 rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-sm text-foreground">
-                {p.answer}
-              </p>
+          );
+        })}
+
+        {!isPaid && hiddenCount > 0 && (
+          <button
+            onClick={() => setUpgradeType("paid")}
+            className="flex w-full items-center justify-between rounded-lg border border-dashed border-border bg-secondary/20 px-4 py-3 text-left transition-colors hover:border-primary/40 hover:bg-primary/5"
+          >
+            <span className="text-sm text-muted-foreground">
+              +{hiddenCount} more question{hiddenCount > 1 ? "s" : ""} — upgrade to unlock
+            </span>
+            <Lock className="h-4 w-4 shrink-0 text-muted-foreground" />
+          </button>
+        )}
+      </div>
+
+      {isPaid && !showMore && hiddenCount > 0 && (
+        <Button
+          variant="outline"
+          className="mt-4 w-full border-border"
+          onClick={() => isDeep ? setShowMore(true) : setUpgradeType("deep")}
+        >
+          <ChevronRight className="mr-2 h-4 w-4" />
+          Generate more
+        </Button>
+      )}
+
+      <UpgradeDialog open={upgradeType === "paid"} onClose={() => setUpgradeType(null)} />
+      <UpgradeDialog open={upgradeType === "deep"} onClose={() => setUpgradeType(null)} deep />
+    </>
+  );
+}
+
+// ── Concept tab ───────────────────────────────────────────────────────────────
+
+function ConceptTab({ concept, plan, onMasterClick }: { concept: string; plan: string; onMasterClick: () => void }) {
+  const isPaid = plan === "intermediate" || plan === "deep";
+  const [showUpgrade, setShowUpgrade] = useState(false);
+
+  const firstSentence = concept.split(/(?<=[.!?])\s+/)[0] ?? concept;
+  const hasMore = concept.length > firstSentence.length;
+
+  return (
+    <>
+      <div className="rounded-lg border border-border bg-secondary/40 p-5">
+        <div className="mb-3 flex items-center gap-2">
+          <Lightbulb className="h-4 w-4 text-primary" />
+          <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Key Concept</p>
+        </div>
+
+        {isPaid ? (
+          <p className="text-sm leading-relaxed text-foreground">{concept}</p>
+        ) : (
+          <div className="space-y-3">
+            <div className="relative">
+              <p className="text-sm leading-relaxed text-foreground line-clamp-2">{concept}</p>
+              {hasMore && (
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-secondary/80 to-transparent" />
+              )}
+            </div>
+            {hasMore && (
+              <button
+                onClick={() => setShowUpgrade(true)}
+                className="flex items-center gap-1.5 text-xs text-primary underline underline-offset-2 hover:text-primary/80"
+              >
+                <Lock className="h-3 w-3" />
+                Upgrade to read the full explanation
+              </button>
             )}
           </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// ── Concept tab (shared) ─────────────────────────────────────────────────────
-
-function ConceptTab({ concept }: { concept: string }) {
-  return (
-    <div className="rounded-lg border border-border bg-secondary/40 p-5">
-      <div className="mb-3 flex items-center gap-2">
-        <Lightbulb className="h-4 w-4 text-primary" />
-        <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Key Concept</p>
+        )}
+        <Button className="mt-4 w-full bg-primary hover:bg-primary/90" onClick={onMasterClick}>
+          Master this concept
+          <ChevronRight className="ml-2 h-4 w-4" />
+        </Button>
       </div>
-      <p className="text-sm leading-relaxed text-foreground">{concept}</p>
-    </div>
+
+      <UpgradeDialog open={showUpgrade} onClose={() => setShowUpgrade(false)} />
+    </>
   );
 }
 
-// ── Identify tabs ────────────────────────────────────────────────────────────
+// ── Identify error tab ────────────────────────────────────────────────────────
 
 function IdentifyErrorTab({ diagnosis }: { diagnosis: IdentifyDiagnosis }) {
   const categoryColor: Record<string, string> = {
@@ -133,7 +244,7 @@ function IdentifyErrorTab({ diagnosis }: { diagnosis: IdentifyDiagnosis }) {
   );
 }
 
-// ── Guide tabs ───────────────────────────────────────────────────────────────
+// ── Steps tab ─────────────────────────────────────────────────────────────────
 
 function StepsTab({ diagnosis }: { diagnosis: GuideDiagnosis }) {
   const [revealed, setRevealed] = useState(1);
@@ -148,10 +259,7 @@ function StepsTab({ diagnosis }: { diagnosis: GuideDiagnosis }) {
       )}
       <div className="space-y-2">
         {steps.slice(0, revealed).map((step, i) => (
-          <div
-            key={i}
-            className="flex items-start gap-3 rounded-lg border border-primary/20 bg-primary/5 p-4"
-          >
+          <div key={i} className="flex items-start gap-3 rounded-lg border border-primary/20 bg-primary/5 p-4">
             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">
               {i + 1}
             </span>
@@ -160,11 +268,7 @@ function StepsTab({ diagnosis }: { diagnosis: GuideDiagnosis }) {
         ))}
       </div>
       {revealed < steps.length ? (
-        <Button
-          variant="outline"
-          className="w-full border-border"
-          onClick={() => setRevealed((v) => v + 1)}
-        >
+        <Button variant="outline" className="w-full border-border" onClick={() => setRevealed((v) => v + 1)}>
           Show next step
           <ChevronRight className="ml-2 h-4 w-4" />
         </Button>
@@ -175,17 +279,31 @@ function StepsTab({ diagnosis }: { diagnosis: GuideDiagnosis }) {
   );
 }
 
-// ── Main ─────────────────────────────────────────────────────────────────────
+// ── Main ──────────────────────────────────────────────────────────────────────
 
 const BlindSpotReport = () => {
   const location = useLocation();
-  const rawState = location.state as NavState | null;
-
-  // Also try loading from localStorage if state came from sidebar click
-  const state: NavState = rawState ?? {};
+  const state: NavState = location.state ?? {};
   const diagnosis = state.diagnosis;
-  const mode = diagnosis?.mode ?? state.mode ?? "identify";
+  const mode = diagnosis?.mode ?? "identify";
   const imageSrc = resolveImageSrc(state);
+
+  const [plan, setPlan] = useState<string>("free");
+  const [activeTab, setActiveTab] = useState<ReportTab>(mode === "guide" ? "steps" : "error");
+
+  useEffect(() => {
+    let mounted = true;
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user || !mounted) return;
+      const { data } = await (supabase as any)
+        .from("profiles")
+        .select("plan")
+        .eq("id", user.id)
+        .single();
+      if (mounted) setPlan(data?.plan ?? "free");
+    });
+    return () => { mounted = false; };
+  }, []);
 
   if (!diagnosis) {
     return (
@@ -241,59 +359,44 @@ const BlindSpotReport = () => {
 
         {/* Tabs panel */}
         <div className="lg:col-span-3">
-          {mode === "guide" ? (
-            <Tabs defaultValue="steps">
-              <TabsList className="mb-4 w-full border border-border bg-secondary">
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ReportTab)}>
+            <TabsList className="mb-4 w-full border border-border bg-secondary">
+              {mode === "guide" ? (
                 <TabsTrigger value="steps" className="flex-1 gap-1.5 data-[state=active]:bg-card">
                   <ArrowRight className="h-3.5 w-3.5" />
                   Step by Step
                 </TabsTrigger>
-                <TabsTrigger value="concept" className="flex-1 gap-1.5 data-[state=active]:bg-card">
-                  <Lightbulb className="h-3.5 w-3.5" />
-                  Concept
-                </TabsTrigger>
-                <TabsTrigger value="practice" className="flex-1 gap-1.5 data-[state=active]:bg-card">
-                  <ClipboardList className="h-3.5 w-3.5" />
-                  Practice
-                </TabsTrigger>
-              </TabsList>
-              <TabsContent value="steps">
-                <StepsTab diagnosis={diagnosis as GuideDiagnosis} />
-              </TabsContent>
-              <TabsContent value="concept">
-                <ConceptTab concept={concept} />
-              </TabsContent>
-              <TabsContent value="practice">
-                <PracticeTab problems={practice} />
-              </TabsContent>
-            </Tabs>
-          ) : (
-            <Tabs defaultValue="error">
-              <TabsList className="mb-4 w-full border border-border bg-secondary">
+              ) : (
                 <TabsTrigger value="error" className="flex-1 gap-1.5 data-[state=active]:bg-card">
                   <TriangleAlert className="h-3.5 w-3.5" />
                   Error Found
                 </TabsTrigger>
-                <TabsTrigger value="concept" className="flex-1 gap-1.5 data-[state=active]:bg-card">
-                  <Lightbulb className="h-3.5 w-3.5" />
-                  Concept
-                </TabsTrigger>
-                <TabsTrigger value="practice" className="flex-1 gap-1.5 data-[state=active]:bg-card">
-                  <ClipboardList className="h-3.5 w-3.5" />
-                  Practice
-                </TabsTrigger>
-              </TabsList>
+              )}
+              <TabsTrigger value="concept" className="flex-1 gap-1.5 data-[state=active]:bg-card">
+                <Lightbulb className="h-3.5 w-3.5" />
+                Concept
+              </TabsTrigger>
+              <TabsTrigger value="practice" className="flex-1 gap-1.5 data-[state=active]:bg-card">
+                <ClipboardList className="h-3.5 w-3.5" />
+                Practice
+              </TabsTrigger>
+            </TabsList>
+            {mode === "guide" ? (
+              <TabsContent value="steps">
+                <StepsTab diagnosis={diagnosis as GuideDiagnosis} />
+              </TabsContent>
+            ) : (
               <TabsContent value="error">
                 <IdentifyErrorTab diagnosis={diagnosis as IdentifyDiagnosis} />
               </TabsContent>
-              <TabsContent value="concept">
-                <ConceptTab concept={concept} />
-              </TabsContent>
-              <TabsContent value="practice">
-                <PracticeTab problems={practice} />
-              </TabsContent>
-            </Tabs>
-          )}
+            )}
+            <TabsContent value="concept">
+              <ConceptTab concept={concept} plan={plan} onMasterClick={() => setActiveTab("practice")} />
+            </TabsContent>
+            <TabsContent value="practice">
+              <PracticeTab problems={practice} plan={plan} />
+            </TabsContent>
+          </Tabs>
         </div>
 
       </div>

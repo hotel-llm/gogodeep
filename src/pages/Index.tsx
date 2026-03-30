@@ -1,12 +1,12 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
-import { Camera, Microscope, Route, ArrowRight, ScanLine, TriangleAlert, BookOpen, TrendingUp, Upload, Loader2, Flame, ChevronRight, BrainCircuit, CheckCircle2, XCircle } from "lucide-react";
+import { Camera, Microscope, Route, ArrowRight, ScanLine, BookOpen, Upload, Loader2, Flame, ChevronRight, BrainCircuit, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import PageTransition from "@/components/PageTransition";
 import gogodeepLogo from "@/assets/gogodeep-logo.png";
 import { supabase } from "@/integrations/supabase/client";
-import { SCAN_LIMITS } from "@/lib/supabase";
+import { SCAN_LIMITS, SCAN_CACHE_KEY } from "@/lib/supabase";
 import { toast } from "sonner";
 import type { User } from "@supabase/supabase-js";
 
@@ -59,17 +59,13 @@ function useUtcResetCountdown() {
 type QuizQuestion = {
   topic: string;
   question: string;
-  options: string[];
-  correct: number;
-  explanation: string;
+  answer: string;
 };
 
 type QuizState = {
   questions: QuizQuestion[];
   current: number;
-  selected: number | null;
-  score: number;
-  finished: boolean;
+  revealed: boolean;
 };
 
 const Dashboard = ({ user }: { user: User }) => {
@@ -77,7 +73,6 @@ const Dashboard = ({ user }: { user: User }) => {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [quiz, setQuiz] = useState<QuizState | null>(null);
-  const [quizLoading, setQuizLoading] = useState(false);
   const resetCountdown = useUtcResetCountdown();
   const location = useLocation();
 
@@ -114,12 +109,11 @@ const Dashboard = ({ user }: { user: User }) => {
       if (lastLogin < today) {
         loginStreak = lastLogin === yesterday ? loginStreak + 1 : 1;
         const streakUpdates: Record<string, unknown> = { last_login_date: today, login_streak: loginStreak };
-        if (loginStreak >= 7) {
-          bonusScans += 5;
-          streakUpdates.login_streak = 0;
+        if (plan !== "deep" && loginStreak % 7 === 0) {
+          const bonus = plan === "intermediate" ? 20 : 5;
+          bonusScans += bonus;
           streakUpdates.bonus_scans = bonusScans;
-          toast.success("7-day streak! You've earned 5 bonus credits.");
-          // keep loginStreak at 7 locally so the bar displays complete
+          toast.success(`7-day streak! You've earned ${bonus} bonus credits.`);
         }
         await (supabase as any).from("profiles").update(streakUpdates).eq("id", user.id);
       }
@@ -153,49 +147,62 @@ const Dashboard = ({ user }: { user: User }) => {
     load();
   }, [user.id]);
 
-  const startQuiz = async () => {
-    const topics = (data?.topTags?.length ? data.topTags.map((t) => t.tag) : data?.recentScans?.map((s) => s.label)) ?? [];
-    if (!topics.length) { toast.error("Run some scans first to generate a quiz."); return; }
-    setQuizLoading(true);
-    try {
-      const { data: result, error } = await supabase.functions.invoke("generate-quiz", { body: { topics: topics.slice(0, 5) } });
-      if (error || result?.error) throw new Error(error?.message ?? result?.error);
-      setQuiz({ questions: result.questions, current: 0, selected: null, score: 0, finished: false });
-    } catch (e) {
-      toast.error("Failed to generate quiz. Try again.");
-    } finally {
-      setQuizLoading(false);
+  const startQuiz = () => {
+    if (!data) return;
+    if (data.plan === "free") return; // handled in UI
+    const scans = data.recentScans.slice(0, 5);
+    if (scans.length < 5) return; // handled in UI
+    const questions: QuizQuestion[] = [];
+    for (const scan of scans) {
+      const raw = localStorage.getItem(SCAN_CACHE_KEY(scan.id));
+      if (!raw) continue;
+      try {
+        const stored = JSON.parse(raw);
+        const problems: { question: string; answer: string }[] = stored.diagnosis?.practice_problems ?? [];
+        for (const p of problems.slice(0, 2)) {
+          questions.push({ topic: scan.label, question: p.question, answer: p.answer });
+        }
+      } catch {}
     }
+    if (!questions.length) { toast.error("Couldn't load practice questions from your scans."); return; }
+    setQuiz({ questions, current: 0, revealed: false });
   };
 
-  const selectAnswer = (i: number) => {
-    if (!quiz || quiz.selected !== null) return;
-    setQuiz((q) => ({ ...q!, selected: i }));
-  };
+  const navigate = useNavigate();
 
-  const nextQuestion = () => {
-    setQuiz((q) => {
-      if (!q) return q;
-      const correct = q.selected === q.questions[q.current].correct;
-      const newScore = q.score + (correct ? 1 : 0);
-      const isLast = q.current === q.questions.length - 1;
-      return { ...q, score: newScore, current: isLast ? q.current : q.current + 1, selected: null, finished: isLast };
-    });
-  };
-
-  const conceptualPct = data && data.totalScans > 0 ? Math.round((data.conceptualCount / data.totalScans) * 100) : 0;
+  function handleScanClick(scanId: string) {
+    const raw = localStorage.getItem(SCAN_CACHE_KEY(scanId));
+    if (raw) {
+      try {
+        navigate("/report", { state: JSON.parse(raw) });
+        return;
+      } catch {}
+    }
+    navigate("/lab");
+  }
 
   return (
     <PageTransition>
       <div className="relative z-10 min-h-screen pt-14">
-        <div className="container py-10">
+        <div className="container max-w-5xl py-12">
 
           {/* Header */}
-          <div className="mb-8 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div className="mb-10 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Dashboard</p>
               <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-foreground">
-                Welcome back, {username}
+                {[
+                  "Today is your day",
+                  "Make yourself proud today",
+                  "Let's get to work",
+                  "One step closer",
+                  "Show up. Show out",
+                  "Your future self is watching",
+                  "Make today count",
+                  "Time to level up",
+                  "No excuses today",
+                  "Outwork yesterday",
+                ][new Date().getUTCDay() * 3 % 10]}, {username}
               </h1>
             </div>
             <Link to="/lab">
@@ -206,194 +213,192 @@ const Dashboard = ({ user }: { user: User }) => {
             </Link>
           </div>
 
-          {/* Stat cards */}
-          <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Card className="border-border bg-card p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Total Scans</p>
-              <p className="mt-2 text-4xl font-extrabold text-foreground">
+          {/* Stat row */}
+          <div className="mb-6 grid gap-4 sm:grid-cols-3">
+
+            {/* Total scans */}
+            <Card className="border-border bg-card p-6">
+              <div className="flex items-center gap-2">
+                <Microscope className="h-4 w-4 text-primary" />
+                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Total Scans</p>
+              </div>
+              <p className="mt-4 text-5xl font-extrabold tracking-tight text-foreground">
                 {loading ? "—" : data?.totalScans ?? 0}
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">All-time diagnoses run</p>
+              <p className="mt-1.5 text-xs text-muted-foreground">All-time diagnoses</p>
             </Card>
 
-            <Card className="border-border bg-card p-5">
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Credits Left</p>
+            {/* Credits left */}
+            <Card className="border-border bg-card p-6">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <ScanLine className="h-4 w-4 text-primary" />
+                  <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Credits Left</p>
+                </div>
                 {!loading && data?.plan !== "deep" ? (
                   <Link to="/pricing" className="shrink-0 text-[10px] font-semibold text-primary hover:underline">Upgrade →</Link>
                 ) : !loading ? (
                   <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary capitalize">{data?.plan}</span>
                 ) : null}
               </div>
-              <p className="mt-2 text-4xl font-extrabold text-foreground">
+              <p className="mt-4 text-5xl font-extrabold tracking-tight text-foreground">
                 {loading ? "—" : data?.creditsLeft === null ? "∞" : data?.creditsLeft}
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {data?.creditsLeft === null ? "Unlimited scans" : `of ${SCAN_LIMITS[data?.plan ?? "free"] ?? SCAN_LIMITS.free} daily · resets in ${resetCountdown}`}
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                {data?.creditsLeft === null
+                  ? "Unlimited scans"
+                  : `of ${SCAN_LIMITS[data?.plan ?? "free"] ?? SCAN_LIMITS.free} daily · resets in ${resetCountdown}`}
               </p>
+              {data && data.creditsLeft !== null && SCAN_LIMITS[data.plan] != null && (
+                <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all duration-700"
+                    style={{ width: `${Math.min(Math.round(((SCAN_LIMITS[data.plan] ?? SCAN_LIMITS.free ?? 0) - data.creditsLeft + data.bonusScans) / (SCAN_LIMITS[data.plan] ?? SCAN_LIMITS.free ?? 1) * 100), 100)}%` }}
+                  />
+                </div>
+              )}
             </Card>
 
-            <Card className="border-border bg-card p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Conceptual Gaps</p>
-              <p className="mt-2 text-4xl font-extrabold text-destructive">
-                {loading ? "—" : data?.conceptualCount ?? 0}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">Require concept re-teaching</p>
-            </Card>
-
-            <Card className="border-border bg-card p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Concepts Learned</p>
-              <p className="mt-2 text-4xl font-extrabold" style={{ color: "hsl(var(--signal-green))" }}>
-                {loading ? "—" : data?.conceptsLearned ?? 0}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">Unique topics diagnosed</p>
+            {/* Login streak */}
+            <Card className="border-border bg-card p-6">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Flame className="h-4 w-4 text-primary" />
+                  <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Login Streak</p>
+                </div>
+                {!loading && data?.plan !== "deep" && (data?.bonusScans ?? 0) > 0 && (
+                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                    +{data?.bonusScans} bonus
+                  </span>
+                )}
+              </div>
+              {data?.plan === "deep" ? (
+                <>
+                  <p className="mt-4 text-5xl font-extrabold tracking-tight text-foreground">
+                    {loading ? "—" : data.loginStreak}
+                    <span className="ml-2 text-lg font-medium text-muted-foreground">days</span>
+                  </p>
+                  <p className="mt-1.5 text-xs text-muted-foreground">Keep the habit going</p>
+                </>
+              ) : (
+                <>
+                  <p className="mt-4 text-5xl font-extrabold tracking-tight text-foreground">
+                    {loading ? "—" : data?.loginStreak ?? 0}
+                    <span className="ml-2 text-lg font-medium text-muted-foreground">days</span>
+                  </p>
+                  {(() => {
+                    const streak = data?.loginStreak ?? 0;
+                    const cyclePos = streak % 7;
+                    const daysLeft = cyclePos === 0 && streak > 0 ? 0 : 7 - cyclePos;
+                    return (
+                      <p className="mt-1.5 text-xs text-muted-foreground">
+                        {loading ? "\u00a0" : daysLeft === 0
+                          ? `Streak complete — ${data?.plan === "intermediate" ? 20 : 5} bonus credits awarded!`
+                          : `${daysLeft} more day${daysLeft === 1 ? "" : "s"} to earn ${data?.plan === "intermediate" ? 20 : 5} bonus credits`}
+                      </p>
+                    );
+                  })()}
+                  <div className="mt-4 flex gap-1.5">
+                    {Array.from({ length: 7 }).map((_, i) => {
+                      const cyclePos = (data?.loginStreak ?? 0) % 7;
+                      const filled = (data?.loginStreak ?? 0) % 7 === 0 && (data?.loginStreak ?? 0) > 0
+                        ? 7
+                        : cyclePos;
+                      return (
+                        <div
+                          key={i}
+                          className={`h-1.5 flex-1 rounded-full transition-colors ${
+                            i === 6
+                              ? i < filled ? "bg-yellow-400" : "bg-yellow-400/20"
+                              : i < filled ? "bg-primary" : "bg-secondary"
+                          }`}
+                        />
+                      );
+                    })}
+                  </div>
+                </>
+              )}
             </Card>
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-3">
+          {/* Main content */}
+          <div className="grid gap-6 lg:grid-cols-5">
 
-            {/* Error breakdown */}
-            <Card className="border-border bg-card p-6">
+            {/* Previous scans — wider */}
+            <Card className="border-border bg-card p-6 lg:col-span-3">
               <div className="mb-5 flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-primary" />
-                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Error Breakdown</p>
+                <BookOpen className="h-4 w-4 text-primary" />
+                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Previous Scans</p>
               </div>
               {loading ? (
-                <div className="space-y-4">
-                  {[1, 2].map((i) => (
-                    <div key={i} className="space-y-1.5">
-                      <div className="h-3 w-32 rounded bg-secondary animate-pulse" />
-                      <div className="h-2.5 w-full rounded-full bg-secondary animate-pulse" />
-                    </div>
+                <div className="space-y-2.5">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="h-11 w-full rounded-lg bg-secondary animate-pulse" />
                   ))}
                 </div>
-              ) : data?.totalScans === 0 ? (
-                <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <BookOpen className="h-8 w-8 text-muted-foreground/40" />
-                  <p className="mt-3 text-sm text-muted-foreground">No scans yet. Run your first diagnosis to see your breakdown.</p>
+              ) : !data?.recentScans.length ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <BookOpen className="h-8 w-8 text-muted-foreground/30" />
+                  <p className="mt-3 text-sm text-muted-foreground">Your scans will appear here after your first diagnosis.</p>
                   <Link to="/lab" className="mt-4 inline-block">
                     <Button size="sm" className="gap-2 bg-primary hover:bg-primary/90">
                       <ScanLine className="h-3.5 w-3.5" />
-                      Run your first scan
+                      Run first scan
                     </Button>
                   </Link>
                 </div>
               ) : (
-                <div className="space-y-5">
-                  <div>
-                    <div className="mb-2 flex items-center justify-between text-sm">
-                      <span className="flex items-center gap-1.5 font-medium text-foreground">
-                        <TriangleAlert className="h-3.5 w-3.5 text-destructive" /> Conceptual
-                      </span>
-                      <span className="text-muted-foreground">{data.conceptualCount} ({conceptualPct}%)</span>
-                    </div>
-                    <div className="h-2.5 w-full overflow-hidden rounded-full bg-secondary">
-                      <div
-                        className="h-full rounded-full bg-destructive transition-all duration-700"
-                        style={{ width: `${conceptualPct}%` }}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <div className="mb-2 flex items-center justify-between text-sm">
-                      <span className="flex items-center gap-1.5 font-medium text-foreground">
-                        <BookOpen className="h-3.5 w-3.5" style={{ color: "hsl(var(--signal-green))" }} /> Concepts Learned
-                      </span>
-                      <span className="text-muted-foreground">{data.conceptsLearned} unique topics</span>
-                    </div>
-                    <div className="h-2.5 w-full overflow-hidden rounded-full bg-secondary">
-                      <div
-                        className="h-full rounded-full transition-all duration-700"
-                        style={{
-                          width: data.totalScans > 0 ? `${Math.min(Math.round((data.conceptsLearned / data.totalScans) * 100), 100)}%` : "0%",
-                          background: "hsl(var(--signal-green))",
-                        }}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <div className="mb-2 flex items-center justify-between text-sm">
-                      <span className="font-medium text-foreground">Credits used</span>
-                      <span className="text-muted-foreground">{data.totalScans} scans</span>
-                    </div>
-                    <div className="h-2.5 w-full overflow-hidden rounded-full bg-secondary">
-                      {data.creditsLeft !== null && (
-                        <div
-                          className="h-full rounded-full bg-primary transition-all duration-700"
-                          style={{
-                            width: `${Math.round((data.totalScans / (data.totalScans + data.creditsLeft)) * 100)}%`,
-                          }}
-                        />
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </Card>
-
-            {/* Previous Concepts */}
-            <Card className="border-border bg-card p-6">
-              <div className="mb-5 flex items-center gap-2">
-                <Microscope className="h-4 w-4 text-primary" />
-                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Previous Concepts</p>
-              </div>
-              {loading ? (
-                <div className="space-y-3">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="h-10 w-full rounded-lg bg-secondary animate-pulse" />
-                  ))}
-                </div>
-              ) : !data?.recentScans.length ? (
-                <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <BookOpen className="h-8 w-8 text-muted-foreground/40" />
-                  <p className="mt-3 text-sm text-muted-foreground">Concepts from your scans will appear here.</p>
-                </div>
-              ) : (
                 <div className="space-y-2">
                   {data.recentScans.map((scan) => (
-                    <Link key={scan.id} to="/lab" className="flex items-center justify-between rounded-lg border border-border bg-secondary px-4 py-3 hover:bg-accent transition-colors">
-                      <span className="text-sm font-medium text-foreground truncate">{scan.label}</span>
-                      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground ml-2" />
-                    </Link>
+                    <button
+                      key={scan.id}
+                      onClick={() => handleScanClick(scan.id)}
+                      className="flex w-full items-center justify-between rounded-lg border border-border bg-secondary/60 px-4 py-3 text-left transition-colors hover:bg-secondary hover:border-primary/30"
+                    >
+                      <span className="truncate text-sm font-medium text-foreground">{scan.label}</span>
+                      <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
+                    </button>
                   ))}
                 </div>
               )}
             </Card>
 
-            {/* Recap Quiz */}
-            <Card className="border-border bg-card p-6">
-              <div className="mb-4 flex items-center justify-between">
+            {/* Recap quiz */}
+            <Card className="border-border bg-card p-6 lg:col-span-2">
+              <div className="mb-5 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <BrainCircuit className="h-4 w-4 text-primary" />
                   <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Recap Quiz</p>
                 </div>
-                {quiz && !quiz.finished && (
+                {quiz && (
                   <span className="text-xs text-muted-foreground">{quiz.current + 1} / {quiz.questions.length}</span>
                 )}
               </div>
 
               {!quiz ? (
-                <div className="flex flex-col items-center gap-3 py-4 text-center">
-                  <p className="text-sm text-muted-foreground">Test yourself on your previous concepts.</p>
-                  <Button
-                    size="sm"
-                    className="bg-primary hover:bg-primary/90"
-                    onClick={startQuiz}
-                    disabled={quizLoading || loading || !data?.totalScans}
-                  >
-                    {quizLoading ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null}
-                    {quizLoading ? "Generating..." : "Start Quiz"}
-                  </Button>
-                </div>
-              ) : quiz.finished ? (
-                <div className="flex flex-col items-center gap-3 py-4 text-center">
-                  <p className="text-2xl font-extrabold text-foreground">{quiz.score} / {quiz.questions.length}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {quiz.score === quiz.questions.length ? "Perfect score!" : quiz.score >= quiz.questions.length / 2 ? "Good work. Keep going." : "Keep practising. You'll get there."}
-                  </p>
-                  <Button size="sm" variant="outline" className="border-border mt-1" onClick={() => setQuiz(null)}>
-                    Try again
-                  </Button>
+                <div className="flex flex-col items-center gap-4 py-8 text-center">
+                  <BrainCircuit className="h-8 w-8 text-muted-foreground/30" />
+                  {data?.plan === "free" ? (
+                    <>
+                      <p className="text-sm text-muted-foreground">Recap quizzes are available on Intermediate and Deep plans.</p>
+                      <Button size="sm" className="gap-2 bg-primary hover:bg-primary/90" onClick={() => navigate("/pricing")}>
+                        <Lock className="h-3.5 w-3.5" />
+                        Upgrade to unlock
+                      </Button>
+                    </>
+                  ) : (data?.recentScans.length ?? 0) < 5 ? (
+                    <>
+                      <p className="text-sm text-muted-foreground">You need at least 5 scans to generate a recap quiz.</p>
+                      <p className="text-xs text-muted-foreground/60">{data?.recentScans.length ?? 0} / 5 scans so far</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm text-muted-foreground">Test yourself on your previous concepts.</p>
+                      <Button size="sm" className="bg-primary hover:bg-primary/90" onClick={startQuiz} disabled={loading}>
+                        Start Quiz
+                      </Button>
+                    </>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -401,90 +406,78 @@ const Dashboard = ({ user }: { user: User }) => {
                     <p className="text-[10px] font-semibold uppercase tracking-widest text-primary mb-2">{quiz.questions[quiz.current].topic}</p>
                     <p className="text-sm font-medium text-foreground">{quiz.questions[quiz.current].question}</p>
                   </div>
-                  <div className="space-y-2">
-                    {quiz.questions[quiz.current].options.map((opt, i) => {
-                      const answered = quiz.selected !== null;
-                      const isCorrect = i === quiz.questions[quiz.current].correct;
-                      const isSelected = i === quiz.selected;
-                      return (
-                        <button
-                          key={i}
-                          onClick={() => selectAnswer(i)}
-                          disabled={answered}
-                          className={`flex items-center gap-2 w-full rounded-lg border px-4 py-2.5 text-left text-sm transition-colors ${
-                            !answered
-                              ? "border-border bg-secondary hover:border-primary/50 hover:bg-accent"
-                              : isCorrect
-                              ? "border-green-500/50 bg-green-500/10 text-foreground"
-                              : isSelected
-                              ? "border-destructive/50 bg-destructive/10 text-foreground"
-                              : "border-border bg-secondary text-muted-foreground"
-                          }`}
-                        >
-                          {answered && isCorrect && <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-green-500" />}
-                          {answered && isSelected && !isCorrect && <XCircle className="h-3.5 w-3.5 shrink-0 text-destructive" />}
-                          {opt}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {quiz.selected !== null && (
+                  {quiz.revealed ? (
                     <div className="space-y-3">
-                      <p className="text-xs text-muted-foreground">{quiz.questions[quiz.current].explanation}</p>
+                      <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-foreground">
+                        {quiz.questions[quiz.current].answer}
+                      </div>
                       <div className="flex justify-end">
-                        <Button size="sm" className="bg-primary hover:bg-primary/90" onClick={nextQuestion}>
-                          {quiz.current === quiz.questions.length - 1 ? "Finish" : "Next"}
-                          <ArrowRight className="ml-2 h-3.5 w-3.5" />
-                        </Button>
+                        {quiz.current < quiz.questions.length - 1 ? (
+                          <Button size="sm" className="bg-primary hover:bg-primary/90"
+                            onClick={() => setQuiz((q) => q && ({ ...q, current: q.current + 1, revealed: false }))}>
+                            Next
+                            <ArrowRight className="ml-2 h-3.5 w-3.5" />
+                          </Button>
+                        ) : (
+                          <Button size="sm" variant="outline" className="border-border" onClick={() => setQuiz(null)}>
+                            Done
+                          </Button>
+                        )}
                       </div>
                     </div>
+                  ) : (
+                    <Button size="sm" variant="outline" className="w-full border-border"
+                      onClick={() => setQuiz((q) => q && ({ ...q, revealed: true }))}>
+                      Reveal answer
+                    </Button>
                   )}
                 </div>
               )}
             </Card>
           </div>
 
-          {/* Streaks */}
-          <Card className="mt-6 border-border bg-card p-6">
-            <div className="mb-4 flex items-center gap-2">
-              <Flame className="h-4 w-4 text-primary" />
-              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Login Streak</p>
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-3xl font-extrabold text-foreground">
-                  {loading ? "—" : data?.loginStreak ?? 0}
-                  <span className="ml-1 text-base font-medium text-muted-foreground">/ 7 days</span>
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {loading ? "" : (data?.loginStreak ?? 0) >= 7
-                    ? "Streak complete! 5 bonus credits awarded."
-                    : `${7 - (data?.loginStreak ?? 0)} more day${7 - (data?.loginStreak ?? 0) === 1 ? "" : "s"} to earn 5 bonus credits`}
-                </p>
+          {/* Quote of the day */}
+          {(() => {
+            const quotes = [
+              { text: "You don't lose marks for not knowing. You lose them for not finding out.", author: "" },
+              { text: "The exam doesn't care how hard you tried. Diagnose your gaps before it does.", author: "" },
+              { text: "Every wrong answer is a map to what needs fixing. Start there.", author: "" },
+              { text: "You already know how to work hard. The trick is working on the right things.", author: "" },
+              { text: "The student who reviews their mistakes every day outperforms the one who only studies new material.", author: "" },
+              { text: "A scan a day keeps the failing grade away.", author: "" },
+              { text: "Confidence in an exam comes from knowing exactly what you don't know — and fixing it.", author: "" },
+              { text: "The top students aren't smarter. They just catch their errors faster.", author: "" },
+              { text: "Don't memorise harder. Understand deeper.", author: "" },
+              { text: "One hour of deliberate error correction beats five hours of passive re-reading.", author: "" },
+              { text: "The test is coming. The gap is there. The question is whether you find it first.", author: "" },
+              { text: "Comfort and high grades don't live at the same address.", author: "" },
+              { text: "Every concept you master today is one less thing that can surprise you on exam day.", author: "" },
+              { text: "Knowing your error category is half the battle won.", author: "" },
+              { text: "It always seems impossible until it's done.", author: "Nelson Mandela" },
+              { text: "The secret of getting ahead is getting started.", author: "Mark Twain" },
+              { text: "An investment in knowledge pays the best interest.", author: "Benjamin Franklin" },
+              { text: "I find that the harder I work, the more luck I seem to have.", author: "Thomas Jefferson" },
+              { text: "The difference between ordinary and extraordinary is that little extra.", author: "Jimmy Johnson" },
+              { text: "You don't have to be great to start, but you have to start to be great.", author: "Zig Ziglar" },
+              { text: "Hard work beats talent when talent doesn't work hard.", author: "Tim Notke" },
+              { text: "Discipline is the bridge between goals and accomplishment.", author: "Jim Rohn" },
+              { text: "Fall seven times, stand up eight.", author: "Japanese proverb" },
+              { text: "Do something today that your future self will thank you for.", author: "Sean Patrick Flanery" },
+              { text: "Success is the sum of small efforts repeated day in and day out.", author: "Robert Collier" },
+              { text: "Genius is 1% inspiration and 99% perspiration.", author: "Thomas Edison" },
+              { text: "The pain of studying is temporary. The pride of results is permanent.", author: "Unknown" },
+              { text: "Work while they sleep. Learn while they party. Save while they spend.", author: "Unknown" },
+              { text: "Your future self is watching you right now through memories. Make it proud.", author: "Unknown" },
+            ];
+            const day = new Date().getUTCFullYear() * 1000 + Math.floor((Date.now() - new Date(new Date().getUTCFullYear(), 0, 0).getTime()) / 86400000);
+            const q = quotes[day % quotes.length];
+            return (
+              <div className="mt-6 rounded-xl border border-border bg-card px-6 py-5 text-center">
+                <p className="text-sm italic text-muted-foreground">"{q.text}"</p>
+                {q.author && <p className="mt-2 text-xs font-semibold text-muted-foreground/60">— {q.author}</p>}
               </div>
-              {!loading && (data?.bonusScans ?? 0) > 0 && (
-                <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-                  +{data?.bonusScans} bonus
-                </span>
-              )}
-            </div>
-            <div className="mt-4 flex gap-2">
-              {Array.from({ length: 7 }).map((_, i) => (
-                <div
-                  key={i}
-                  className={`h-2.5 flex-1 rounded-full transition-colors ${
-                    i === 6
-                      ? i < (data?.loginStreak ?? 0)
-                        ? "bg-yellow-400"
-                        : "bg-yellow-400/20"
-                      : i < (data?.loginStreak ?? 0)
-                      ? "bg-primary"
-                      : "bg-secondary"
-                  }`}
-                />
-              ))}
-            </div>
-          </Card>
+            );
+          })()}
 
         </div>
       </div>
