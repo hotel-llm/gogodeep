@@ -75,7 +75,7 @@ You MUST respond using the diagnose_error tool.`;
                     },
                     required: ["id", "question", "answer"],
                   },
-                  description: "Exactly 5 practice problems at a similar difficulty level",
+                  description: "Exactly 5 practice problems at a similar difficulty level. Each answer must be a whole number, a simple fraction, or a short text phrase — never a bare irrational number or square root. If a problem would naturally produce an irrational answer (e.g. x = √5), rephrase it so the answer is clean (e.g. ask for x² instead of x).",
                 },
                 input_status: {
                   type: "string",
@@ -122,7 +122,7 @@ You MUST respond using the diagnose_error tool.`;
                     },
                     required: ["id", "question", "answer"],
                   },
-                  description: "Exactly 5 practice problems targeting this specific weakness",
+                  description: "Exactly 5 practice problems targeting this specific weakness. Each answer must be a whole number, a simple fraction, or a short text phrase — never a bare irrational number or square root. If a problem would naturally produce an irrational answer, rephrase it so the answer is clean.",
                 },
                 input_status: {
                   type: "string",

@@ -63,6 +63,7 @@ type QuizQuestion = {
   answer: string;
   tfStatement?: string;
   tfCorrect?: boolean;
+  mode?: "tf" | "enter";
 };
 
 type QuizState = {
@@ -71,6 +72,9 @@ type QuizState = {
   revealed: boolean;
   questionType: "tf" | "enter" | "both";
   userInput: string;
+  results: Array<"correct" | "incorrect">;
+  currentResult: "correct" | "incorrect" | null;
+  showStats: boolean;
 };
 
 type QuizConfig = {
@@ -197,17 +201,18 @@ const Dashboard = ({ user }: { user: User }) => {
       pool.push(...shuffled.slice(0, perTopic));
     }
     let final = pool.sort(() => Math.random() - 0.5).slice(0, cfg.numQuestions);
-    if (cfg.questionType === "tf") {
+    if (cfg.questionType === "tf" || cfg.questionType === "both") {
       const answers = final.map((q) => q.answer);
       final = final.map((q, i) => {
+        const useTF = cfg.questionType === "tf" || Math.random() < 0.5;
+        if (!useTF) return { ...q, mode: "enter" as const };
         const isTrue = Math.random() < 0.5;
-        if (isTrue) return { ...q, tfStatement: q.answer, tfCorrect: true };
-        // pick a different answer as wrong statement
+        if (isTrue) return { ...q, mode: "tf" as const, tfStatement: q.answer, tfCorrect: true };
         const wrongIdx = (i + 1 + Math.floor(Math.random() * (answers.length - 1))) % answers.length;
-        return { ...q, tfStatement: answers[wrongIdx], tfCorrect: false };
+        return { ...q, mode: "tf" as const, tfStatement: answers[wrongIdx], tfCorrect: false };
       });
     }
-    setQuiz({ questions: final, current: 0, revealed: false, questionType: cfg.questionType, userInput: "" });
+    setQuiz({ questions: final, current: 0, revealed: false, questionType: cfg.questionType, userInput: "", results: [], currentResult: null, showStats: false });
   };
 
   const startQuiz = () => {
@@ -439,9 +444,9 @@ const Dashboard = ({ user }: { user: User }) => {
                   <BrainCircuit className="h-4 w-4 text-primary" />
                   <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Quick Recap Quiz</p>
                 </div>
-                {quiz ? (
+                {quiz && !quiz.showStats ? (
                   <span className="text-xs text-muted-foreground">{quiz.current + 1} / {quiz.questions.length}</span>
-                ) : data?.plan !== "free" && (data?.recentScans.length ?? 0) >= 5 ? (
+                ) : !quiz && data?.plan !== "free" && (data?.recentScans.length ?? 0) >= 5 ? (
                   <Button size="sm" className="bg-primary hover:bg-primary/90 h-7 text-xs px-3" onClick={startQuiz} disabled={loading}>
                     Start Quiz
                   </Button>
@@ -499,62 +504,136 @@ const Dashboard = ({ user }: { user: User }) => {
                     );
                   })()}
                 </div>
+              ) : quiz.showStats ? (
+                <div className="space-y-4 pb-5">
+                  <div className="rounded-xl border border-border bg-secondary/40 px-4 py-5 text-center">
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-2">Quiz complete</p>
+                    <p className="text-4xl font-extrabold text-foreground">
+                      {quiz.results.filter(r => r === "correct").length}
+                      <span className="text-xl font-medium text-muted-foreground"> / {quiz.questions.length}</span>
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">correct</p>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 justify-center">
+                    {quiz.results.map((r, i) => (
+                      <div key={i} className={`h-2.5 w-2.5 rounded-full ${r === "correct" ? "bg-green-400" : "bg-red-400"}`} title={`Q${i + 1}: ${r}`} />
+                    ))}
+                  </div>
+                  <div className="flex justify-center">
+                    <Button size="sm" variant="outline" className="border-border" onClick={() => setQuiz(null)}>Done</Button>
+                  </div>
+                </div>
               ) : (
                 <div className="space-y-3 pb-5">
-                  <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-widest text-primary mb-1">{quiz.questions[quiz.current].topic}</p>
-                    <p className="text-sm font-medium text-foreground">{quiz.questions[quiz.current].question}</p>
-                  </div>
-                  {quiz.questionType === "tf" && !quiz.revealed && (
-                    <div className="rounded-lg border border-border bg-secondary/40 px-3 py-2.5 text-sm text-foreground">
-                      <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground block mb-1">Is this statement true or false?</span>
-                      {quiz.questions[quiz.current].tfStatement}
-                    </div>
-                  )}
-                  {quiz.revealed ? (
-                    <div className="space-y-2.5">
-                      {quiz.questionType === "tf" && (
-                        <div className={`rounded-lg border px-3 py-2 text-sm font-semibold ${quiz.questions[quiz.current].tfCorrect ? "border-green-500/30 bg-green-500/10 text-green-400" : "border-red-500/30 bg-red-500/10 text-red-400"}`}>
-                          That statement was {quiz.questions[quiz.current].tfCorrect ? "True ✓" : "False ✗"}
+                  {(() => {
+                    const currentQ = quiz.questions[quiz.current];
+                    const isCurrentTF = quiz.questionType === "tf" || (quiz.questionType === "both" && currentQ.mode === "tf");
+
+                    const advanceTF = () => {
+                      setQuiz((q) => {
+                        if (!q) return q;
+                        if (q.current >= q.questions.length - 1) return { ...q, showStats: true };
+                        return { ...q, current: q.current + 1, revealed: false, currentResult: null, userInput: "" };
+                      });
+                    };
+
+                    const gradeAndAdvance = (grade: "correct" | "incorrect") => {
+                      setQuiz((q) => {
+                        if (!q) return q;
+                        const newResults = [...q.results, grade];
+                        if (q.current >= q.questions.length - 1) return { ...q, results: newResults, showStats: true };
+                        return { ...q, results: newResults, current: q.current + 1, revealed: false, currentResult: null, userInput: "" };
+                      });
+                    };
+
+                    return (
+                      <>
+                        <div>
+                          <p className="text-[10px] font-semibold uppercase tracking-widest text-primary mb-1">{currentQ.topic}</p>
+                          <p className="text-sm font-medium text-foreground">{currentQ.question}</p>
                         </div>
-                      )}
-                      <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5 text-sm text-foreground">
-                        <span className="text-[10px] font-semibold uppercase tracking-widest text-primary block mb-1">Answer</span>
-                        {quiz.questions[quiz.current].answer}
-                      </div>
-                      <div className="flex justify-end">
-                        {quiz.current < quiz.questions.length - 1 ? (
-                          <Button size="sm" className="bg-primary hover:bg-primary/90"
-                            onClick={() => setQuiz((q) => q && ({ ...q, current: q.current + 1, revealed: false, userInput: "" }))}>
-                            Next <ArrowRight className="ml-2 h-3.5 w-3.5" />
-                          </Button>
-                        ) : (
-                          <Button size="sm" variant="outline" className="border-border" onClick={() => setQuiz(null)}>Done</Button>
+                        {isCurrentTF && !quiz.revealed && (
+                          <div className="rounded-lg border border-border bg-secondary/40 px-3 py-2.5 text-sm text-foreground">
+                            <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground block mb-1">Is this statement true or false?</span>
+                            {currentQ.tfStatement}
+                          </div>
                         )}
-                      </div>
-                    </div>
-                  ) : quiz.questionType === "tf" ? (
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline" className="flex-1 border-border"
-                        onClick={() => setQuiz((q) => q && ({ ...q, revealed: true }))}>True</Button>
-                      <Button size="sm" variant="outline" className="flex-1 border-border"
-                        onClick={() => setQuiz((q) => q && ({ ...q, revealed: true }))}>False</Button>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <textarea
-                        rows={2}
-                        value={quiz.userInput}
-                        onChange={(e) => setQuiz((q) => q && ({ ...q, userInput: e.target.value }))}
-                        placeholder="Type your answer…"
-                        className="w-full resize-none rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-                      />
-                      <Button size="sm" className="w-full bg-primary hover:bg-primary/90"
-                        onClick={() => setQuiz((q) => q && ({ ...q, revealed: true }))}>
-                        Check answer
-                      </Button>
-                    </div>
-                  )}
+                        {quiz.revealed ? (
+                          <div className="space-y-2.5">
+                            {isCurrentTF ? (
+                              <>
+                                <div className={`rounded-lg border px-3 py-2 text-sm font-semibold ${quiz.currentResult === "correct" ? "border-green-500/30 bg-green-500/10 text-green-400" : "border-red-500/30 bg-red-500/10 text-red-400"}`}>
+                                  {quiz.currentResult === "correct" ? "Correct! ✓" : "Incorrect ✗"}
+                                </div>
+                                <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5 text-sm text-foreground">
+                                  <span className="text-[10px] font-semibold uppercase tracking-widest text-primary block mb-1">Answer</span>
+                                  {currentQ.answer}
+                                </div>
+                                <div className="flex justify-end">
+                                  <Button size="sm" className="bg-primary hover:bg-primary/90" onClick={advanceTF}>
+                                    {quiz.current < quiz.questions.length - 1 ? <>Next <ArrowRight className="ml-2 h-3.5 w-3.5" /></> : "Finish"}
+                                  </Button>
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                {quiz.userInput.trim() && (
+                                  <div className="rounded-lg border border-border bg-secondary/40 px-3 py-2.5 text-sm text-foreground">
+                                    <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground block mb-1">Your answer</span>
+                                    {quiz.userInput}
+                                  </div>
+                                )}
+                                <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5 text-sm text-foreground">
+                                  <span className="text-[10px] font-semibold uppercase tracking-widest text-primary block mb-1">Correct answer</span>
+                                  {currentQ.answer}
+                                </div>
+                                <div className="flex gap-2">
+                                  <Button size="sm" variant="outline" className="flex-1 border-green-500/40 text-green-400 hover:bg-green-500/10"
+                                    onClick={() => gradeAndAdvance("correct")}>
+                                    Got it ✓
+                                  </Button>
+                                  <Button size="sm" variant="outline" className="flex-1 border-red-500/40 text-red-400 hover:bg-red-500/10"
+                                    onClick={() => gradeAndAdvance("incorrect")}>
+                                    Wrong ✗
+                                  </Button>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        ) : isCurrentTF ? (
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="outline" className="flex-1 border-border"
+                              onClick={() => {
+                                const correct = currentQ.tfCorrect === true;
+                                setQuiz((q) => q && ({ ...q, revealed: true, currentResult: correct ? "correct" : "incorrect", results: [...q.results, correct ? "correct" : "incorrect"] }));
+                              }}>True</Button>
+                            <Button size="sm" variant="outline" className="flex-1 border-border"
+                              onClick={() => {
+                                const correct = currentQ.tfCorrect === false;
+                                setQuiz((q) => q && ({ ...q, revealed: true, currentResult: correct ? "correct" : "incorrect", results: [...q.results, correct ? "correct" : "incorrect"] }));
+                              }}>False</Button>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <textarea
+                              rows={2}
+                              value={quiz.userInput}
+                              onChange={(e) => setQuiz((q) => q && ({ ...q, userInput: e.target.value }))}
+                              placeholder="Type your answer…"
+                              className="w-full resize-none rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                            />
+                            <Button size="sm" className="w-full bg-primary hover:bg-primary/90"
+                              onClick={() => {
+                                if (!quiz.userInput.trim()) { toast.error("Please enter your answer first."); return; }
+                                setQuiz((q) => q && ({ ...q, revealed: true }));
+                              }}>
+                              Check answer
+                            </Button>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               )}
             </Card>
@@ -1167,7 +1246,7 @@ const Landing = () => {
                   Fix the thinking,<br />not just the answer.
                 </h1>
                 <p className="mt-6 max-w-md text-lg leading-relaxed text-muted-foreground">
-                  Turn handwritten work into instant insight so you can fix root misconceptions faster.
+                  Trace any difficult question down to its roots so it never bothers you again.
                 </p>
                 <div className="mt-8">
                   <Link to="/signup">
