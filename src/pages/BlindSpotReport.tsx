@@ -6,7 +6,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import EducatorLayout from "@/components/EducatorLayout";
 import { supabase } from "@/integrations/supabase/client";
@@ -447,44 +446,48 @@ const BlindSpotReport = () => {
 
         {/* Tabs panel */}
         <div className="lg:col-span-3">
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ReportTab)}>
-            <TabsList className="mb-4 w-full border border-border bg-secondary">
-              {mode === "guide" ? (
-                <TabsTrigger value="steps" className="flex-1 gap-1.5 data-[state=active]:bg-card">
-                  <ArrowRight className="h-3.5 w-3.5" />
-                  Step by Step
-                </TabsTrigger>
-              ) : (
-                <TabsTrigger value="error" className="flex-1 gap-1.5 data-[state=active]:bg-card">
-                  <TriangleAlert className="h-3.5 w-3.5" />
-                  Error Found
-                </TabsTrigger>
-              )}
-              <TabsTrigger value="concept" className="flex-1 gap-1.5 data-[state=active]:bg-card">
-                <Lightbulb className="h-3.5 w-3.5" />
-                Concept
-              </TabsTrigger>
-              <TabsTrigger value="practice" className="flex-1 gap-1.5 data-[state=active]:bg-card">
-                <ClipboardList className="h-3.5 w-3.5" />
-                Practice
-              </TabsTrigger>
-            </TabsList>
-            {mode === "guide" ? (
-              <TabsContent value="steps" className="animate-in fade-in duration-200">
-                <StepsTab diagnosis={diagnosis as GuideDiagnosis} />
-              </TabsContent>
-            ) : (
-              <TabsContent value="error" className="animate-in fade-in duration-200">
-                <IdentifyErrorTab diagnosis={diagnosis as IdentifyDiagnosis} />
-              </TabsContent>
-            )}
-            <TabsContent value="concept" className="animate-in fade-in duration-200">
-              <ConceptTab concept={concept} plan={plan} onMasterClick={() => setActiveTab("practice")} />
-            </TabsContent>
-            <TabsContent value="practice" className="animate-in fade-in duration-200">
-              <PracticeTab problems={practice} plan={plan} onScanQuestion={scanPracticeQuestion} />
-            </TabsContent>
-          </Tabs>
+          {(() => {
+            const tabList = mode === "guide"
+              ? [
+                  { value: "steps" as ReportTab, label: "Step by Step", Icon: ArrowRight },
+                  { value: "concept" as ReportTab, label: "Concept", Icon: Lightbulb },
+                  { value: "practice" as ReportTab, label: "Practice", Icon: ClipboardList },
+                ]
+              : [
+                  { value: "error" as ReportTab, label: "Error Found", Icon: TriangleAlert },
+                  { value: "concept" as ReportTab, label: "Concept", Icon: Lightbulb },
+                  { value: "practice" as ReportTab, label: "Practice", Icon: ClipboardList },
+                ];
+            const activeIdx = tabList.findIndex((t) => t.value === activeTab);
+            return (
+              <>
+                <div className="relative mb-4 flex w-full rounded-md border border-border bg-secondary p-1">
+                  <div
+                    className="absolute bottom-1 top-1 rounded-sm bg-card shadow-sm transition-transform duration-200 ease-out"
+                    style={{ width: `calc((100% - 8px) / 3)`, transform: `translateX(calc(${activeIdx} * 100%))` }}
+                  />
+                  {tabList.map(({ value, label, Icon }) => (
+                    <button
+                      key={value}
+                      onClick={() => setActiveTab(value)}
+                      className={`relative z-10 flex flex-1 items-center justify-center gap-1.5 rounded-sm py-1.5 text-sm font-medium transition-colors duration-200 ${
+                        activeTab === value ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <div className="animate-in fade-in duration-200">
+                  {activeTab === "steps" && <StepsTab diagnosis={diagnosis as GuideDiagnosis} />}
+                  {activeTab === "error" && <IdentifyErrorTab diagnosis={diagnosis as IdentifyDiagnosis} />}
+                  {activeTab === "concept" && <ConceptTab concept={concept} plan={plan} onMasterClick={() => setActiveTab("practice")} />}
+                  {activeTab === "practice" && <PracticeTab problems={practice} plan={plan} onScanQuestion={scanPracticeQuestion} />}
+                </div>
+              </>
+            );
+          })()}
         </div>
 
       </div>

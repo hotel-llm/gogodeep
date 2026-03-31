@@ -845,19 +845,29 @@ const DemoPanel = () => {
         {/* Phase 3: physics tabbed results */}
         {phase === 3 && (
           <div className="animate-fade-up flex h-full flex-col p-4">
-            <div className="mb-3 flex gap-1 rounded-lg border border-border bg-secondary p-1">
-              {(["steps", "concept", "practice"] as DemoTab[]).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setTab(t)}
-                  className={`flex-1 rounded-md py-1.5 text-[11px] font-semibold transition-colors ${
-                    tab === t ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {t === "steps" ? "Step by Step" : t === "concept" ? "Concept" : "Practice"}
-                </button>
-              ))}
-            </div>
+            {(() => {
+              const demoTabs: DemoTab[] = ["steps", "concept", "practice"];
+              const demoTabIdx = demoTabs.indexOf(tab);
+              return (
+                <div className="relative mb-3 flex gap-1 rounded-lg border border-border bg-secondary p-1">
+                  <div
+                    className="absolute bottom-1 top-1 rounded-md bg-card shadow-sm transition-transform duration-200 ease-out"
+                    style={{ width: "calc((100% - 8px) / 3)", transform: `translateX(calc(${demoTabIdx} * 100%))` }}
+                  />
+                  {demoTabs.map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => setTab(t)}
+                      className={`relative z-10 flex-1 rounded-md py-1.5 text-[11px] font-semibold transition-colors duration-200 ${
+                        tab === t ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {t === "steps" ? "Step by Step" : t === "concept" ? "Concept" : "Practice"}
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
 
             {tab === "steps" && (
               <div className="flex-1 space-y-2 overflow-y-auto pr-0.5">
@@ -979,19 +989,29 @@ const DemoPanel = () => {
         {phase === 6 && (
           <div className="animate-fade-up flex h-full flex-col p-4">
             {/* Tab bar */}
-            <div className="mb-3 flex gap-1 rounded-lg border border-border bg-secondary p-1">
-              {(["steps", "concept", "practice"] as DemoTab[]).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setTab(t)}
-                  className={`flex-1 rounded-md py-1.5 text-[11px] font-semibold transition-colors ${
-                    tab === t ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {t === "steps" ? "Step by Step" : t === "concept" ? "Concept" : "Practice"}
-                </button>
-              ))}
-            </div>
+            {(() => {
+              const demoTabs: DemoTab[] = ["steps", "concept", "practice"];
+              const demoTabIdx = demoTabs.indexOf(tab);
+              return (
+                <div className="relative mb-3 flex gap-1 rounded-lg border border-border bg-secondary p-1">
+                  <div
+                    className="absolute bottom-1 top-1 rounded-md bg-card shadow-sm transition-transform duration-200 ease-out"
+                    style={{ width: "calc((100% - 8px) / 3)", transform: `translateX(calc(${demoTabIdx} * 100%))` }}
+                  />
+                  {demoTabs.map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => setTab(t)}
+                      className={`relative z-10 flex-1 rounded-md py-1.5 text-[11px] font-semibold transition-colors duration-200 ${
+                        tab === t ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {t === "steps" ? "Step by Step" : t === "concept" ? "Concept" : "Practice"}
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
 
             {tab === "steps" && (
               <div className="flex-1 space-y-2 overflow-y-auto pr-0.5">
