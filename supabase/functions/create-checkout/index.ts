@@ -9,7 +9,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { userId, email } = await req.json();
+    const { userId, email, planId } = await req.json();
 
     if (!userId || !email) {
       return new Response(JSON.stringify({ error: "Missing userId or email" }), {
@@ -18,7 +18,6 @@ Deno.serve(async (req: Request) => {
     }
 
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    const priceId = Deno.env.get("STRIPE_PRO_PRICE_ID");
     const siteUrl = Deno.env.get("SITE_URL") ?? "https://gogodeep.com";
 
     if (!stripeKey) {
@@ -26,8 +25,15 @@ Deno.serve(async (req: Request) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const PRICE_IDS: Record<string, string | undefined> = {
+      intermediate: Deno.env.get("STRIPE_INTERMEDIATE_PRICE_ID") ?? Deno.env.get("STRIPE_PRO_PRICE_ID"),
+      deep: Deno.env.get("STRIPE_DEEP_PRICE_ID"),
+    };
+
+    const priceId = PRICE_IDS[planId] ?? PRICE_IDS["intermediate"];
     if (!priceId) {
-      return new Response(JSON.stringify({ error: "STRIPE_PRO_PRICE_ID not set" }), {
+      return new Response(JSON.stringify({ error: "No price ID configured for this plan" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -40,6 +46,7 @@ Deno.serve(async (req: Request) => {
       "success_url": `${siteUrl}/?upgraded=1`,
       "cancel_url": `${siteUrl}/pricing`,
       "metadata[userId]": userId,
+      "metadata[planId]": planId ?? "intermediate",
     });
 
     const stripeRes = await fetch("https://api.stripe.com/v1/checkout/sessions", {

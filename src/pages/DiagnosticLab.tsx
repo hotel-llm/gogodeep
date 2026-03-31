@@ -302,7 +302,7 @@ const DiagnosticLab = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-foreground">
               <Lock className="h-4 w-4 text-primary" />
-              Upgrade to Pro
+              Upgrade to Intermediate
             </DialogTitle>
             <DialogDescription className="text-muted-foreground">
               You're out of scan credits{remainingCredits !== null ? ` (${remainingCredits} left)` : ""}. Upgrade for unlimited scans.

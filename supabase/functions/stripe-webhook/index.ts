@@ -36,8 +36,9 @@ Deno.serve(async (req: Request) => {
     const session = event.data.object;
     const userId = session.metadata?.userId;
     const customerId = session.customer;
+    const planId = session.metadata?.planId ?? "intermediate";
     if (userId) {
-      await supabase.from("profiles").update({ plan: "intermediate", stripe_customer_id: customerId }).eq("id", userId);
+      await supabase.from("profiles").update({ plan: planId, stripe_customer_id: customerId }).eq("id", userId);
     }
   }
 

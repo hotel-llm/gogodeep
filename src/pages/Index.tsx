@@ -1,8 +1,9 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
-import { Camera, Microscope, Route, ArrowRight, ScanLine, BookOpen, Upload, Loader2, Flame, ChevronRight, BrainCircuit, Lock } from "lucide-react";
+import { Camera, Microscope, Route, ArrowRight, ScanLine, BookOpen, Upload, Loader2, Flame, ChevronRight, BrainCircuit, Lock, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import PageTransition from "@/components/PageTransition";
 import gogodeepLogo from "@/assets/gogodeep-logo.png";
 import { supabase } from "@/integrations/supabase/client";
@@ -60,12 +61,22 @@ type QuizQuestion = {
   topic: string;
   question: string;
   answer: string;
+  tfStatement?: string;
+  tfCorrect?: boolean;
 };
 
 type QuizState = {
   questions: QuizQuestion[];
   current: number;
   revealed: boolean;
+  questionType: "tf" | "enter" | "both";
+  userInput: string;
+};
+
+type QuizConfig = {
+  numQuestions: number;
+  questionType: "tf" | "enter" | "both";
+  selectedConcepts: string[];
 };
 
 const Dashboard = ({ user }: { user: User }) => {
@@ -73,6 +84,10 @@ const Dashboard = ({ user }: { user: User }) => {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [quiz, setQuiz] = useState<QuizState | null>(null);
+  const [showQuizConfig, setShowQuizConfig] = useState(false);
+  const [quizConfig, setQuizConfig] = useState<QuizConfig>({ numQuestions: 10, questionType: "both", selectedConcepts: [] });
+  const [scanAtBottom, setScanAtBottom] = useState(false);
+  const scanScrollRef = useRef<HTMLDivElement>(null);
   const resetCountdown = useUtcResetCountdown();
   const location = useLocation();
 
@@ -101,7 +116,7 @@ const Dashboard = ({ user }: { user: User }) => {
       }
       const used = isNewDay ? 0 : (profileRes.data?.daily_scan_count ?? 0);
       let bonusScans: number = profileRes.data?.bonus_scans ?? 0;
-      const limit = SCAN_LIMITS[plan] ?? SCAN_LIMITS.free;
+      const limit = plan in SCAN_LIMITS ? SCAN_LIMITS[plan] : SCAN_LIMITS.free;
 
       // Streak logic
       const lastLogin: string = profileRes.data?.last_login_date ?? "";
@@ -118,7 +133,7 @@ const Dashboard = ({ user }: { user: User }) => {
         await (supabase as any).from("profiles").update(streakUpdates).eq("id", user.id);
       }
 
-      const creditsLeft = limit === null ? null : Math.max(0, limit - used) + bonusScans;
+      const creditsLeft = limit === null ? null : Math.max(0, (limit as number) - used) + bonusScans;
 
       const conceptualCount = logs.filter((l) => l.error_category?.toLowerCase() === "conceptual").length;
       const conceptsLearned = new Set(logs.map((l) => l.topic).filter(Boolean)).size;
@@ -135,7 +150,7 @@ const Dashboard = ({ user }: { user: User }) => {
 
       const recentTopics = logs.map((l) => l.topic).filter(Boolean).slice(0, 3) as string[];
 
-      const recentScans = logs.slice(0, 8).map((l) => ({
+      const recentScans = logs.map((l) => ({
         id: l.id,
         label: l.specific_error_tag ?? l.topic ?? "Unnamed scan",
         created_at: l.created_at,
@@ -147,25 +162,65 @@ const Dashboard = ({ user }: { user: User }) => {
     load();
   }, [user.id]);
 
-  const startQuiz = () => {
+  const availableConcepts = (): string[] => {
+    if (!data) return [];
+    const concepts = new Set<string>();
+    for (const scan of data.recentScans) {
+      if (scan.label && scan.label !== "Unnamed scan") concepts.add(scan.label);
+    }
+    return Array.from(concepts);
+  };
+
+  const startQuizWithConfig = (cfg: QuizConfig) => {
     if (!data) return;
-    if (data.plan === "free") return; // handled in UI
-    const scans = data.recentScans.slice(0, 5);
-    if (scans.length < 5) return; // handled in UI
-    const questions: QuizQuestion[] = [];
-    for (const scan of scans) {
+    setShowQuizConfig(false);
+    // Group questions by concept (scan label)
+    const byTopic: Record<string, QuizQuestion[]> = {};
+    for (const scan of data.recentScans) {
       const raw = localStorage.getItem(SCAN_CACHE_KEY(scan.id));
       if (!raw) continue;
       try {
         const stored = JSON.parse(raw);
         const problems: { question: string; answer: string }[] = stored.diagnosis?.practice_problems ?? [];
-        for (const p of problems.slice(0, 2)) {
-          questions.push({ topic: scan.label, question: p.question, answer: p.answer });
+        for (const p of problems) {
+          (byTopic[scan.label] ??= []).push({ topic: scan.label, question: p.question, answer: p.answer });
         }
       } catch {}
     }
-    if (!questions.length) { toast.error("Couldn't load practice questions from your scans."); return; }
-    setQuiz({ questions, current: 0, revealed: false });
+    const topics = Object.keys(byTopic);
+    if (!topics.length) { toast.error("Couldn't load practice questions from your scans."); return; }
+    // Even distribution: take ceil(numQuestions / numTopics) from each, shuffle within topic, then slice
+    const perTopic = Math.ceil(cfg.numQuestions / topics.length);
+    const pool: QuizQuestion[] = [];
+    for (const topic of topics) {
+      const shuffled = (byTopic[topic] ?? []).sort(() => Math.random() - 0.5);
+      pool.push(...shuffled.slice(0, perTopic));
+    }
+    let final = pool.sort(() => Math.random() - 0.5).slice(0, cfg.numQuestions);
+    if (cfg.questionType === "tf") {
+      const answers = final.map((q) => q.answer);
+      final = final.map((q, i) => {
+        const isTrue = Math.random() < 0.5;
+        if (isTrue) return { ...q, tfStatement: q.answer, tfCorrect: true };
+        // pick a different answer as wrong statement
+        const wrongIdx = (i + 1 + Math.floor(Math.random() * (answers.length - 1))) % answers.length;
+        return { ...q, tfStatement: answers[wrongIdx], tfCorrect: false };
+      });
+    }
+    setQuiz({ questions: final, current: 0, revealed: false, questionType: cfg.questionType, userInput: "" });
+  };
+
+  const startQuiz = () => {
+    if (!data) return;
+    if (data.plan === "free") return;
+    if (data.recentScans.length < 5) return;
+    if (data.plan !== "free") {
+      const concepts = availableConcepts();
+      setQuizConfig({ numQuestions: 10, questionType: "both", selectedConcepts: concepts });
+      setShowQuizConfig(true);
+      return;
+    }
+    startQuizWithConfig({ numQuestions: 10, questionType: "both", selectedConcepts: [] });
   };
 
   const navigate = useNavigate();
@@ -244,18 +299,20 @@ const Dashboard = ({ user }: { user: User }) => {
               <p className="mt-4 text-5xl font-extrabold tracking-tight text-foreground">
                 {loading ? "—" : data?.creditsLeft === null ? "∞" : data?.creditsLeft}
               </p>
-              <p className="mt-1.5 text-xs text-muted-foreground">
-                {data?.creditsLeft === null
-                  ? "Unlimited scans"
-                  : `of ${SCAN_LIMITS[data?.plan ?? "free"] ?? SCAN_LIMITS.free} daily · resets in ${resetCountdown}`}
-              </p>
-              {data && data.creditsLeft !== null && SCAN_LIMITS[data.plan] != null && (
-                <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
-                  <div
-                    className="h-full rounded-full bg-primary transition-all duration-700"
-                    style={{ width: `${Math.min(Math.round(((SCAN_LIMITS[data.plan] ?? SCAN_LIMITS.free ?? 0) - data.creditsLeft + data.bonusScans) / (SCAN_LIMITS[data.plan] ?? SCAN_LIMITS.free ?? 1) * 100), 100)}%` }}
-                  />
-                </div>
+              {data?.plan !== "deep" && (
+                <>
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    {`of ${SCAN_LIMITS[data?.plan ?? "free"] ?? SCAN_LIMITS.free} daily · resets in ${resetCountdown}`}
+                  </p>
+                  {data && SCAN_LIMITS[data.plan] != null && (
+                    <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+                      <div
+                        className="h-full rounded-full bg-primary transition-all duration-700"
+                        style={{ width: `${Math.min(Math.round(((SCAN_LIMITS[data.plan] ?? SCAN_LIMITS.free ?? 0) - (data.creditsLeft ?? 0) + data.bonusScans) / (SCAN_LIMITS[data.plan] ?? SCAN_LIMITS.free ?? 1) * 100), 100)}%` }}
+                      />
+                    </div>
+                  )}
+                </>
               )}
             </Card>
 
@@ -325,19 +382,19 @@ const Dashboard = ({ user }: { user: User }) => {
           <div className="grid gap-6 lg:grid-cols-5">
 
             {/* Previous scans — wider */}
-            <Card className="border-border bg-card p-6 lg:col-span-3">
-              <div className="mb-5 flex items-center gap-2">
+            <Card className="border-border bg-card pt-5 px-5 pb-0 lg:col-span-3">
+              <div className="mb-4 flex items-center gap-2">
                 <BookOpen className="h-4 w-4 text-primary" />
                 <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Previous Scans</p>
               </div>
               {loading ? (
-                <div className="space-y-2.5">
-                  {[1, 2, 3, 4].map((i) => (
+                <div className="space-y-2 pb-5">
+                  {[1, 2, 3].map((i) => (
                     <div key={i} className="h-11 w-full rounded-lg bg-secondary animate-pulse" />
                   ))}
                 </div>
               ) : !data?.recentScans.length ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="flex flex-col items-center justify-center py-8 pb-5 text-center">
                   <BookOpen className="h-8 w-8 text-muted-foreground/30" />
                   <p className="mt-3 text-sm text-muted-foreground">Your scans will appear here after your first diagnosis.</p>
                   <Link to="/lab" className="mt-4 inline-block">
@@ -348,88 +405,155 @@ const Dashboard = ({ user }: { user: User }) => {
                   </Link>
                 </div>
               ) : (
-                <div className="space-y-2">
-                  {data.recentScans.map((scan) => (
-                    <button
-                      key={scan.id}
-                      onClick={() => handleScanClick(scan.id)}
-                      className="flex w-full items-center justify-between rounded-lg border border-border bg-secondary/60 px-4 py-3 text-left transition-all duration-150 hover:bg-secondary hover:border-primary/30 hover:translate-x-0.5"
-                    >
-                      <span className="truncate text-sm font-medium text-foreground">{scan.label}</span>
-                      <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
-                    </button>
-                  ))}
+                <div className="relative">
+                  <div
+                    ref={scanScrollRef}
+                    onScroll={() => {
+                      const el = scanScrollRef.current;
+                      if (el) setScanAtBottom(el.scrollTop + el.clientHeight >= el.scrollHeight - 4);
+                    }}
+                    className="max-h-[12.5rem] overflow-y-auto space-y-2 pr-1 pb-4"
+                  >
+                    {data.recentScans.map((scan) => (
+                      <button
+                        key={scan.id}
+                        onClick={() => handleScanClick(scan.id)}
+                        className="flex w-full items-center justify-between rounded-lg border border-border bg-secondary/60 px-4 py-3 text-left transition-all duration-150 hover:bg-secondary hover:border-primary/30 hover:translate-x-0.5"
+                      >
+                        <span className="truncate text-sm font-medium text-foreground">{scan.label}</span>
+                        <ChevronRight className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
+                      </button>
+                    ))}
+                  </div>
+                  {data.recentScans.length > 3 && !scanAtBottom && (
+                    <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-card to-transparent" />
+                  )}
                 </div>
               )}
             </Card>
 
-            {/* Recap quiz */}
-            <Card className="border-border bg-card p-6 lg:col-span-2">
-              <div className="mb-5 flex items-center justify-between">
+            {/* Quick Recap Quiz */}
+            <Card className="border-border bg-card pt-5 px-5 pb-0 lg:col-span-2">
+              <div className="mb-4 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <BrainCircuit className="h-4 w-4 text-primary" />
-                  <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Recap Quiz</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Quick Recap Quiz</p>
                 </div>
-                {quiz && (
+                {quiz ? (
                   <span className="text-xs text-muted-foreground">{quiz.current + 1} / {quiz.questions.length}</span>
-                )}
+                ) : data?.plan !== "free" && (data?.recentScans.length ?? 0) >= 5 ? (
+                  <Button size="sm" className="bg-primary hover:bg-primary/90 h-7 text-xs px-3" onClick={startQuiz} disabled={loading}>
+                    Start Quiz
+                  </Button>
+                ) : null}
               </div>
 
               {!quiz ? (
-                <div className="flex flex-col items-center gap-4 py-8 text-center">
-                  <BrainCircuit className="h-8 w-8 text-muted-foreground/30" />
+                <div className="pb-5">
                   {data?.plan === "free" ? (
-                    <>
-                      <p className="text-sm text-muted-foreground">Recap quizzes are available on Intermediate and Deep plans.</p>
+                    <div className="flex flex-col items-center gap-3 py-5 text-center">
+                      <BrainCircuit className="h-7 w-7 text-muted-foreground/30" />
+                      <p className="text-sm text-muted-foreground">Available on Intermediate and Deep plans.</p>
                       <Button size="sm" className="gap-2 bg-primary hover:bg-primary/90" onClick={() => navigate("/pricing")}>
                         <Lock className="h-3.5 w-3.5" />
                         Upgrade to unlock
                       </Button>
-                    </>
+                    </div>
                   ) : (data?.recentScans.length ?? 0) < 5 ? (
-                    <>
-                      <p className="text-sm text-muted-foreground">You need at least 5 scans to generate a recap quiz.</p>
-                      <p className="text-xs text-muted-foreground/60">{data?.recentScans.length ?? 0} / 5 scans so far</p>
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-sm text-muted-foreground">Test yourself on your previous concepts.</p>
-                      <Button size="sm" className="bg-primary hover:bg-primary/90" onClick={startQuiz} disabled={loading}>
-                        Start Quiz
-                      </Button>
-                    </>
-                  )}
+                    <div className="flex flex-col items-center gap-2 py-5 text-center">
+                      <BrainCircuit className="h-7 w-7 text-muted-foreground/30" />
+                      <p className="text-sm text-muted-foreground">Need at least 5 scans.</p>
+                      <p className="text-xs text-muted-foreground/60">{data?.recentScans.length ?? 0} / 5 so far</p>
+                    </div>
+                  ) : (() => {
+                    // Collect up to 2 questions from each of the first 2 distinct concepts
+                    const teasers: QuizQuestion[] = [];
+                    const seenTopics: string[] = [];
+                    for (const scan of data!.recentScans) {
+                      if (seenTopics.length >= 2) break;
+                      const raw = localStorage.getItem(SCAN_CACHE_KEY(scan.id));
+                      if (!raw) continue;
+                      try {
+                        const stored = JSON.parse(raw);
+                        const problems: { question: string; answer: string }[] = stored.diagnosis?.practice_problems ?? [];
+                        const topicQuestions = problems.slice(0, 2).map((p) => ({ topic: scan.label, question: p.question, answer: p.answer }));
+                        if (topicQuestions.length) {
+                          teasers.push(...topicQuestions);
+                          seenTopics.push(scan.label);
+                        }
+                      } catch {}
+                    }
+                    const shown = teasers.slice(0, 3);
+                    return (
+                      <div className="relative overflow-hidden" style={{ maxHeight: "12rem" }}>
+                        <div className="space-y-2">
+                          {shown.map((q, i) => (
+                            <div key={i} className="rounded-lg border border-border bg-secondary/40 px-3 py-2.5">
+                              <p className="text-[10px] font-semibold uppercase tracking-widest text-primary mb-1">{q.topic}</p>
+                              <p className="text-xs text-foreground">{q.question}</p>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-card to-transparent" />
+                      </div>
+                    );
+                  })()}
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-3 pb-5">
                   <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-widest text-primary mb-2">{quiz.questions[quiz.current].topic}</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-primary mb-1">{quiz.questions[quiz.current].topic}</p>
                     <p className="text-sm font-medium text-foreground">{quiz.questions[quiz.current].question}</p>
                   </div>
+                  {quiz.questionType === "tf" && !quiz.revealed && (
+                    <div className="rounded-lg border border-border bg-secondary/40 px-3 py-2.5 text-sm text-foreground">
+                      <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground block mb-1">Is this statement true or false?</span>
+                      {quiz.questions[quiz.current].tfStatement}
+                    </div>
+                  )}
                   {quiz.revealed ? (
-                    <div className="space-y-3">
-                      <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-foreground">
+                    <div className="space-y-2.5">
+                      {quiz.questionType === "tf" && (
+                        <div className={`rounded-lg border px-3 py-2 text-sm font-semibold ${quiz.questions[quiz.current].tfCorrect ? "border-green-500/30 bg-green-500/10 text-green-400" : "border-red-500/30 bg-red-500/10 text-red-400"}`}>
+                          That statement was {quiz.questions[quiz.current].tfCorrect ? "True ✓" : "False ✗"}
+                        </div>
+                      )}
+                      <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5 text-sm text-foreground">
+                        <span className="text-[10px] font-semibold uppercase tracking-widest text-primary block mb-1">Answer</span>
                         {quiz.questions[quiz.current].answer}
                       </div>
                       <div className="flex justify-end">
                         {quiz.current < quiz.questions.length - 1 ? (
                           <Button size="sm" className="bg-primary hover:bg-primary/90"
-                            onClick={() => setQuiz((q) => q && ({ ...q, current: q.current + 1, revealed: false }))}>
-                            Next
-                            <ArrowRight className="ml-2 h-3.5 w-3.5" />
+                            onClick={() => setQuiz((q) => q && ({ ...q, current: q.current + 1, revealed: false, userInput: "" }))}>
+                            Next <ArrowRight className="ml-2 h-3.5 w-3.5" />
                           </Button>
                         ) : (
-                          <Button size="sm" variant="outline" className="border-border" onClick={() => setQuiz(null)}>
-                            Done
-                          </Button>
+                          <Button size="sm" variant="outline" className="border-border" onClick={() => setQuiz(null)}>Done</Button>
                         )}
                       </div>
                     </div>
+                  ) : quiz.questionType === "tf" ? (
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" className="flex-1 border-border"
+                        onClick={() => setQuiz((q) => q && ({ ...q, revealed: true }))}>True</Button>
+                      <Button size="sm" variant="outline" className="flex-1 border-border"
+                        onClick={() => setQuiz((q) => q && ({ ...q, revealed: true }))}>False</Button>
+                    </div>
                   ) : (
-                    <Button size="sm" variant="outline" className="w-full border-border"
-                      onClick={() => setQuiz((q) => q && ({ ...q, revealed: true }))}>
-                      Reveal answer
-                    </Button>
+                    <div className="space-y-2">
+                      <textarea
+                        rows={2}
+                        value={quiz.userInput}
+                        onChange={(e) => setQuiz((q) => q && ({ ...q, userInput: e.target.value }))}
+                        placeholder="Type your answer…"
+                        className="w-full resize-none rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                      />
+                      <Button size="sm" className="w-full bg-primary hover:bg-primary/90"
+                        onClick={() => setQuiz((q) => q && ({ ...q, revealed: true }))}>
+                        Check answer
+                      </Button>
+                    </div>
                   )}
                 </div>
               )}
@@ -481,6 +605,68 @@ const Dashboard = ({ user }: { user: User }) => {
 
         </div>
       </div>
+
+      {/* Quiz config dialog */}
+      <Dialog open={showQuizConfig} onOpenChange={setShowQuizConfig}>
+        <DialogContent className="border border-border bg-card sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-foreground">
+              <Settings2 className="h-4 w-4 text-primary" />
+              Customise your quiz
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              Choose how many questions, what type, and which concepts to include.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-4 space-y-5">
+            {/* Number of questions */}
+            <div>
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Questions: {quizConfig.numQuestions}
+              </label>
+              <input
+                type="range"
+                min={1}
+                max={15}
+                value={quizConfig.numQuestions}
+                onChange={(e) => setQuizConfig((c) => ({ ...c, numQuestions: Number(e.target.value) }))}
+                className="w-full accent-primary"
+              />
+              <div className="flex justify-between text-[10px] text-muted-foreground/60 mt-0.5">
+                <span>1</span><span>15</span>
+              </div>
+            </div>
+
+            {/* Question type */}
+            <div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Question type</p>
+              <div className="grid grid-cols-3 gap-2">
+                {(["both", "enter", "tf"] as const).map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => setQuizConfig((c) => ({ ...c, questionType: t }))}
+                    className={`rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
+                      quizConfig.questionType === t
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-secondary/50 text-muted-foreground hover:border-primary/40"
+                    }`}
+                  >
+                    {t === "both" ? "Both" : t === "enter" ? "Short answer" : "True / False"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+          </div>
+          <div className="mt-6 flex justify-end gap-2">
+            <Button variant="outline" className="border-border" onClick={() => setShowQuizConfig(false)}>Cancel</Button>
+            <Button className="bg-primary hover:bg-primary/90" onClick={() => startQuizWithConfig(quizConfig)}>
+              Start Quiz
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </PageTransition>
   );
 };
@@ -614,7 +800,7 @@ const DemoPanel = () => {
         {phase === 1 && (
           <div className="flex h-full flex-col items-center justify-center gap-3 p-8">
             <div className="animate-slide-in-paper w-64 rounded-xl bg-blue-50 p-5 shadow-xl">
-              <p className="mb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wide">Question 2</p>
+              <p className="mb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wide">Question 7</p>
               <div className="mb-2 h-2.5 w-3/5 rounded bg-gray-600" />
               <div className="space-y-2">
                 <div className="h-2 w-full rounded bg-gray-300" />
@@ -637,7 +823,7 @@ const DemoPanel = () => {
         {phase === 2 && (
           <div className="relative flex h-full flex-col items-center justify-center gap-3 p-8">
             <div className="w-64 rounded-xl bg-blue-50 p-5 opacity-50 shadow-xl">
-              <p className="mb-2 text-[10px] font-bold text-gray-400 uppercase tracking-wide">Question 2</p>
+              <p className="mb-2 text-[10px] font-bold text-gray-400 uppercase tracking-wide">Question 7</p>
               <div className="mb-2 h-2.5 w-3/5 rounded bg-gray-300" />
               <div className="space-y-2">
                 <div className="h-2 w-full rounded bg-gray-200" />

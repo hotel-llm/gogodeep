@@ -158,17 +158,10 @@ export default function WhaleTutorial({
           pointerEvents: "auto",
         }}
       >
-        {cfg.bubbleUp ? (
-          <div className="flex flex-col items-center gap-3">
-            {bubble}
-            {whale}
-          </div>
-        ) : (
-          <div className="flex flex-col items-center gap-3">
-            {whale}
-            {bubble}
-          </div>
-        )}
+        <div className="flex items-center gap-4">
+          {whale}
+          {bubble}
+        </div>
       </div>
 
       <style>{`

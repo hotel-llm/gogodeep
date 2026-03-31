@@ -109,6 +109,26 @@ const Pricing = () => {
 
   const isPaid = userPlan === "intermediate" || userPlan === "deep";
 
+  const handleManageBilling = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    setLoadingPlan("manage");
+    try {
+      const { data, error } = await supabase.functions.invoke("billing-portal", {
+        body: { userId: user.id },
+      });
+      if (error) throw error;
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error(data?.error ?? "Could not open billing portal");
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
+      setLoadingPlan(null);
+    }
+  };
+
   return (
     <PageTransition>
       <div className="relative z-10 min-h-screen pt-14">
@@ -121,18 +141,36 @@ const Pricing = () => {
             <p className="mt-4 text-lg text-muted-foreground">
               Start free. Scale when you need deeper diagnostics.
             </p>
+            {isPaid && (
+              <div className="mt-6 flex justify-center">
+                <Button
+                  variant="outline"
+                  className="border-border text-muted-foreground"
+                  onClick={handleManageBilling}
+                  disabled={loadingPlan === "manage"}
+                >
+                  {loadingPlan === "manage" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Manage subscription
+                </Button>
+              </div>
+            )}
           </div>
 
           <div className="mx-auto mt-14 grid max-w-5xl gap-6 md:grid-cols-3">
             {plans.map((plan) => {
               const isActivePlan = userPlan === plan.id;
-              const isShallowOnPaidPlan = plan.id === "shallow" && isPaid;
+              const PLAN_RANK: Record<string, number> = { shallow: 0, intermediate: 1, deep: 2 };
+              const userRank = PLAN_RANK[userPlan ?? "shallow"] ?? 0;
+              const cardRank = PLAN_RANK[plan.id] ?? 0;
+              const isLowerTierCard = userRank > cardRank;
 
               return (
                 <Card
                   key={plan.id}
                   className={`flex flex-col border p-8 transition-all w-full hover:scale-[1.03] ${
-                    isActivePlan
+                    isActivePlan && plan.id === "deep"
+                      ? "border-yellow-400 bg-yellow-400/5 shadow-xl shadow-yellow-400/20"
+                      : isActivePlan
                       ? "border-primary bg-primary/5 shadow-xl shadow-primary/20"
                       : plan.featured
                       ? "border-yellow-400/40 bg-yellow-400/5 shadow-lg shadow-yellow-400/10"
@@ -142,7 +180,7 @@ const Pricing = () => {
                   <div className="mb-4 flex items-center justify-between">
                     <h2 className="text-xl font-bold text-foreground">{plan.name}</h2>
                     {isActivePlan ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">
+                      <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${plan.id === "deep" ? "bg-yellow-400 text-black" : "bg-primary text-primary-foreground"}`}>
                         <Check className="h-3 w-3" />
                         Active
                       </span>
@@ -171,7 +209,7 @@ const Pricing = () => {
                     ))}
                   </ul>
 
-                  {isShallowOnPaidPlan ? (
+                  {isLowerTierCard ? (
                     <div className="mt-8 flex justify-center">
                       <X className="h-6 w-6 text-muted-foreground" />
                     </div>
@@ -182,7 +220,7 @@ const Pricing = () => {
                       </Button>
                     </Link>
                   ) : isActivePlan ? (
-                    <Button disabled className="mt-8 w-full bg-primary/20 text-primary cursor-default">
+                    <Button disabled className={`mt-8 w-full cursor-default ${plan.id === "deep" ? "bg-yellow-400/20 text-yellow-400" : "bg-primary/20 text-primary"}`}>
                       <Check className="mr-2 h-4 w-4" />
                       Current plan
                     </Button>
@@ -201,7 +239,7 @@ const Pricing = () => {
             })}
           </div>
 
-          <p className="mt-12 text-center text-sm text-muted-foreground">
+          <p className="mt-8 text-center text-sm text-muted-foreground">
             For schools and teams,{" "}
             <Link to="/contact" className="text-primary underline underline-offset-2 hover:text-primary/80">
               contact us
