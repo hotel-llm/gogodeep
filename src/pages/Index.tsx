@@ -494,6 +494,14 @@ const Dashboard = ({ user }: { user: User }) => {
                       } catch {}
                     }
                     const shown = teasers.slice(0, 3);
+                    if (!shown.length) {
+                      return (
+                        <div className="flex flex-col items-center gap-2 py-5 text-center">
+                          <BrainCircuit className="h-7 w-7 text-muted-foreground/30" />
+                          <p className="text-sm text-muted-foreground">Open a recent scan to load quiz questions.</p>
+                        </div>
+                      );
+                    }
                     return (
                       <div className="relative overflow-hidden" style={{ maxHeight: "12rem" }}>
                         <div className="space-y-2">
