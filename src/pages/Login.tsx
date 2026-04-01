@@ -51,7 +51,7 @@ const Login = () => {
         <div className="container flex min-h-[calc(100vh-3.5rem)] items-center justify-center py-12">
           <Card className="w-full max-w-md border border-border bg-card p-8">
             <div className="mb-6 flex flex-col items-center text-center">
-              <img src={gogodeepLogo} alt="Gogodeep" className="h-12 w-12 object-contain" />
+              <img src={gogodeepLogo} alt="Gogodeep — AI exam mistake helper for IB, AP, and A-Level STEM students" className="h-12 w-12 object-contain" />
               <h1 className="mt-4 text-2xl font-bold tracking-tight text-foreground">Sign in to Gogodeep</h1>
               <p className="mt-2 text-sm text-muted-foreground">Enter your credentials to continue.</p>
             </div>

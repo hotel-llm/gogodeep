@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { Helmet } from "react-helmet-async";
 import { useLocation, Link, useNavigate } from "react-router-dom";
 import {
   BookOpen, ArrowLeft, TriangleAlert, Lightbulb, ClipboardList,
@@ -45,14 +46,20 @@ type IdentifyDiagnosis = {
   error_category: string;
   error_tag: string;
   explanation: string;
-  underlying_concept: string;
+  what_happened?: string;
+  core_concept?: string;
+  recognition_cue?: string;
+  underlying_concept?: string;
   practice_problems: PracticeItem[];
 };
 
 type GuideDiagnosis = {
   mode: "guide";
   question_summary: string;
-  underlying_concept: string;
+  what_happened?: string;
+  core_concept?: string;
+  recognition_cue?: string;
+  underlying_concept?: string;
   steps: string[];
   practice_problems: PracticeItem[];
 };
@@ -209,48 +216,116 @@ function PracticeTab({ problems, plan, onScanQuestion }: { problems: PracticeIte
 
 // ── Concept tab ───────────────────────────────────────────────────────────────
 
-function ConceptTab({ concept, plan, onMasterClick }: { concept: string; plan: string; onMasterClick: () => void }) {
+function ConceptTab({
+  whatHappened, coreConcept, recognitionCue, legacyConcept, plan, onMasterClick,
+}: {
+  whatHappened?: string; coreConcept?: string; recognitionCue?: string;
+  legacyConcept?: string; plan: string; onMasterClick: () => void;
+}) {
   const isPaid = plan === "intermediate" || plan === "deep";
   const [showUpgrade, setShowUpgrade] = useState(false);
 
-  const firstSentence = concept.split(/(?<=[.!?])\s+/)[0] ?? concept;
-  const hasMore = concept.length > firstSentence.length;
+  // Legacy fallback for old cached scans
+  if (!whatHappened) {
+    const concept = legacyConcept ?? "";
+    const firstSentence = concept.split(/(?<=[.!?])\s+/)[0] ?? concept;
+    const hasMore = concept.length > firstSentence.length;
+    return (
+      <>
+        <div className="rounded-lg border border-border bg-secondary/40 p-5">
+          <div className="mb-3 flex items-center gap-2">
+            <Lightbulb className="h-4 w-4 text-primary" />
+            <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Key Concept</p>
+          </div>
+          {isPaid ? (
+            <p className="text-sm leading-relaxed text-foreground">{concept}</p>
+          ) : (
+            <div className="space-y-3">
+              <div className="relative">
+                <p className="text-sm leading-relaxed text-foreground line-clamp-2">{concept}</p>
+                {hasMore && (
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-secondary/80 to-transparent" />
+                )}
+              </div>
+              {hasMore && (
+                <button onClick={() => setShowUpgrade(true)} className="flex items-center gap-1.5 text-xs text-primary underline underline-offset-2 hover:text-primary/80">
+                  <Lock className="h-3 w-3" />
+                  Upgrade to read the full explanation
+                </button>
+              )}
+            </div>
+          )}
+          <Button className="mt-4 w-full bg-primary hover:bg-primary/90" onClick={onMasterClick}>
+            Master this concept <ChevronRight className="ml-2 h-4 w-4" />
+          </Button>
+        </div>
+        <UpgradeDialog open={showUpgrade} onClose={() => setShowUpgrade(false)} />
+      </>
+    );
+  }
+
+  // New three-section layout
+  const sections = [
+    {
+      id: "happened",
+      label: "In this problem",
+      Icon: Microscope,
+      content: whatHappened,
+      locked: false,
+      cardClass: "border-border bg-secondary/40",
+      labelClass: "text-muted-foreground",
+      iconClass: "text-muted-foreground",
+    },
+    {
+      id: "concept",
+      label: "The concept",
+      Icon: Lightbulb,
+      content: coreConcept,
+      locked: !isPaid,
+      cardClass: "border-primary/20 bg-primary/5",
+      labelClass: "text-primary",
+      iconClass: "text-primary",
+    },
+    {
+      id: "cue",
+      label: "When you see this",
+      Icon: ArrowRight,
+      content: recognitionCue,
+      locked: !isPaid,
+      cardClass: "border-border bg-secondary/60",
+      labelClass: "text-muted-foreground",
+      iconClass: "text-muted-foreground",
+    },
+  ];
 
   return (
     <>
-      <div className="rounded-lg border border-border bg-secondary/40 p-5">
-        <div className="mb-3 flex items-center gap-2">
-          <Lightbulb className="h-4 w-4 text-primary" />
-          <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Key Concept</p>
-        </div>
-
-        {isPaid ? (
-          <p className="text-sm leading-relaxed text-foreground">{concept}</p>
-        ) : (
-          <div className="space-y-3">
-            <div className="relative">
-              <p className="text-sm leading-relaxed text-foreground line-clamp-2">{concept}</p>
-              {hasMore && (
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-secondary/80 to-transparent" />
-              )}
+      <div className="space-y-3" data-feature="root-cause-analysis-exam-mistakes" data-content="ai-analysis-breakdown,underlying-concept,targeted-practice">
+        {sections.map(({ id, label, Icon, content, locked, cardClass, labelClass, iconClass }) => (
+          <div
+            key={id}
+            className={`relative rounded-lg border p-5 ${cardClass} ${locked ? "cursor-pointer overflow-hidden" : ""}`}
+            onClick={locked ? () => setShowUpgrade(true) : undefined}
+          >
+            <div className="mb-2.5 flex items-center gap-2">
+              <Icon className={`h-4 w-4 ${iconClass}`} />
+              <p className={`text-xs font-semibold uppercase tracking-[0.15em] ${labelClass}`}>{label}</p>
             </div>
-            {hasMore && (
-              <button
-                onClick={() => setShowUpgrade(true)}
-                className="flex items-center gap-1.5 text-xs text-primary underline underline-offset-2 hover:text-primary/80"
-              >
-                <Lock className="h-3 w-3" />
-                Upgrade to read the full explanation
-              </button>
+            <p className={`text-sm leading-relaxed text-foreground ${locked ? "select-none blur-sm" : ""}`}>
+              {content}
+            </p>
+            {locked && (
+              <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-card/70">
+                <Lock className="h-4 w-4 text-primary" />
+                <span className="text-xs font-semibold text-primary">Upgrade to unlock</span>
+              </div>
             )}
           </div>
-        )}
-        <Button className="mt-4 w-full bg-primary hover:bg-primary/90" onClick={onMasterClick}>
-          Master this concept
-          <ChevronRight className="ml-2 h-4 w-4" />
+        ))}
+        <Button className="w-full bg-primary hover:bg-primary/90" onClick={onMasterClick}>
+          Practice this concept <ChevronRight className="ml-2 h-4 w-4" />
         </Button>
       </div>
-
       <UpgradeDialog open={showUpgrade} onClose={() => setShowUpgrade(false)} />
     </>
   );
@@ -413,10 +488,13 @@ const BlindSpotReport = () => {
   }
 
   const practice = diagnosis.practice_problems ?? [];
-  const concept = diagnosis.underlying_concept ?? "";
 
   return (
     <EducatorLayout>
+      <Helmet>
+        <title>Your AI Analysis Breakdown | Gogodeep</title>
+        <meta name="description" content="See the root cause of your mistake, the underlying concept explained, and targeted practice to close the gap. AI working analysis for IB, AP, and A-Level STEM subjects." />
+      </Helmet>
       <div className="grid gap-6 lg:grid-cols-5">
 
         {/* Image panel */}
@@ -482,7 +560,14 @@ const BlindSpotReport = () => {
                 <div className="animate-in fade-in duration-200">
                   {activeTab === "steps" && <StepsTab diagnosis={diagnosis as GuideDiagnosis} />}
                   {activeTab === "error" && <IdentifyErrorTab diagnosis={diagnosis as IdentifyDiagnosis} />}
-                  {activeTab === "concept" && <ConceptTab concept={concept} plan={plan} onMasterClick={() => setActiveTab("practice")} />}
+                  {activeTab === "concept" && <ConceptTab
+                    whatHappened={diagnosis.what_happened}
+                    coreConcept={diagnosis.core_concept}
+                    recognitionCue={diagnosis.recognition_cue}
+                    legacyConcept={diagnosis.underlying_concept}
+                    plan={plan}
+                    onMasterClick={() => setActiveTab("practice")}
+                  />}
                   {activeTab === "practice" && <PracticeTab problems={practice} plan={plan} onScanQuestion={scanPracticeQuestion} />}
                 </div>
               </>

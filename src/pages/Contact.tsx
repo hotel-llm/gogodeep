@@ -1,4 +1,5 @@
 import { FormEvent, useState } from "react";
+import { Helmet } from "react-helmet-async";
 import { Mail, MessageSquare, User, Send, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -44,6 +45,10 @@ const Contact = () => {
 
   return (
     <PageTransition>
+      <Helmet>
+        <title>Contact — Gogodeep</title>
+        <meta name="description" content="Get in touch with the Gogodeep team. Questions about the AI study tool for STEM students, school and team plans, or partnerships." />
+      </Helmet>
       <div className="relative z-10 min-h-screen pt-14">
         <div className="container py-20">
           <div className="mx-auto max-w-xl">
@@ -108,7 +113,7 @@ const Contact = () => {
                     <select
                       value={inquiryType}
                       onChange={(e) => setInquiryType(e.target.value)}
-                      className="w-full rounded-md border border-border bg-secondary px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                      className="w-full rounded-md border border-border bg-secondary py-2 pl-3 pr-8 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                     >
                       {INQUIRY_TYPES.map((t) => (
                         <option key={t} value={t}>{t}</option>

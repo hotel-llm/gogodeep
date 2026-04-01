@@ -1,4 +1,5 @@
 import { useMemo, useState, useCallback, useRef } from "react";
+import { Helmet } from "react-helmet-async";
 import heic2any from "heic2any";
 import { useNavigate, Link } from "react-router-dom";
 import { Upload, Loader2, Microscope, ArrowRight, Lock, Search, BookOpen } from "lucide-react";
@@ -106,11 +107,19 @@ const DiagnosticLab = () => {
           ? (data as any)?.concept_label ?? (data as any)?.question_summary ?? null
           : (data as any)?.error_tag ?? null;
 
+        if (!user?.id) {
+          pendingNavRef.current = { imageUrl: url, diagnosis: data };
+          setIsAnalyzing(false);
+          setScanStep(0);
+          setShowLoginGate(true);
+          return;
+        }
+
         const [{ data: insertedScan, error: insertError }] = await Promise.all([
           (supabase as any)
             .from("error_logs")
             .insert({
-              student_id: user?.id ?? null,
+              student_id: user.id,
               subject: "STEM",
               topic,
               specific_error_tag: mode === "identify" ? ((data as any)?.error_tag ?? null) : null,
@@ -118,9 +127,7 @@ const DiagnosticLab = () => {
             })
             .select("id")
             .single(),
-          user?.id
-            ? (supabase as any).rpc("increment_scan_count", { user_id: user.id })
-            : Promise.resolve(null),
+          (supabase as any).rpc("increment_scan_count", { user_id: user.id }),
         ]);
 
         if (insertError) {
@@ -137,15 +144,6 @@ const DiagnosticLab = () => {
         }
 
         queryClient.invalidateQueries({ queryKey: ["history", "error_logs"] });
-
-        if (!user?.id) {
-          pendingNavRef.current = { imageUrl: url, diagnosis: data };
-          setIsAnalyzing(false);
-          setScanStep(0);
-          setShowLoginGate(true);
-          return;
-        }
-
         navigate("/report", { state: { imageUrl: url, diagnosis: data, mode, scanId } });
       } catch (err: unknown) {
         console.error("Analysis failed:", err);
@@ -194,10 +192,15 @@ const DiagnosticLab = () => {
 
   return (
     <EducatorLayout title="Diagnostic Lab" subtitle="Upload a question for us to guide you through, or upload your working on a difficult question for us to identify the error.">
-      <div className="mx-auto max-w-2xl mt-12">
+      <Helmet>
+        <title>Diagnostic Lab — AI Scanner for Hard STEM Questions | Gogodeep</title>
+        <meta name="description" content="Upload a photo of your exam working or handwritten notes. Gogodeep analyses hard STEM questions, finds your error, and guides you step by step. Supports Physics HL, Math HL AA, AP Calculus BC, and AP Statistics." />
+      </Helmet>
+      <div className="mx-auto max-w-2xl mt-12" data-feature="ai-scanner-for-hard-stem-questions" data-input-type="handwritten-notes,photo-upload,exam-working">
         <div className="rounded-xl border border-border bg-card">
           <div className="p-5 sm:p-6">
             <label
+              aria-label="Upload photo of handwritten notes or exam working for AI error analysis"
               onDragOver={(e) => { e.preventDefault(); if (!isAnalyzing) setIsDragging(true); }}
               onDragLeave={() => setIsDragging(false)}
               onDrop={(e) => { if (isAnalyzing) return; onDrop(e); }}
@@ -254,6 +257,7 @@ const DiagnosticLab = () => {
                 className="bg-primary hover:bg-primary/90"
                 onClick={handleRunScan}
                 disabled={!canAnalyze}
+                aria-label="Run AI scan to analyse STEM working and identify errors"
               >
                 <Microscope className="mr-2 h-4 w-4" />
                 Run scan
@@ -321,15 +325,15 @@ const DiagnosticLab = () => {
       <Dialog open={showLoginGate} onOpenChange={setShowLoginGate}>
         <DialogContent className="border border-border bg-card sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-foreground">Your diagnosis is ready</DialogTitle>
+            <DialogTitle className="text-foreground">Sign up to save your results</DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              Create a free account to see your results and track your progress over time.
+              Create a free account to save your scan and track your progress over time.
             </DialogDescription>
           </DialogHeader>
           <div className="mt-2 flex flex-col gap-2">
             <Link to="/signup" state={{ pendingReport: pendingNavRef.current }}>
               <Button className="w-full bg-primary hover:bg-primary/90">
-                Sign up free to see my results
+                Sign up free
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>

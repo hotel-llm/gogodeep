@@ -55,9 +55,17 @@ You MUST respond using the diagnose_error tool.`;
                   type: "string",
                   description: "A one-sentence description of what the question is asking",
                 },
-                underlying_concept: {
+                what_happened: {
                   type: "string",
-                  description: "Explain the underlying concept in two parts: first, what the concept is in general (not specific to this problem); second, a clear rule of thumb the student can apply — e.g. 'When you see X, you should Y'. Write 3-4 sentences total.",
+                  description: "2-3 sentences about this specific problem: what the student was solving (or what the question demands), exactly where things went wrong or what the question requires, and what the consequence of that is. Be specific — reference the actual numbers, expressions, or steps visible in the image.",
+                },
+                core_concept: {
+                  type: "string",
+                  description: "3-5 sentences explaining the underlying concept in purely general terms — zero reference to this specific problem. Explain the 'why' behind how it works, not just what it is. Address the most common misconception students have. Write as if teaching a student the night before an exam who needs to understand it deeply, not just recall a formula.",
+                },
+                recognition_cue: {
+                  type: "string",
+                  description: "2-3 sentences of actionable advice for the next time the student encounters this question type. Begin with 'When you see...' or 'If the question asks...'. State exactly what to look for and what to do first. End with a concrete tip that prevents the most common mistake on this type of problem.",
                 },
                 steps: {
                   type: "array",
@@ -83,7 +91,7 @@ You MUST respond using the diagnose_error tool.`;
                   description: "Set to 'ok' for readable STEM question; otherwise indicate why the input cannot be processed.",
                 },
               },
-              required: ["concept_label", "question_summary", "underlying_concept", "steps", "practice_problems", "input_status"],
+              required: ["concept_label", "question_summary", "what_happened", "core_concept", "recognition_cue", "steps", "practice_problems", "input_status"],
             },
           },
         ]
@@ -107,9 +115,17 @@ You MUST respond using the diagnose_error tool.`;
                   type: "string",
                   description: "A clear 2-3 sentence explanation of exactly where and why the logic broke down. If the work is correct, say so briefly.",
                 },
-                underlying_concept: {
+                what_happened: {
                   type: "string",
-                  description: "Explain the underlying concept in two parts: first, what the concept is in general (not specific to this problem); second, a clear rule of thumb the student can apply — e.g. 'When you see X, you should Y'. Write 3-4 sentences total.",
+                  description: "2-3 sentences about this specific problem: what the student was solving (or what the question demands), exactly where things went wrong or what the question requires, and what the consequence of that is. Be specific — reference the actual numbers, expressions, or steps visible in the image.",
+                },
+                core_concept: {
+                  type: "string",
+                  description: "3-5 sentences explaining the underlying concept in purely general terms — zero reference to this specific problem. Explain the 'why' behind how it works, not just what it is. Address the most common misconception students have. Write as if teaching a student the night before an exam who needs to understand it deeply, not just recall a formula.",
+                },
+                recognition_cue: {
+                  type: "string",
+                  description: "2-3 sentences of actionable advice for the next time the student encounters this question type. Begin with 'When you see...' or 'If the question asks...'. State exactly what to look for and what to do first. End with a concrete tip that prevents the most common mistake on this type of problem.",
                 },
                 practice_problems: {
                   type: "array",
@@ -130,7 +146,7 @@ You MUST respond using the diagnose_error tool.`;
                   description: "Set to 'ok' for readable STEM work; otherwise indicate why the input cannot be diagnosed.",
                 },
               },
-              required: ["error_category", "error_tag", "explanation", "underlying_concept", "practice_problems", "input_status"],
+              required: ["error_category", "error_tag", "explanation", "what_happened", "core_concept", "recognition_cue", "practice_problems", "input_status"],
             },
           },
         ];
@@ -149,7 +165,7 @@ You MUST respond using the diagnose_error tool.`;
       },
       body: JSON.stringify({
         model: "claude-haiku-4-5-20251001",
-        max_tokens: 1024,
+        max_tokens: 2048,
         system: systemPrompt,
         messages: [
           {

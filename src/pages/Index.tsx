@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
-import { Camera, Microscope, Route, ArrowRight, ScanLine, BookOpen, Upload, Loader2, Flame, ChevronRight, BrainCircuit, Lock, Settings2 } from "lucide-react";
+import { Helmet } from "react-helmet-async";
+import { Camera, Microscope, Route, ArrowRight, ScanLine, BookOpen, Upload, Loader2, Flame, ChevronRight, BrainCircuit, Lock, Settings2, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -243,6 +244,10 @@ const Dashboard = ({ user }: { user: User }) => {
 
   return (
     <PageTransition>
+      <Helmet>
+        <title>Gogodeep — Fix the Thinking, Not Just the Answer</title>
+        <meta name="description" content="Trace any difficult question down to its roots with AI. Gogodeep finds the exact error in your STEM working, explains the underlying concept, and builds targeted practice to fix the gap. Free for IB, AP, and A-Level students." />
+      </Helmet>
       <div className="relative z-10 min-h-screen pt-14">
         <div className="container max-w-5xl py-12">
 
@@ -642,35 +647,36 @@ const Dashboard = ({ user }: { user: User }) => {
           {/* Quote of the day */}
           {(() => {
             const quotes = [
-              { text: "You don't lose marks for not knowing. You lose them for not finding out.", author: "" },
-              { text: "The exam doesn't care how hard you tried. Diagnose your gaps before it does.", author: "" },
-              { text: "Every wrong answer is a map to what needs fixing. Start there.", author: "" },
-              { text: "You already know how to work hard. The trick is working on the right things.", author: "" },
-              { text: "The student who reviews their mistakes every day outperforms the one who only studies new material.", author: "" },
-              { text: "A scan a day keeps the failing grade away.", author: "" },
-              { text: "Confidence in an exam comes from knowing exactly what you don't know — and fixing it.", author: "" },
-              { text: "The top students aren't smarter. They just catch their errors faster.", author: "" },
-              { text: "Don't memorise harder. Understand deeper.", author: "" },
-              { text: "One hour of deliberate error correction beats five hours of passive re-reading.", author: "" },
-              { text: "The test is coming. The gap is there. The question is whether you find it first.", author: "" },
-              { text: "Comfort and high grades don't live at the same address.", author: "" },
-              { text: "Every concept you master today is one less thing that can surprise you on exam day.", author: "" },
-              { text: "Knowing your error category is half the battle won.", author: "" },
               { text: "It always seems impossible until it's done.", author: "Nelson Mandela" },
-              { text: "The secret of getting ahead is getting started.", author: "Mark Twain" },
               { text: "An investment in knowledge pays the best interest.", author: "Benjamin Franklin" },
-              { text: "I find that the harder I work, the more luck I seem to have.", author: "Thomas Jefferson" },
-              { text: "The difference between ordinary and extraordinary is that little extra.", author: "Jimmy Johnson" },
-              { text: "You don't have to be great to start, but you have to start to be great.", author: "Zig Ziglar" },
+              { text: "A person who never made a mistake never tried anything new.", author: "Albert Einstein" },
+              { text: "I have not failed. I've just found 10,000 ways that won't work.", author: "Thomas Edison" },
+              { text: "The only real mistake is the one from which we learn nothing.", author: "Henry Ford" },
+              { text: "We do not learn from experience. We learn from reflecting on experience.", author: "John Dewey" },
+              { text: "The roots of education are bitter, but the fruit is sweet.", author: "Aristotle" },
+              { text: "Mistakes are the portals of discovery.", author: "James Joyce" },
               { text: "Hard work beats talent when talent doesn't work hard.", author: "Tim Notke" },
               { text: "Discipline is the bridge between goals and accomplishment.", author: "Jim Rohn" },
-              { text: "Fall seven times, stand up eight.", author: "Japanese proverb" },
-              { text: "Do something today that your future self will thank you for.", author: "Sean Patrick Flanery" },
               { text: "Success is the sum of small efforts repeated day in and day out.", author: "Robert Collier" },
               { text: "Genius is 1% inspiration and 99% perspiration.", author: "Thomas Edison" },
-              { text: "The pain of studying is temporary. The pride of results is permanent.", author: "Unknown" },
-              { text: "Work while they sleep. Learn while they party. Save while they spend.", author: "Unknown" },
-              { text: "Your future self is watching you right now through memories. Make it proud.", author: "Unknown" },
+              { text: "The secret of getting ahead is getting started.", author: "Mark Twain" },
+              { text: "You don't have to be great to start, but you have to start to be great.", author: "Zig Ziglar" },
+              { text: "I find that the harder I work, the more luck I seem to have.", author: "Thomas Jefferson" },
+              { text: "Fall seven times, stand up eight.", author: "Japanese proverb" },
+              { text: "The beautiful thing about learning is that no one can take it away from you.", author: "B.B. King" },
+              { text: "In the middle of every difficulty lies opportunity.", author: "Albert Einstein" },
+              { text: "Education is not the learning of facts, but the training of the mind to think.", author: "Albert Einstein" },
+              { text: "Live as if you were to die tomorrow. Learn as if you were to live forever.", author: "Mahatma Gandhi" },
+              { text: "The expert in anything was once a beginner.", author: "Helen Hayes" },
+              { text: "Nothing in the world can take the place of persistence.", author: "Calvin Coolidge" },
+              { text: "I am still learning.", author: "Michelangelo" },
+              { text: "Do something today that your future self will thank you for.", author: "Sean Patrick Flanery" },
+              { text: "You don't lose marks for not knowing. You lose them for not finding out.", author: "Anonymous" },
+              { text: "The student who reviews their mistakes outperforms the one who only studies new material.", author: "Anonymous" },
+              { text: "The top students are not always the smartest. They just catch their errors faster.", author: "Anonymous" },
+              { text: "One hour of deliberate review beats five hours of passive re-reading.", author: "Anonymous" },
+              { text: "Every concept you master today is one less thing that can surprise you on exam day.", author: "Anonymous" },
+              { text: "Comfort and high grades do not live at the same address.", author: "Anonymous" },
             ];
             const day = new Date().getUTCFullYear() * 1000 + Math.floor((Date.now() - new Date(new Date().getUTCFullYear(), 0, 0).getTime()) / 86400000);
             const q = quotes[day % quotes.length];
@@ -760,7 +766,9 @@ const PHYSICS_STEPS = [
   "State the final answer: the ball hits the ground at approximately 29.7 m/s.",
 ];
 
-const PHYSICS_CONCEPT = "When an object is dropped from rest in free fall, only gravity acts on it. The kinematic equation v² = u² + 2as links velocity, acceleration, and displacement without needing time. With u = 0 and a = g, this simplifies to v = √(2gh). This equation is derived from the work-energy theorem: the gravitational potential energy mgh is fully converted to kinetic energy ½mv².";
+const PHYSICS_WHAT_HAPPENED = "The problem gives a ball dropped from 45 m with no initial velocity and asks for its speed on impact. Using v² = 2gh with h = 45 gives v² = 882, so v ≈ 29.7 m/s. The key step is recognising u = 0, which eliminates the u² term entirely.";
+const PHYSICS_CORE_CONCEPT = "In free fall, gravity is the only force acting on an object. The kinematic equation v² = u² + 2as connects velocity, acceleration, and displacement without needing time. With u = 0 and a = g, it simplifies to v = √(2gh) — directly derived from the work-energy theorem: mgh = ½mv². The most common mistake is using v = u + at when time is not given; always prefer the time-independent equation.";
+const PHYSICS_RECOGNITION_CUE = "When you see an object dropped or thrown from a height and asked for speed on impact, reach for v² = u² + 2gh. If the object starts from rest, u = 0 and the equation becomes v = √(2gh). Always check whether initial velocity is zero before substituting — this single step halves the working.";
 
 const PHYSICS_PRACTICE = [
   {
@@ -796,7 +804,9 @@ const DEMO_STEPS = [
   "Write the final answer: ∫x·eˣ dx = eˣ(x − 1) + C.",
 ];
 
-const DEMO_CONCEPT = "Integration by parts is used when integrating a product of two different function types. The rule is ∫u dv = uv − ∫v du. When you see a polynomial multiplied by an exponential or trig function, use LIATE to choose u: Logarithmic → Inverse trig → Algebraic → Trig → Exponential. The first type in the list becomes u.";
+const DEMO_WHAT_HAPPENED = "The problem asks to evaluate ∫x·eˣ dx — a polynomial multiplied by an exponential. This product of two different function types calls for integration by parts. Setting u = x and dv = eˣ dx, the rule ∫u dv = uv − ∫v du reduces the integral to one that can be solved directly.";
+const DEMO_CORE_CONCEPT = "Integration by parts is the reverse of the product rule for differentiation. The formula ∫u dv = uv − ∫v du trades one integral for a simpler one. The goal is to choose u and dv so that ∫v du is easier than the original. Use LIATE to choose u: Logarithmic → Inverse trig → Algebraic → Trig → Exponential. The most common mistake is choosing u as the exponential, which makes the new integral harder, not simpler.";
+const DEMO_RECOGNITION_CUE = "When you see two different function types multiplied under an integral — like x·eˣ or x·sin(x) — use integration by parts. Apply LIATE: pick the algebraic term as u when paired with an exponential or trig function. If the new integral ∫v du looks more complex than what you started with, you chose u and dv the wrong way round — swap them.";
 
 const DEMO_PRACTICE = [
   {
@@ -972,10 +982,27 @@ const DemoPanel = () => {
             )}
 
             {tab === "concept" && (
-              <div className="flex-1 overflow-y-auto">
-                <div className="rounded-lg border border-border bg-secondary/40 p-4">
-                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-primary">Free Fall & Kinematics</p>
-                  <p className="text-xs leading-relaxed text-muted-foreground">{PHYSICS_CONCEPT}</p>
+              <div className="flex-1 space-y-2 overflow-y-auto">
+                <div className="rounded-lg border border-border bg-secondary/40 p-3">
+                  <div className="mb-1.5 flex items-center gap-1.5">
+                    <Microscope className="h-3 w-3 text-primary" />
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-primary">In this problem</p>
+                  </div>
+                  <p className="text-xs leading-relaxed text-muted-foreground">{PHYSICS_WHAT_HAPPENED}</p>
+                </div>
+                <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+                  <div className="mb-1.5 flex items-center gap-1.5">
+                    <Lightbulb className="h-3 w-3 text-primary" />
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-primary">The concept</p>
+                  </div>
+                  <p className="text-xs leading-relaxed text-muted-foreground">{PHYSICS_CORE_CONCEPT}</p>
+                </div>
+                <div className="rounded-lg border border-border bg-secondary/60 p-3">
+                  <div className="mb-1.5 flex items-center gap-1.5">
+                    <ArrowRight className="h-3 w-3 text-primary" />
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-primary">When you see this</p>
+                  </div>
+                  <p className="text-xs leading-relaxed text-muted-foreground">{PHYSICS_RECOGNITION_CUE}</p>
                 </div>
               </div>
             )}
@@ -1116,10 +1143,27 @@ const DemoPanel = () => {
             )}
 
             {tab === "concept" && (
-              <div className="flex-1 overflow-y-auto">
-                <div className="rounded-lg border border-border bg-secondary/40 p-4">
-                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-primary">Integration by Parts</p>
-                  <p className="text-xs leading-relaxed text-muted-foreground">{DEMO_CONCEPT}</p>
+              <div className="flex-1 space-y-2 overflow-y-auto">
+                <div className="rounded-lg border border-border bg-secondary/40 p-3">
+                  <div className="mb-1.5 flex items-center gap-1.5">
+                    <Microscope className="h-3 w-3 text-primary" />
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-primary">In this problem</p>
+                  </div>
+                  <p className="text-xs leading-relaxed text-muted-foreground">{DEMO_WHAT_HAPPENED}</p>
+                </div>
+                <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+                  <div className="mb-1.5 flex items-center gap-1.5">
+                    <Lightbulb className="h-3 w-3 text-primary" />
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-primary">The concept</p>
+                  </div>
+                  <p className="text-xs leading-relaxed text-muted-foreground">{DEMO_CORE_CONCEPT}</p>
+                </div>
+                <div className="rounded-lg border border-border bg-secondary/60 p-3">
+                  <div className="mb-1.5 flex items-center gap-1.5">
+                    <ArrowRight className="h-3 w-3 text-primary" />
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-primary">When you see this</p>
+                  </div>
+                  <p className="text-xs leading-relaxed text-muted-foreground">{DEMO_RECOGNITION_CUE}</p>
                 </div>
               </div>
             )}
@@ -1194,10 +1238,14 @@ const Landing = () => {
 
   return (
     <PageTransition>
+      <Helmet>
+        <title>Gogodeep — Fix the Thinking, Not Just the Answer</title>
+        <meta name="description" content="Trace any difficult question down to its roots with AI. Gogodeep finds the exact error in your STEM working, explains the underlying concept, and builds targeted practice to fix the gap. Free for IB, AP, and A-Level students." />
+      </Helmet>
       <div className="relative z-10 min-h-screen pt-14">
 
         {/* ── Hero ── */}
-        <section className="container py-14 md:py-20">
+        <section className="container py-14 md:py-20" data-topic="ai-exam-mistake-helper" data-subjects="physics-hl,math-hl-aa,ap-calculus-bc,ap-statistics">
           <div className="mx-auto max-w-6xl">
             <div className="grid items-center gap-12 lg:grid-cols-2">
 
@@ -1223,7 +1271,7 @@ const Landing = () => {
                     />
                     <img
                       src={gogodeepLogo}
-                      alt="Gogodeep logo"
+                      alt="Gogodeep — AI exam mistake helper for IB, AP, and A-Level STEM students"
                       className="relative z-10 h-full w-full object-contain"
                       style={{
                         animation: "float 4s ease-in-out infinite",

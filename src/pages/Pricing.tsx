@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Helmet } from "react-helmet-async";
 import { Check, Loader2, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -131,6 +132,10 @@ const Pricing = () => {
 
   return (
     <PageTransition>
+      <Helmet>
+        <title>Pricing — Start Free | Gogodeep AI Study Tool</title>
+        <meta name="description" content="Start free with 3 AI scans a day. Upgrade for unlimited scans, targeted practice questions, and daily recap quizzes. AI analysis breakdowns for IB, AP, and A-Level STEM subjects." />
+      </Helmet>
       <div className="relative z-10 min-h-screen pt-14">
         <div className="container py-20">
           <div className="mx-auto max-w-3xl text-center">
