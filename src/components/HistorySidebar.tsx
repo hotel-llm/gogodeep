@@ -5,6 +5,7 @@ import { Plus, Folder, ChevronRight, ChevronDown, Trash2, FolderOpen } from "luc
 
 import { supabase } from "@/integrations/supabase/client";
 import { SCAN_CACHE_KEY } from "@/lib/supabase";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -303,12 +304,15 @@ function ScanRow({
     // Don't navigate if clicking the folder button or its dropdown
     if ((e.target as HTMLElement).closest("[data-folder-btn]")) return;
     const raw = localStorage.getItem(SCAN_CACHE_KEY(scan.id));
-    if (!raw) return; // no stored data for old scans
+    if (!raw) {
+      toast.error("This scan's full results are only available on the device it was scanned on.");
+      return;
+    }
     try {
       const stored = JSON.parse(raw);
-      navigate("/report", { state: stored });
+      navigate("/report", { state: { ...stored, scanId: scan.id } });
     } catch {
-      // ignore
+      toast.error("Could not load this scan.");
     }
   }
 

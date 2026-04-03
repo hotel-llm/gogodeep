@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import heic2any from "heic2any";
 import { useNavigate, Link } from "react-router-dom";
@@ -6,9 +6,9 @@ import { Upload, Loader2, Microscope, ArrowRight, Lock, Search, BookOpen } from 
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import EducatorLayout from "@/components/EducatorLayout";
 import { checkScanCredits, SCAN_CACHE_KEY } from "@/lib/supabase";
+import { pendingFileStore } from "@/lib/pendingFile";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -156,7 +156,19 @@ const DiagnosticLab = () => {
     [navigate, queryClient]
   );
 
-  const canAnalyze = useMemo(() => !!selectedFile && !isAnalyzing, [selectedFile, isAnalyzing]);
+  useEffect(() => {
+    const file = pendingFileStore.get();
+    if (file) {
+      pendingFileStore.clear();
+      setSelectedFile(file);
+      setShowModeDialog(true);
+    }
+  }, []);
+
+  const openModeDialog = useCallback((file: File) => {
+    setSelectedFile(file);
+    setShowModeDialog(true);
+  }, []);
 
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -167,8 +179,8 @@ const DiagnosticLab = () => {
       toast.error("Unsupported format. Please use JPG, PNG, WebP, or HEIC.");
       return;
     }
-    setSelectedFile(file);
-  }, []);
+    openModeDialog(file);
+  }, [openModeDialog]);
 
   const onFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -177,13 +189,8 @@ const DiagnosticLab = () => {
       toast.error("Unsupported format. Please use JPG, PNG, WebP, or HEIC.");
       return;
     }
-    setSelectedFile(file);
-  }, []);
-
-  const handleRunScan = () => {
-    if (!selectedFile) { toast.error("Select an image first."); return; }
-    setShowModeDialog(true);
-  };
+    openModeDialog(file);
+  }, [openModeDialog]);
 
   const handleModeSelect = (mode: ScanMode) => {
     setShowModeDialog(false);
@@ -242,27 +249,6 @@ const DiagnosticLab = () => {
               )}
             </label>
 
-            <div className="mt-5 flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                className="border-border"
-                onClick={() => { setSelectedFile(null); setIsDragging(false); }}
-                disabled={isAnalyzing || !selectedFile}
-              >
-                Clear
-              </Button>
-              <Button
-                type="button"
-                className="bg-primary hover:bg-primary/90"
-                onClick={handleRunScan}
-                disabled={!canAnalyze}
-                aria-label="Run AI scan to analyse STEM working and identify errors"
-              >
-                <Microscope className="mr-2 h-4 w-4" />
-                Run scan
-              </Button>
-            </div>
           </div>
         </div>
       </div>

@@ -70,7 +70,7 @@ You MUST respond using the diagnose_error tool.`;
                 steps: {
                   type: "array",
                   items: { type: "string" },
-                  description: "Clear step-by-step solution, each step as a single complete instruction",
+                  description: "Clear step-by-step solution, each step as a single complete instruction. Express all mathematical expressions using LaTeX notation: wrap inline math in single dollar signs ($...$) and display/centred equations in double dollar signs ($$...$$). For example: 'Differentiate $f(x) = x^2$ to get $$f'(x) = 2x$$'. Use LaTeX for all variables, fractions (\\frac{}{}), integrals (\\int), exponents, Greek letters, etc.",
                 },
                 practice_problems: {
                   type: "array",

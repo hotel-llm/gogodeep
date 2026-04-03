@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import AppNav from "@/components/AppNav";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import WhaleAssistant from "@/components/WhaleAssistant";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import Index from "./pages/Index";
 import DiagnosticLab from "./pages/DiagnosticLab";
@@ -50,6 +51,7 @@ const App = () => (
         <div className="liquid-glass-bg" aria-hidden />
         <AppNav />
         <AnimatedRoutes />
+        <WhaleAssistant />
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

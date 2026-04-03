@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
-import { Camera, Microscope, Route, ArrowRight, ScanLine, BookOpen, Upload, Loader2, Flame, ChevronRight, BrainCircuit, Lock, Settings2, Lightbulb } from "lucide-react";
+import { Camera, Microscope, Route, ArrowRight, ScanLine, BookOpen, Upload, Loader2, Flame, ChevronRight, BrainCircuit, Lock, Settings2, Lightbulb, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -9,8 +9,42 @@ import PageTransition from "@/components/PageTransition";
 import gogodeepLogo from "@/assets/gogodeep-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import { SCAN_LIMITS, SCAN_CACHE_KEY } from "@/lib/supabase";
+import { pendingFileStore } from "@/lib/pendingFile";
 import { toast } from "sonner";
 import type { User } from "@supabase/supabase-js";
+
+const QUOTES = [
+  { text: "It always seems impossible until it's done.", author: "Nelson Mandela" },
+  { text: "An investment in knowledge pays the best interest.", author: "Benjamin Franklin" },
+  { text: "A person who never made a mistake never tried anything new.", author: "Albert Einstein" },
+  { text: "I have not failed. I've just found 10,000 ways that won't work.", author: "Thomas Edison" },
+  { text: "The only real mistake is the one from which we learn nothing.", author: "Henry Ford" },
+  { text: "We do not learn from experience. We learn from reflecting on experience.", author: "John Dewey" },
+  { text: "The roots of education are bitter, but the fruit is sweet.", author: "Aristotle" },
+  { text: "Mistakes are the portals of discovery.", author: "James Joyce" },
+  { text: "Hard work beats talent when talent doesn't work hard.", author: "Tim Notke" },
+  { text: "Discipline is the bridge between goals and accomplishment.", author: "Jim Rohn" },
+  { text: "Success is the sum of small efforts repeated day in and day out.", author: "Robert Collier" },
+  { text: "Genius is 1% inspiration and 99% perspiration.", author: "Thomas Edison" },
+  { text: "The secret of getting ahead is getting started.", author: "Mark Twain" },
+  { text: "You don't have to be great to start, but you have to start to be great.", author: "Zig Ziglar" },
+  { text: "I find that the harder I work, the more luck I seem to have.", author: "Thomas Jefferson" },
+  { text: "Fall seven times, stand up eight.", author: "Japanese proverb" },
+  { text: "The beautiful thing about learning is that no one can take it away from you.", author: "B.B. King" },
+  { text: "In the middle of every difficulty lies opportunity.", author: "Albert Einstein" },
+  { text: "Education is not the learning of facts, but the training of the mind to think.", author: "Albert Einstein" },
+  { text: "Live as if you were to die tomorrow. Learn as if you were to live forever.", author: "Mahatma Gandhi" },
+  { text: "The expert in anything was once a beginner.", author: "Helen Hayes" },
+  { text: "Nothing in the world can take the place of persistence.", author: "Calvin Coolidge" },
+  { text: "I am still learning.", author: "Michelangelo" },
+  { text: "Do something today that your future self will thank you for.", author: "Sean Patrick Flanery" },
+  { text: "You don't lose marks for not knowing. You lose them for not finding out.", author: "Anonymous" },
+  { text: "The student who reviews their mistakes outperforms the one who only studies new material.", author: "Anonymous" },
+  { text: "The top students are not always the smartest. They just catch their errors faster.", author: "Anonymous" },
+  { text: "One hour of deliberate review beats five hours of passive re-reading.", author: "Anonymous" },
+  { text: "Every concept you master today is one less thing that can surprise you on exam day.", author: "Anonymous" },
+  { text: "Comfort and high grades do not live at the same address.", author: "Anonymous" },
+];
 
 const steps = [
   { icon: Camera, step: "01", title: "Capture", desc: "Snap a photo of notebook, worksheet, or board work." },
@@ -92,6 +126,7 @@ const Dashboard = ({ user }: { user: User }) => {
   const [showQuizConfig, setShowQuizConfig] = useState(false);
   const [quizConfig, setQuizConfig] = useState<QuizConfig>({ numQuestions: 10, questionType: "both", selectedConcepts: [] });
   const [scanAtBottom, setScanAtBottom] = useState(false);
+  const [quoteOffset, setQuoteOffset] = useState(0);
   const scanScrollRef = useRef<HTMLDivElement>(null);
   const resetCountdown = useUtcResetCountdown();
   const location = useLocation();
@@ -130,7 +165,7 @@ const Dashboard = ({ user }: { user: User }) => {
         loginStreak = lastLogin === yesterday ? loginStreak + 1 : 1;
         const streakUpdates: Record<string, unknown> = { last_login_date: today, login_streak: loginStreak };
         if (plan !== "deep" && loginStreak % 7 === 0) {
-          const bonus = plan === "intermediate" ? 20 : 5;
+          const bonus = plan === "intermediate" ? 20 : 10;
           bonusScans += bonus;
           streakUpdates.bonus_scans = bonusScans;
           toast.success(`7-day streak! You've earned ${bonus} bonus credits.`);
@@ -360,8 +395,8 @@ const Dashboard = ({ user }: { user: User }) => {
                     return (
                       <p className="mt-1.5 text-xs text-muted-foreground">
                         {loading ? "\u00a0" : daysLeft === 0
-                          ? `Streak complete — ${data?.plan === "intermediate" ? 20 : 5} bonus credits awarded!`
-                          : `${daysLeft} more day${daysLeft === 1 ? "" : "s"} to earn ${data?.plan === "intermediate" ? 20 : 5} bonus credits`}
+                          ? `Streak complete — ${data?.plan === "intermediate" ? 20 : 10} bonus credits awarded!`
+                          : `${daysLeft} more day${daysLeft === 1 ? "" : "s"} to earn ${data?.plan === "intermediate" ? 20 : 10} bonus credits`}
                       </p>
                     );
                   })()}
@@ -654,44 +689,23 @@ const Dashboard = ({ user }: { user: User }) => {
 
           {/* Quote of the day */}
           {(() => {
-            const quotes = [
-              { text: "It always seems impossible until it's done.", author: "Nelson Mandela" },
-              { text: "An investment in knowledge pays the best interest.", author: "Benjamin Franklin" },
-              { text: "A person who never made a mistake never tried anything new.", author: "Albert Einstein" },
-              { text: "I have not failed. I've just found 10,000 ways that won't work.", author: "Thomas Edison" },
-              { text: "The only real mistake is the one from which we learn nothing.", author: "Henry Ford" },
-              { text: "We do not learn from experience. We learn from reflecting on experience.", author: "John Dewey" },
-              { text: "The roots of education are bitter, but the fruit is sweet.", author: "Aristotle" },
-              { text: "Mistakes are the portals of discovery.", author: "James Joyce" },
-              { text: "Hard work beats talent when talent doesn't work hard.", author: "Tim Notke" },
-              { text: "Discipline is the bridge between goals and accomplishment.", author: "Jim Rohn" },
-              { text: "Success is the sum of small efforts repeated day in and day out.", author: "Robert Collier" },
-              { text: "Genius is 1% inspiration and 99% perspiration.", author: "Thomas Edison" },
-              { text: "The secret of getting ahead is getting started.", author: "Mark Twain" },
-              { text: "You don't have to be great to start, but you have to start to be great.", author: "Zig Ziglar" },
-              { text: "I find that the harder I work, the more luck I seem to have.", author: "Thomas Jefferson" },
-              { text: "Fall seven times, stand up eight.", author: "Japanese proverb" },
-              { text: "The beautiful thing about learning is that no one can take it away from you.", author: "B.B. King" },
-              { text: "In the middle of every difficulty lies opportunity.", author: "Albert Einstein" },
-              { text: "Education is not the learning of facts, but the training of the mind to think.", author: "Albert Einstein" },
-              { text: "Live as if you were to die tomorrow. Learn as if you were to live forever.", author: "Mahatma Gandhi" },
-              { text: "The expert in anything was once a beginner.", author: "Helen Hayes" },
-              { text: "Nothing in the world can take the place of persistence.", author: "Calvin Coolidge" },
-              { text: "I am still learning.", author: "Michelangelo" },
-              { text: "Do something today that your future self will thank you for.", author: "Sean Patrick Flanery" },
-              { text: "You don't lose marks for not knowing. You lose them for not finding out.", author: "Anonymous" },
-              { text: "The student who reviews their mistakes outperforms the one who only studies new material.", author: "Anonymous" },
-              { text: "The top students are not always the smartest. They just catch their errors faster.", author: "Anonymous" },
-              { text: "One hour of deliberate review beats five hours of passive re-reading.", author: "Anonymous" },
-              { text: "Every concept you master today is one less thing that can surprise you on exam day.", author: "Anonymous" },
-              { text: "Comfort and high grades do not live at the same address.", author: "Anonymous" },
-            ];
             const day = new Date().getUTCFullYear() * 1000 + Math.floor((Date.now() - new Date(new Date().getUTCFullYear(), 0, 0).getTime()) / 86400000);
-            const q = quotes[day % quotes.length];
+            const q = QUOTES[(day + quoteOffset) % QUOTES.length];
             return (
-              <div className="mt-6 rounded-xl border border-border bg-card px-6 py-5 text-center">
-                <p className="text-sm italic text-muted-foreground">"{q.text}"</p>
-                {q.author && <p className="mt-2 text-xs font-semibold text-muted-foreground/60">— {q.author}</p>}
+              <div className="mt-6 rounded-xl border border-border bg-card px-6 py-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="text-center flex-1">
+                    <p className="text-sm italic text-muted-foreground">"{q.text}"</p>
+                    {q.author && <p className="mt-2 text-xs font-semibold text-muted-foreground/60">— {q.author}</p>}
+                  </div>
+                  <button
+                    onClick={() => setQuoteOffset((v) => (v + 1) % QUOTES.length)}
+                    className="shrink-0 rounded-full p-1.5 text-muted-foreground/50 transition-colors hover:bg-secondary hover:text-muted-foreground"
+                    title="New quote"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
             );
           })()}
@@ -850,11 +864,15 @@ const DEMO_PRACTICE = [
 
 type DemoTab = "steps" | "concept" | "practice";
 
+const ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp", "image/heic", "image/heif"];
+
 const DemoPanel = () => {
+  const navigate = useNavigate();
   const [phase, setPhase] = useState(0);
   const [tab, setTab] = useState<DemoTab>("steps");
   const [revealedSteps, setRevealedSteps] = useState(1);
   const [revealedAnswers, setRevealedAnswers] = useState<Set<number>>(new Set());
+  const [demoDragging, setDemoDragging] = useState(false);
 
   useEffect(() => {
     const durations = [2000, 2200, 1800, 8000, 2200, 1800, 16000];
@@ -882,15 +900,33 @@ const DemoPanel = () => {
 
       <div className="relative h-[calc(100%-41px)]">
 
-        {/* Phase 0: idle drop zone */}
+        {/* Phase 0: idle drop zone — real drag/drop to /lab */}
         {phase === 0 && (
-          <div className="flex h-full items-center justify-center p-8">
-            <div className="flex w-full flex-col items-center gap-3 rounded-xl border-2 border-dashed border-border/50 py-16 text-center">
-              <Upload className="h-8 w-8 text-muted-foreground/40" />
+          <label
+            className="flex h-full cursor-pointer items-center justify-center p-8"
+            onDragOver={(e) => { e.preventDefault(); setDemoDragging(true); }}
+            onDragLeave={() => setDemoDragging(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDemoDragging(false);
+              const file = e.dataTransfer.files[0];
+              if (!file || !ALLOWED_TYPES.includes(file.type)) return;
+              pendingFileStore.set(file);
+              navigate("/lab");
+            }}
+          >
+            <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (!file || !ALLOWED_TYPES.includes(file.type)) return;
+              pendingFileStore.set(file);
+              navigate("/lab");
+            }} />
+            <div className={`flex w-full flex-col items-center gap-3 rounded-xl border-2 border-dashed py-16 text-center transition-colors ${demoDragging ? "border-primary bg-primary/5" : "border-border/50"}`}>
+              <Upload className={`h-8 w-8 transition-colors ${demoDragging ? "text-primary" : "text-muted-foreground/40"}`} />
               <p className="text-sm font-medium text-muted-foreground">Drop your question or working here</p>
               <p className="text-xs text-muted-foreground/50">PNG or JPG · any subject</p>
             </div>
-          </div>
+          </label>
         )}
 
         {/* Phase 1: physics image slides in */}
@@ -1223,6 +1259,7 @@ const Landing = () => {
   const logoRef = useRef<HTMLDivElement>(null);
   const [eyeOffset, setEyeOffset] = useState({ x: 0, y: 0 });
   const [isHovered, setIsHovered] = useState(false);
+  const [landingQuoteOffset, setLandingQuoteOffset] = useState(0);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -1336,6 +1373,33 @@ const Landing = () => {
                 </Card>
               ))}
             </div>
+          </div>
+        </section>
+
+        {/* ── Quote ── */}
+        <section className="container pb-12">
+          <div className="mx-auto max-w-2xl">
+            {(() => {
+              const day = new Date().getUTCFullYear() * 1000 + Math.floor((Date.now() - new Date(new Date().getUTCFullYear(), 0, 0).getTime()) / 86400000);
+              const q = QUOTES[(day + landingQuoteOffset) % QUOTES.length];
+              return (
+                <div className="rounded-xl border border-border bg-card px-6 py-5">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="text-center flex-1">
+                      <p className="text-sm italic text-muted-foreground">"{q.text}"</p>
+                      {q.author && <p className="mt-2 text-xs font-semibold text-muted-foreground/60">— {q.author}</p>}
+                    </div>
+                    <button
+                      onClick={() => setLandingQuoteOffset((v) => (v + 1) % QUOTES.length)}
+                      className="shrink-0 rounded-full p-1.5 text-muted-foreground/50 transition-colors hover:bg-secondary hover:text-muted-foreground"
+                      title="New quote"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </section>
 

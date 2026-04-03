@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
 import { useLocation, Link, useNavigate } from "react-router-dom";
+import katex from "katex";
+import "katex/dist/katex.min.css";
 import {
   BookOpen, ArrowLeft, TriangleAlert, Lightbulb, ClipboardList,
   ChevronRight, ArrowRight, FileSearch, Lock, Loader2, Microscope, CheckCircle2,
@@ -374,10 +376,48 @@ function IdentifyErrorTab({ diagnosis }: { diagnosis: IdentifyDiagnosis }) {
   );
 }
 
+// ── Math rendering ────────────────────────────────────────────────────────────
+
+function MathText({ text }: { text: string }) {
+  // Split on $$...$$ (display) and $...$ (inline) delimiters
+  const parts: { content: string; display: boolean; isLatex: boolean }[] = [];
+  const re = /(\$\$[\s\S]+?\$\$|\$[^$\n]+?\$)/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) parts.push({ content: text.slice(last, m.index), isLatex: false, display: false });
+    const raw = m[0];
+    const isDisplay = raw.startsWith("$$");
+    const inner = isDisplay ? raw.slice(2, -2) : raw.slice(1, -1);
+    parts.push({ content: inner, isLatex: true, display: isDisplay });
+    last = m.index + raw.length;
+  }
+  if (last < text.length) parts.push({ content: text.slice(last), isLatex: false, display: false });
+
+  return (
+    <span>
+      {parts.map((p, i) => {
+        if (!p.isLatex) return <span key={i}>{p.content}</span>;
+        try {
+          const html = katex.renderToString(p.content, { displayMode: p.display, throwOnError: false });
+          return p.display
+            ? <span key={i} className="my-2 block text-center" dangerouslySetInnerHTML={{ __html: html }} />
+            : <span key={i} dangerouslySetInnerHTML={{ __html: html }} />;
+        } catch {
+          return <span key={i}>{p.content}</span>;
+        }
+      })}
+    </span>
+  );
+}
+
 // ── Steps tab ─────────────────────────────────────────────────────────────────
 
-function StepsTab({ diagnosis }: { diagnosis: GuideDiagnosis }) {
-  const [revealed, setRevealed] = useState(1);
+function StepsTab({ diagnosis, revealed, setRevealed }: {
+  diagnosis: GuideDiagnosis;
+  revealed: number;
+  setRevealed: React.Dispatch<React.SetStateAction<number>>;
+}) {
   const steps = diagnosis.steps ?? [];
 
   return (
@@ -393,7 +433,7 @@ function StepsTab({ diagnosis }: { diagnosis: GuideDiagnosis }) {
             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">
               {i + 1}
             </span>
-            <p className="text-sm text-foreground">{step}</p>
+            <p className="text-sm text-foreground leading-relaxed"><MathText text={step} /></p>
           </div>
         ))}
       </div>
@@ -421,6 +461,7 @@ const BlindSpotReport = () => {
 
   const [plan, setPlan] = useState<string>("free");
   const [activeTab, setActiveTab] = useState<ReportTab>(mode === "guide" ? "steps" : "error");
+  const [revealedSteps, setRevealedSteps] = useState(1);
 
   useEffect(() => {
     let mounted = true;
@@ -558,7 +599,7 @@ const BlindSpotReport = () => {
                   ))}
                 </div>
                 <div className="animate-in fade-in duration-200">
-                  {activeTab === "steps" && <StepsTab diagnosis={diagnosis as GuideDiagnosis} />}
+                  {activeTab === "steps" && <StepsTab diagnosis={diagnosis as GuideDiagnosis} revealed={revealedSteps} setRevealed={setRevealedSteps} />}
                   {activeTab === "error" && <IdentifyErrorTab diagnosis={diagnosis as IdentifyDiagnosis} />}
                   {activeTab === "concept" && <ConceptTab
                     whatHappened={diagnosis.what_happened}
