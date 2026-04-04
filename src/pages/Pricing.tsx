@@ -118,12 +118,9 @@ const Pricing = () => {
       const { data, error } = await supabase.functions.invoke("billing-portal", {
         body: { userId: user.id },
       });
-      if (error) throw error;
-      if (data?.url) {
-        window.location.href = data.url;
-      } else {
-        throw new Error(data?.error ?? "Could not open billing portal");
-      }
+      const errMsg = data?.error ?? (error as any)?.message ?? String(error);
+      if (!data?.url) throw new Error(errMsg);
+      window.location.href = data.url;
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err));
       setLoadingPlan(null);
@@ -138,6 +135,19 @@ const Pricing = () => {
       </Helmet>
       <div className="relative z-10 min-h-screen pt-14">
         <div className="container py-20">
+          {isPaid && (
+            <div className="flex justify-end mb-4">
+              <Button
+                variant="outline"
+                className="border-border text-muted-foreground"
+                onClick={handleManageBilling}
+                disabled={loadingPlan === "manage"}
+              >
+                {loadingPlan === "manage" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Manage subscription
+              </Button>
+            </div>
+          )}
           <div className="mx-auto max-w-3xl text-center">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Pricing</p>
             <h1 className="mt-4 text-4xl font-extrabold tracking-tight text-foreground md:text-5xl">
@@ -146,19 +156,6 @@ const Pricing = () => {
             <p className="mt-4 text-lg text-muted-foreground">
               Start free. Scale when you need deeper diagnostics.
             </p>
-            {isPaid && (
-              <div className="mt-6 flex justify-center">
-                <Button
-                  variant="outline"
-                  className="border-border text-muted-foreground"
-                  onClick={handleManageBilling}
-                  disabled={loadingPlan === "manage"}
-                >
-                  {loadingPlan === "manage" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Manage subscription
-                </Button>
-              </div>
-            )}
           </div>
 
           <div className="mx-auto mt-14 grid max-w-5xl gap-6 md:grid-cols-3">
