@@ -6,6 +6,7 @@ import { Upload, Loader2, Microscope, ArrowRight, Lock, Search, BookOpen } from 
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import EducatorLayout from "@/components/EducatorLayout";
 import { checkScanCredits, SCAN_CACHE_KEY } from "@/lib/supabase";
 import { pendingFileStore } from "@/lib/pendingFile";
@@ -242,7 +243,7 @@ const DiagnosticLab = () => {
                       {selectedFile ? selectedFile.name : "Drop a file or tap to browse"}
                     </p>
                     {selectedFile && (
-                      <p className="mt-1 text-xs text-muted-foreground">Ready to scan. Click Run scan below.</p>
+                      <p className="mt-1 text-xs text-muted-foreground">File selected. Choose a scan mode to continue.</p>
                     )}
                   </div>
                 </div>

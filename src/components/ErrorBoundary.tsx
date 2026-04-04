@@ -21,12 +21,12 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       return (
         this.props.fallback ?? (
-          <div className="flex min-h-[40vh] flex-col items-center justify-center rounded-xl border border-slate-200 bg-white px-6 py-12 text-center">
-            <p className="text-sm font-semibold text-slate-900">Something went wrong</p>
-            <p className="mt-2 max-w-sm text-sm text-slate-600">
+          <div className="flex min-h-[40vh] flex-col items-center justify-center rounded-xl border border-border bg-card px-6 py-12 text-center">
+            <p className="text-sm font-semibold text-foreground">Something went wrong</p>
+            <p className="mt-2 max-w-sm text-sm text-muted-foreground">
               The lab hit an unexpected error. You can return home and try again.
             </p>
-            <Button asChild className="mt-6 bg-indigo-600 hover:bg-indigo-700">
+            <Button asChild className="mt-6 bg-primary hover:bg-primary/90">
               <Link to="/">Back to Dashboard</Link>
             </Button>
           </div>
