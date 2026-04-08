@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import { useNavigate, Link } from "react-router-dom";
-import { Upload, Loader2, Microscope, ArrowRight, Lock, Search, BookOpen } from "lucide-react";
+import { Upload, Loader2, Microscope, ArrowRight, Lock } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -14,8 +14,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 
 const SCAN_STEPS = ["Uploading", "Analysis", "Mapping gaps"] as const;
 
-type ScanMode = "guide" | "identify";
-
 const DiagnosticLab = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -23,7 +21,6 @@ const DiagnosticLab = () => {
   const [scanStep, setScanStep] = useState(0);
   const [textInput, setTextInput] = useState("");
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [showModeDialog, setShowModeDialog] = useState(false);
   const [remainingCredits, setRemainingCredits] = useState<number | null>(null);
   const [showLoginGate, setShowLoginGate] = useState(false);
   const pendingNavRef = useRef<{ imageUrl: string; diagnosis: unknown } | null>(null);
@@ -31,7 +28,7 @@ const DiagnosticLab = () => {
   const queryClient = useQueryClient();
 
   const analyzeImage = useCallback(
-    async (file: File, mode: ScanMode) => {
+    async (file: File) => {
       setIsAnalyzing(true);
       setScanStep(0);
 
@@ -69,7 +66,7 @@ const DiagnosticLab = () => {
         );
 
         const { data, error } = await supabase.functions.invoke("diagnose-image", {
-          body: { image: base64, mimeType: safeMime, mode },
+          body: { image: base64, mimeType: safeMime, mode: "guide" },
         });
 
         stepTimers.forEach(clearTimeout);
@@ -105,9 +102,7 @@ const DiagnosticLab = () => {
           data: { user },
         } = await supabase.auth.getUser();
 
-        const topic = mode === "guide"
-          ? (data as any)?.concept_label ?? (data as any)?.question_summary ?? null
-          : (data as any)?.error_tag ?? null;
+        const topic = (data as any)?.concept_label ?? (data as any)?.question_summary ?? null;
 
         if (!user?.id) {
           pendingNavRef.current = { imageUrl: url, diagnosis: data };
@@ -120,13 +115,7 @@ const DiagnosticLab = () => {
         const [{ data: insertedScan, error: insertError }] = await Promise.all([
           (supabase as any)
             .from("error_logs")
-            .insert({
-              student_id: user.id,
-              subject: "STEM",
-              topic,
-              specific_error_tag: mode === "identify" ? ((data as any)?.error_tag ?? null) : null,
-              error_category: mode === "identify" ? ((data as any)?.error_category ?? null) : null,
-            })
+            .insert({ student_id: user.id, subject: "STEM", topic, specific_error_tag: null, error_category: null })
             .select("id")
             .single(),
           (supabase as any).rpc("increment_scan_count", { user_id: user.id }),
@@ -139,14 +128,18 @@ const DiagnosticLab = () => {
 
         const scanId = insertedScan?.id;
         if (scanId) {
-          localStorage.setItem(
-            SCAN_CACHE_KEY(scanId),
-            JSON.stringify({ imageBase64: base64, mimeType: file.type, diagnosis: data, mode })
-          );
+          try {
+            localStorage.setItem(
+              SCAN_CACHE_KEY(scanId),
+              JSON.stringify({ imageBase64: base64, mimeType: file.type, diagnosis: data, mode: "guide" })
+            );
+          } catch {
+            // Storage quota exceeded — history won't be available on this device
+          }
         }
 
         queryClient.invalidateQueries({ queryKey: ["history", "error_logs"] });
-        navigate("/report", { state: { imageUrl: url, diagnosis: data, mode, scanId } });
+        navigate("/report", { state: { imageUrl: url, diagnosis: data, mode: "guide", scanId } });
       } catch (err: unknown) {
         console.error("Analysis failed:", err);
         const msg = err instanceof Error ? err.message : String(err);
@@ -225,10 +218,14 @@ const DiagnosticLab = () => {
 
       const scanId = insertedScan?.id;
       if (scanId) {
-        localStorage.setItem(
-          SCAN_CACHE_KEY(scanId),
-          JSON.stringify({ imageBase64: null, mimeType: null, diagnosis: data, mode: "guide" })
-        );
+        try {
+          localStorage.setItem(
+            SCAN_CACHE_KEY(scanId),
+            JSON.stringify({ imageBase64: null, mimeType: null, diagnosis: data, mode: "guide" })
+          );
+        } catch {
+          // Storage quota exceeded — history won't be available on this device
+        }
       }
 
       queryClient.invalidateQueries({ queryKey: ["history", "error_logs"] });
@@ -246,14 +243,9 @@ const DiagnosticLab = () => {
     if (file) {
       pendingFileStore.clear();
       setSelectedFile(file);
-      setShowModeDialog(true);
+      analyzeImage(file);
     }
-  }, []);
-
-  const openModeDialog = useCallback((file: File) => {
-    setSelectedFile(file);
-    setShowModeDialog(true);
-  }, []);
+  }, [analyzeImage]);
 
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -264,8 +256,9 @@ const DiagnosticLab = () => {
       toast.error("Unsupported format. Please use JPG, PNG, WebP, or HEIC.");
       return;
     }
-    openModeDialog(file);
-  }, [openModeDialog]);
+    setSelectedFile(file);
+    analyzeImage(file);
+  }, [analyzeImage]);
 
   const onFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -274,16 +267,12 @@ const DiagnosticLab = () => {
       toast.error("Unsupported format. Please use JPG, PNG, WebP, or HEIC.");
       return;
     }
-    openModeDialog(file);
-  }, [openModeDialog]);
-
-  const handleModeSelect = (mode: ScanMode) => {
-    setShowModeDialog(false);
-    if (selectedFile) analyzeImage(selectedFile, mode);
-  };
+    setSelectedFile(file);
+    analyzeImage(file);
+  }, [analyzeImage]);
 
   return (
-    <EducatorLayout title="Diagnostic Lab" subtitle="Upload a question for us to guide you through, or upload your working on a difficult question for us to identify the error.">
+    <EducatorLayout title="Diagnostic Lab" subtitle="Upload a question and we'll guide you through it step by step.">
       <Helmet>
         <title>Diagnostic Lab — AI Scanner for Hard STEM Questions | Gogodeep</title>
         <meta name="description" content="Upload a photo of your exam working or handwritten notes. Gogodeep analyses hard STEM questions, finds your error, and guides you step by step. Supports Physics HL, Math HL AA, AP Calculus BC, and AP Statistics." />
@@ -292,7 +281,7 @@ const DiagnosticLab = () => {
         <div className="rounded-xl border border-border bg-card">
           <div className="p-5 sm:p-6">
             <label
-              aria-label="Upload photo of handwritten notes or exam working for AI error analysis"
+              aria-label="Upload photo of handwritten notes or exam working for AI analysis"
               onDragOver={(e) => { e.preventDefault(); if (!isAnalyzing) setIsDragging(true); }}
               onDragLeave={() => setIsDragging(false)}
               onDrop={(e) => { if (isAnalyzing) return; onDrop(e); }}
@@ -322,14 +311,9 @@ const DiagnosticLab = () => {
                   ) : (
                     <Upload className="h-9 w-9 text-muted-foreground transition-colors group-hover:text-primary" />
                   )}
-                  <div>
-                    <p className="text-sm font-semibold tracking-tight text-foreground">
-                      {selectedFile ? selectedFile.name : "Drop a file or tap to browse"}
-                    </p>
-                    {selectedFile && (
-                      <p className="mt-1 text-xs text-muted-foreground">File selected. Choose a scan mode to continue.</p>
-                    )}
-                  </div>
+                  <p className="text-sm font-semibold tracking-tight text-foreground">
+                    {selectedFile ? selectedFile.name : "Drop a file or tap to browse"}
+                  </p>
                 </div>
               )}
             </label>
@@ -366,40 +350,6 @@ const DiagnosticLab = () => {
           </div>
         </div>
       </div>
-
-      {/* Mode selection dialog */}
-      <Dialog open={showModeDialog} onOpenChange={setShowModeDialog}>
-        <DialogContent className="border border-border bg-card sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="text-foreground">What do you need?</DialogTitle>
-            <DialogDescription className="text-muted-foreground">
-              Choose how you want us to analyse your image.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="mt-2 grid grid-cols-2 gap-3">
-            <button
-              onClick={() => handleModeSelect("guide")}
-              className="flex flex-col items-start gap-3 rounded-xl border border-border bg-secondary/50 p-5 text-left transition-all duration-200 hover:border-primary/60 hover:bg-primary/5"
-            >
-              <BookOpen className="h-6 w-6 text-primary" />
-              <div>
-                <p className="font-semibold text-foreground">Guide me</p>
-                <p className="mt-1 text-xs text-muted-foreground">I have a question I need help solving step by step.</p>
-              </div>
-            </button>
-            <button
-              onClick={() => handleModeSelect("identify")}
-              className="flex flex-col items-start gap-3 rounded-xl border border-border bg-secondary/50 p-5 text-left transition-all duration-200 hover:border-primary/60 hover:bg-primary/5"
-            >
-              <Search className="h-6 w-6 text-primary" />
-              <div>
-                <p className="font-semibold text-foreground">Find my error</p>
-                <p className="mt-1 text-xs text-muted-foreground">I attempted a question and want to know where I went wrong.</p>
-              </div>
-            </button>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={showUpgradeModal} onOpenChange={setShowUpgradeModal}>
         <DialogContent className="border border-border bg-card sm:max-w-md">

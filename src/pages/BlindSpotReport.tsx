@@ -455,7 +455,7 @@ const BlindSpotReport = () => {
   const navigate = useNavigate();
   const state: NavState = location.state ?? {};
   const diagnosis = state.diagnosis;
-  const mode = diagnosis?.mode ?? "identify";
+  const mode = state.mode ?? (diagnosis as any)?.mode ?? "guide";
   const imageSrc = resolveImageSrc(state);
 
   const [plan, setPlan] = useState<string>("free");
