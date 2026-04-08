@@ -11,8 +11,8 @@ Deno.serve(async (req: Request) => {
 
   try {
     console.log("diagnose-image invoked");
-    const { image, mimeType, mode = "identify" } = await req.json();
-    console.log("parsed body, mimeType:", mimeType, "mode:", mode);
+    const { image, mimeType, mode = "identify", text } = await req.json();
+    console.log("parsed body, mimeType:", mimeType, "mode:", mode, "text input:", !!text);
 
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
     console.log("API key present:", !!ANTHROPIC_API_KEY);
@@ -25,19 +25,23 @@ Deno.serve(async (req: Request) => {
 
     const isGuide = mode === "guide";
 
+    const mathInstruction = `
+
+MATHEMATICAL NOTATION: In every string field you return, express all mathematical content using LaTeX delimiters — inline math as $...$ and display/centred equations as $$...$$. For example: "Differentiate $f(x) = x^2$ to get $$f'(x) = 2x$$". Use LaTeX for all variables, fractions (\\frac{}{}), integrals (\\int), exponents, Greek letters, subscripts, square roots (\\sqrt{}), etc. Never write raw LaTeX commands outside of these delimiters, and never write maths in plain text (e.g. never write "x^2", always write "$x^2$").`;
+
     const systemPrompt = isGuide
       ? `You are an expert STEM tutor. A student has uploaded a question they need help understanding. Break down the solution step by step so they can follow along.
 
 If the image is NOT a STEM question (e.g. a cat, a meme, scenery) OR it is too blurry to read, you MUST still use the tool, but set input_status accordingly and make the underlying_concept field a clear instruction to re-upload a readable photo of the question.
 
-You MUST respond using the guide_question tool.`
+You MUST respond using the guide_question tool.${mathInstruction}`
       : `You are an expert STEM tutor specializing in diagnosing errors in student work (math, physics, chemistry).
 
 Analyze the uploaded image of a student's incorrect working. Identify the EXACT point where the logic breaks down.
 
 If the image is NOT a photo of STEM student working (e.g. a cat, a meme, scenery) OR it is too blurry to read, you MUST still use the tool, but set input_status accordingly and make the explanation a clear instruction to re-upload a readable photo of the student's work.
 
-You MUST respond using the diagnose_error tool.`;
+You MUST respond using the diagnose_error tool.${mathInstruction}`;
 
     const tools = isGuide
       ? [
@@ -83,7 +87,7 @@ You MUST respond using the diagnose_error tool.`;
                     },
                     required: ["id", "question", "answer"],
                   },
-                  description: "Exactly 5 practice problems at a similar difficulty level. Each answer must be a whole number, a simple fraction, or a short text phrase — never a bare irrational number or square root. If a problem would naturally produce an irrational answer (e.g. x = √5), rephrase it so the answer is clean (e.g. ask for x² instead of x).",
+                  description: "Exactly 5 practice problems at a similar difficulty level. Use $...$ LaTeX for all maths in question and answer fields. Each answer must be a whole number, a simple fraction, or a short text phrase — never a bare irrational number or square root. If a problem would naturally produce an irrational answer (e.g. x = √5), rephrase it so the answer is clean (e.g. ask for x² instead of x).",
                 },
                 input_status: {
                   type: "string",
@@ -138,7 +142,7 @@ You MUST respond using the diagnose_error tool.`;
                     },
                     required: ["id", "question", "answer"],
                   },
-                  description: "Exactly 5 practice problems targeting this specific weakness. Each answer must be a whole number, a simple fraction, or a short text phrase — never a bare irrational number or square root. If a problem would naturally produce an irrational answer, rephrase it so the answer is clean.",
+                  description: "Exactly 5 practice problems targeting this specific weakness. Use $...$ LaTeX for all maths in question and answer fields. Each answer must be a whole number, a simple fraction, or a short text phrase — never a bare irrational number or square root. If a problem would naturally produce an irrational answer, rephrase it so the answer is clean.",
                 },
                 input_status: {
                   type: "string",
@@ -170,17 +174,19 @@ You MUST respond using the diagnose_error tool.`;
         messages: [
           {
             role: "user",
-            content: [
-              {
-                type: "image",
-                source: {
-                  type: "base64",
-                  media_type: mimeType || "image/png",
-                  data: image,
-                },
-              },
-              { type: "text", text: userText },
-            ],
+            content: text
+              ? [{ type: "text", text: `${userText}\n\nQuestion: ${text}` }]
+              : [
+                  {
+                    type: "image",
+                    source: {
+                      type: "base64",
+                      media_type: mimeType || "image/png",
+                      data: image,
+                    },
+                  },
+                  { type: "text", text: userText },
+                ],
           },
         ],
         tools,

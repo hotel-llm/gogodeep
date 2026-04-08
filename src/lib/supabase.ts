@@ -34,7 +34,7 @@ export async function checkScanCredits(): Promise<ScanCreditState> {
   }
 
   const plan = (data as any)?.plan ?? "free";
-  const limit = SCAN_LIMITS[plan] ?? SCAN_LIMITS.free;
+  const limit = plan in SCAN_LIMITS ? SCAN_LIMITS[plan] : SCAN_LIMITS.free;
 
   if (limit === null) return { allowed: true, credits: null };
 

@@ -1,6 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
-import heic2any from "heic2any";
 import { useNavigate, Link } from "react-router-dom";
 import { Upload, Loader2, Microscope, ArrowRight, Lock, Search, BookOpen } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -22,6 +21,7 @@ const DiagnosticLab = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [scanStep, setScanStep] = useState(0);
+  const [textInput, setTextInput] = useState("");
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showModeDialog, setShowModeDialog] = useState(false);
   const [remainingCredits, setRemainingCredits] = useState<number | null>(null);
@@ -51,6 +51,7 @@ const DiagnosticLab = () => {
 
         if (file.type === "image/heic" || file.type === "image/heif") {
           try {
+            const heic2any = (await import("heic2any")).default;
             const converted = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.9 });
             processedFile = Array.isArray(converted) ? converted[0] : converted;
             safeMime = "image/jpeg";
@@ -157,6 +158,89 @@ const DiagnosticLab = () => {
     [navigate, queryClient]
   );
 
+  const analyzeText = useCallback(async () => {
+    const trimmed = textInput.trim();
+    if (!trimmed) return;
+
+    setIsAnalyzing(true);
+    setScanStep(0);
+
+    try {
+      const credits = await checkScanCredits();
+      if (!credits.allowed) {
+        setIsAnalyzing(false);
+        setRemainingCredits(credits.credits);
+        setShowUpgradeModal(true);
+        return;
+      }
+
+      const stepTimers = [window.setTimeout(() => setScanStep(1), 500), window.setTimeout(() => setScanStep(2), 1200)];
+
+      const { data, error } = await supabase.functions.invoke("diagnose-image", {
+        body: { text: trimmed, mode: "guide" },
+      });
+
+      stepTimers.forEach(clearTimeout);
+
+      if (error) {
+        toast.error(`Scan failed: ${(error as any)?.message ?? String(error)}`);
+        setIsAnalyzing(false);
+        setScanStep(0);
+        return;
+      }
+
+      if ((data as any)?.error) {
+        toast.error(`Scan failed: ${(data as any).error}`);
+        setIsAnalyzing(false);
+        setScanStep(0);
+        return;
+      }
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      const topic = (data as any)?.concept_label ?? (data as any)?.question_summary ?? null;
+
+      if (!user?.id) {
+        pendingNavRef.current = { imageUrl: "", diagnosis: data };
+        setIsAnalyzing(false);
+        setScanStep(0);
+        setShowLoginGate(true);
+        return;
+      }
+
+      const [{ data: insertedScan, error: insertError }] = await Promise.all([
+        (supabase as any)
+          .from("error_logs")
+          .insert({ student_id: user.id, subject: "STEM", topic, specific_error_tag: null, error_category: null })
+          .select("id")
+          .single(),
+        (supabase as any).rpc("increment_scan_count", { user_id: user.id }),
+      ]);
+
+      if (insertError) {
+        console.error("error_logs insert failed:", insertError);
+      }
+
+      const scanId = insertedScan?.id;
+      if (scanId) {
+        localStorage.setItem(
+          SCAN_CACHE_KEY(scanId),
+          JSON.stringify({ imageBase64: null, mimeType: null, diagnosis: data, mode: "guide" })
+        );
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["history", "error_logs"] });
+      navigate("/report", { state: { imageUrl: null, diagnosis: data, mode: "guide", scanId } });
+    } catch (err: unknown) {
+      console.error("Text analysis failed:", err);
+      toast.error(`Scan failed: ${err instanceof Error ? err.message : String(err)}`);
+      setIsAnalyzing(false);
+      setScanStep(0);
+    }
+  }, [textInput, navigate, queryClient]);
+
   useEffect(() => {
     const file = pendingFileStore.get();
     if (file) {
@@ -250,6 +334,35 @@ const DiagnosticLab = () => {
               )}
             </label>
 
+            <div className="mt-4">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="flex-1 h-px bg-border" />
+                <span className="text-xs text-muted-foreground">or</span>
+                <div className="flex-1 h-px bg-border" />
+              </div>
+              <textarea
+                value={textInput}
+                onChange={(e) => setTextInput(e.target.value)}
+                disabled={isAnalyzing}
+                placeholder="Manually enter a difficult problem…"
+                rows={3}
+                className="w-full resize-none rounded-lg border border-border bg-secondary/50 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/60 focus:outline-none focus:ring-0 disabled:cursor-not-allowed disabled:opacity-50"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && textInput.trim()) {
+                    e.preventDefault();
+                    analyzeText();
+                  }
+                }}
+              />
+              <Button
+                onClick={analyzeText}
+                disabled={isAnalyzing || !textInput.trim()}
+                className="mt-2 w-full bg-primary hover:bg-primary/90 disabled:opacity-40"
+              >
+                {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : "Analyse"}
+              </Button>
+            </div>
+
           </div>
         </div>
       </div>
@@ -293,10 +406,10 @@ const DiagnosticLab = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-foreground">
               <Lock className="h-4 w-4 text-primary" />
-              Upgrade to Intermediate
+              Out of scan credits
             </DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              You're out of scan credits{remainingCredits !== null ? ` (${remainingCredits} left)` : ""}. Upgrade for unlimited scans.
+              You've used all your scans for today{remainingCredits !== null ? ` (${remainingCredits} left)` : ""}. Upgrade to Intermediate or Deep for more scans.
             </DialogDescription>
           </DialogHeader>
           <div className="mt-4 flex justify-end gap-2">
