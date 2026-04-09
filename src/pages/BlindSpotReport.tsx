@@ -535,35 +535,33 @@ const BlindSpotReport = () => {
         <title>Your AI Analysis Breakdown | Gogodeep</title>
         <meta name="description" content="See the root cause of your mistake, the underlying concept explained, and targeted practice to close the gap. AI working analysis for IB, AP, and A-Level STEM subjects." />
       </Helmet>
-      <div className="grid gap-6 lg:grid-cols-5">
+      <div className={cn("grid gap-6", imageSrc ? "lg:grid-cols-5" : "lg:grid-cols-1")}>
 
-        {/* Image panel */}
-        <div className="lg:col-span-2">
-          <div className="sticky top-4 rounded-xl border border-border bg-card p-4">
-            <div className="mb-3 flex items-center gap-2">
-              <FileSearch className="h-4 w-4 text-muted-foreground" />
-              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Uploaded image</p>
-            </div>
-            <div className="flex min-h-[220px] items-center justify-center rounded-lg bg-secondary/40 p-3">
-              {imageSrc ? (
+        {/* Image panel — only shown when image is available */}
+        {imageSrc && (
+          <div className="lg:col-span-2">
+            <div className="sticky top-4 rounded-xl border border-border bg-card p-4">
+              <div className="mb-3 flex items-center gap-2">
+                <FileSearch className="h-4 w-4 text-muted-foreground" />
+                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Uploaded image</p>
+              </div>
+              <div className="flex min-h-[220px] items-center justify-center rounded-lg bg-secondary/40 p-3">
                 <img src={imageSrc} alt="Uploaded work" className="max-h-80 w-full rounded object-contain" />
-              ) : (
-                <p className="text-xs text-muted-foreground">Image not available</p>
-              )}
-            </div>
-            <div className="mt-4">
-              <Link to="/lab">
-                <Button variant="outline" className="w-full gap-2 border-border text-sm">
-                  <ArrowLeft className="h-3.5 w-3.5" />
-                  New scan
-                </Button>
-              </Link>
+              </div>
+              <div className="mt-4">
+                <Link to="/lab">
+                  <Button variant="outline" className="w-full gap-2 border-border text-sm">
+                    <ArrowLeft className="h-3.5 w-3.5" />
+                    New scan
+                  </Button>
+                </Link>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Tabs panel */}
-        <div className="lg:col-span-3">
+        <div className={imageSrc ? "lg:col-span-3" : "lg:col-span-1"}>
           {(() => {
             const tabList = mode === "guide"
               ? [
@@ -613,6 +611,16 @@ const BlindSpotReport = () => {
               </>
             );
           })()}
+          {!imageSrc && (
+            <div className="mt-4">
+              <Link to="/lab">
+                <Button variant="outline" className="gap-2 border-border text-sm">
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                  New scan
+                </Button>
+              </Link>
+            </div>
+          )}
         </div>
 
       </div>

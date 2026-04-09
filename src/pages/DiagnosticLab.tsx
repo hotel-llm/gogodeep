@@ -115,7 +115,7 @@ const DiagnosticLab = () => {
         const [{ data: insertedScan, error: insertError }] = await Promise.all([
           (supabase as any)
             .from("error_logs")
-            .insert({ student_id: user.id, subject: "STEM", topic, specific_error_tag: null, error_category: null })
+            .insert({ student_id: user.id, subject: "STEM", topic, specific_error_tag: null, error_category: null, diagnosis: data })
             .select("id")
             .single(),
           (supabase as any).rpc("increment_scan_count", { user_id: user.id }),
@@ -129,12 +129,13 @@ const DiagnosticLab = () => {
         const scanId = insertedScan?.id;
         if (scanId) {
           try {
+            // Store only diagnosis + mode — skip imageBase64 to avoid quota overflow
             localStorage.setItem(
               SCAN_CACHE_KEY(scanId),
-              JSON.stringify({ imageBase64: base64, mimeType: file.type, diagnosis: data, mode: "guide" })
+              JSON.stringify({ diagnosis: data, mode: "guide" })
             );
           } catch {
-            // Storage quota exceeded — history won't be available on this device
+            // quota exceeded — Supabase is the fallback
           }
         }
 
@@ -206,7 +207,7 @@ const DiagnosticLab = () => {
       const [{ data: insertedScan, error: insertError }] = await Promise.all([
         (supabase as any)
           .from("error_logs")
-          .insert({ student_id: user.id, subject: "STEM", topic, specific_error_tag: null, error_category: null })
+          .insert({ student_id: user.id, subject: "STEM", topic, specific_error_tag: null, error_category: null, diagnosis: data })
           .select("id")
           .single(),
         (supabase as any).rpc("increment_scan_count", { user_id: user.id }),
@@ -219,12 +220,9 @@ const DiagnosticLab = () => {
       const scanId = insertedScan?.id;
       if (scanId) {
         try {
-          localStorage.setItem(
-            SCAN_CACHE_KEY(scanId),
-            JSON.stringify({ imageBase64: null, mimeType: null, diagnosis: data, mode: "guide" })
-          );
+          localStorage.setItem(SCAN_CACHE_KEY(scanId), JSON.stringify({ diagnosis: data, mode: "guide" }));
         } catch {
-          // Storage quota exceeded — history won't be available on this device
+          // quota exceeded — Supabase is the fallback
         }
       }
 
