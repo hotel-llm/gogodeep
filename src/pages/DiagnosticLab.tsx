@@ -4,7 +4,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { Upload, Loader2, Microscope, ArrowRight, Lock } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { whaleToast } from "@/lib/whaleToast";
 import { Button } from "@/components/ui/button";
 import EducatorLayout from "@/components/EducatorLayout";
 import { checkScanCredits, SCAN_CACHE_KEY } from "@/lib/supabase";
@@ -77,7 +77,7 @@ const DiagnosticLab = () => {
             processedFile = Array.isArray(converted) ? converted[0] : converted;
             safeMime = "image/jpeg";
           } catch {
-            toast.error("Could not convert HEIC image. Please export as JPG and try again.");
+            whaleToast.error("Could not convert HEIC image. Please export as JPG and try again.");
             setIsAnalyzing(false);
             return;
           }
@@ -95,20 +95,20 @@ const DiagnosticLab = () => {
 
         if (error) {
           const msg = (error as any)?.message ?? String(error);
-          toast.error(`Scan failed: ${msg}`);
+          whaleToast.error(`Scan failed: ${msg}`);
           setIsAnalyzing(false);
           return;
         }
 
         if ((data as any)?.error) {
-          toast.error(`Scan failed: ${(data as any).error}`);
+          whaleToast.error(`Scan failed: ${(data as any).error}`);
           setIsAnalyzing(false);
           return;
         }
 
         const inputStatus = (data as any)?.input_status as string | undefined;
         if (inputStatus && inputStatus !== "ok") {
-          toast.error(
+          whaleToast.error(
             inputStatus === "blurry"
               ? "Image is too blurry to read. Please retake a clearer photo."
               : "That doesn't look like a STEM image. Please upload a clear PNG or JPG."
@@ -141,7 +141,7 @@ const DiagnosticLab = () => {
 
         if (insertError) {
           console.error("error_logs insert failed:", insertError);
-          toast.error(`Scan save failed: ${insertError.message}. Check Supabase RLS policies.`);
+          whaleToast.error(`Scan save failed: ${insertError.message}. Check Supabase RLS policies.`);
         }
 
         const scanId = insertedScan?.id;
@@ -168,7 +168,7 @@ const DiagnosticLab = () => {
       } catch (err: unknown) {
         console.error("Analysis failed:", err);
         const msg = err instanceof Error ? err.message : String(err);
-        toast.error(`Scan failed: ${msg}`);
+        whaleToast.error(`Scan failed: ${msg}`);
         setIsAnalyzing(false);
         setScanComplete(false);
       }
@@ -196,13 +196,13 @@ const DiagnosticLab = () => {
       });
 
       if (error) {
-        toast.error(`Scan failed: ${(error as any)?.message ?? String(error)}`);
+        whaleToast.error(`Scan failed: ${(error as any)?.message ?? String(error)}`);
         setIsAnalyzing(false);
         return;
       }
 
       if ((data as any)?.error) {
-        toast.error(`Scan failed: ${(data as any).error}`);
+        whaleToast.error(`Scan failed: ${(data as any).error}`);
         setIsAnalyzing(false);
         return;
       }
@@ -252,7 +252,7 @@ const DiagnosticLab = () => {
       navigate("/report", { state: { imageUrl: null, inputText: trimmed, diagnosis: data, mode: "guide", scanId } });
     } catch (err: unknown) {
       console.error("Text analysis failed:", err);
-      toast.error(`Scan failed: ${err instanceof Error ? err.message : String(err)}`);
+      whaleToast.error(`Scan failed: ${err instanceof Error ? err.message : String(err)}`);
       setIsAnalyzing(false);
       setScanComplete(false);
     }
@@ -273,7 +273,7 @@ const DiagnosticLab = () => {
     const file = e.dataTransfer.files[0];
     if (!file) return;
     if (!["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp", "image/heic", "image/heif"].includes(file.type)) {
-      toast.error("Unsupported format. Please use JPG, PNG, WebP, or HEIC.");
+      whaleToast.error("Unsupported format. Please use JPG, PNG, WebP, or HEIC.");
       return;
     }
     setSelectedFile(file);
@@ -284,7 +284,7 @@ const DiagnosticLab = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp", "image/heic", "image/heif"].includes(file.type)) {
-      toast.error("Unsupported format. Please use JPG, PNG, WebP, or HEIC.");
+      whaleToast.error("Unsupported format. Please use JPG, PNG, WebP, or HEIC.");
       return;
     }
     setSelectedFile(file);

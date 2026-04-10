@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Link, useNavigate } from "react-router-dom";
 import PageTransition from "@/components/PageTransition";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { whaleToast } from "@/lib/whaleToast";
 
 type PlanFeature = { text: string; included: boolean };
 
@@ -103,7 +103,7 @@ const Pricing = () => {
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      toast.error(`Checkout failed: ${message}`);
+      whaleToast.error(`Checkout failed: ${message}`);
       setLoadingPlan(null);
     }
   };
@@ -122,7 +122,7 @@ const Pricing = () => {
       if (!data?.url) throw new Error(errMsg);
       window.location.href = data.url;
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : String(err));
+      whaleToast.error(err instanceof Error ? err.message : String(err));
       setLoadingPlan(null);
     }
   };

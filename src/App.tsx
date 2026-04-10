@@ -2,7 +2,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import { useEffect } from "react";
-import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import AppNav from "@/components/AppNav";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -65,7 +64,6 @@ function HashCleaner() {
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
       <BrowserRouter>
         <HashCleaner />
         <div className="liquid-glass-bg" aria-hidden />

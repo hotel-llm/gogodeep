@@ -2,7 +2,7 @@ import { FormEvent, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Loader2, Mail, Lock, User } from "lucide-react";
 import gogodeepLogo from "@/assets/gogodeep-logo.png";
-import { toast } from "sonner";
+import { whaleToast } from "@/lib/whaleToast";
 
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -28,19 +28,19 @@ const Signup = () => {
   const onSignup = async (e: FormEvent) => {
     e.preventDefault();
     if (!username.trim()) {
-      toast.error("Please enter a username.");
+      whaleToast.error("Please enter a username.");
       return;
     }
     if (!isValidEmail(email)) {
-      toast.error("Please enter a valid email address.");
+      whaleToast.error("Please enter a valid email address.");
       return;
     }
     if (password.length < 8) {
-      toast.error("Password must be at least 8 characters.");
+      whaleToast.error("Password must be at least 8 characters.");
       return;
     }
     if (password !== confirmPassword) {
-      toast.error("Passwords do not match.");
+      whaleToast.error("Passwords do not match.");
       return;
     }
     setIsLoading(true);
@@ -55,7 +55,7 @@ const Signup = () => {
       setIsLoading(false);
 
       if (error) {
-        toast.error(error.message);
+        whaleToast.error(error.message);
         return;
       }
 
@@ -66,7 +66,7 @@ const Signup = () => {
       }
     } catch (err) {
       setIsLoading(false);
-      toast.error("An unexpected error occurred. Please try again.");
+      whaleToast.error("An unexpected error occurred. Please try again.");
     }
   };
 

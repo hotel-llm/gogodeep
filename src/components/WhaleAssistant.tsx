@@ -54,6 +54,8 @@ export default function WhaleAssistant() {
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const [bubble, setBubble] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const bubbleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -69,6 +71,20 @@ export default function WhaleAssistant() {
         .single();
       setPlan(data?.plan ?? "free");
     });
+  }, []);
+
+  useEffect(() => {
+    function handler(e: Event) {
+      const { message, type } = (e as CustomEvent).detail;
+      if (bubbleTimer.current) clearTimeout(bubbleTimer.current);
+      setBubble({ message, type });
+      bubbleTimer.current = setTimeout(() => setBubble(null), 4000);
+    }
+    window.addEventListener("whale-notify", handler);
+    return () => {
+      window.removeEventListener("whale-notify", handler);
+      if (bubbleTimer.current) clearTimeout(bubbleTimer.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -196,6 +212,25 @@ export default function WhaleAssistant() {
 
   return (
     <>
+      {/* Whal-E speech bubble notification */}
+      {bubble && (
+        <div className="fixed bottom-24 right-6 z-50 animate-in fade-in slide-in-from-bottom-2 duration-200">
+          <div className={cn(
+            "max-w-[220px] rounded-2xl rounded-br-sm px-4 py-2.5 text-sm shadow-lg",
+            bubble.type === "error"
+              ? "bg-destructive text-destructive-foreground"
+              : "bg-card border border-border text-foreground"
+          )}>
+            {bubble.message}
+          </div>
+          {/* Tail pointing to whale button */}
+          <div className={cn(
+            "ml-auto mr-3 h-2 w-2 rotate-45 translate-y-[-1px]",
+            bubble.type === "error" ? "bg-destructive" : "bg-card border-r border-b border-border"
+          )} style={{ width: 8, height: 8 }} />
+        </div>
+      )}
+
       {/* Floating button */}
       <button
         onClick={handleOpen}

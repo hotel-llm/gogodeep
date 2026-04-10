@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Loader2, Lock } from "lucide-react";
 import gogodeepLogo from "@/assets/gogodeep-logo.png";
-import { toast } from "sonner";
+import { whaleToast } from "@/lib/whaleToast";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,12 +32,12 @@ const ResetPassword = () => {
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (password.length < 8) { toast.error("Password must be at least 8 characters."); return; }
-    if (password !== confirm) { toast.error("Passwords do not match."); return; }
+    if (password.length < 8) { whaleToast.error("Password must be at least 8 characters."); return; }
+    if (password !== confirm) { whaleToast.error("Passwords do not match."); return; }
     setIsLoading(true);
     const { error } = await supabase.auth.updateUser({ password });
     setIsLoading(false);
-    if (error) { toast.error(error.message); return; }
+    if (error) { whaleToast.error(error.message); return; }
     setDone(true);
     setTimeout(() => navigate("/login", { replace: true }), 2500);
   };

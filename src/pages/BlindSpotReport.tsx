@@ -13,7 +13,7 @@ import { RichText } from "@/components/RichText";
 import { supabase } from "@/integrations/supabase/client";
 import { checkScanCredits, SCAN_CACHE_KEY } from "@/lib/supabase";
 import { scanImageStore } from "@/lib/pendingFile";
-import { toast } from "sonner";
+import { whaleToast } from "@/lib/whaleToast";
 import { cn } from "@/lib/utils";
 
 const SESSION_REPORT_KEY = "gogodeep_pending_report";
@@ -493,7 +493,7 @@ const BlindSpotReport = () => {
   const scanPracticeQuestion = useCallback(async (question: string) => {
     const credits = await checkScanCredits();
     if (!credits.allowed) {
-      toast.error("No scan credits left. Upgrade to continue.", { action: { label: "Upgrade", onClick: () => navigate("/pricing") } });
+      whaleToast.error("No scan credits left. Upgrade to continue.", { action: { label: "Upgrade", onClick: () => navigate("/pricing") } });
       return;
     }
     const base64 = questionToBase64(question);
@@ -502,7 +502,7 @@ const BlindSpotReport = () => {
       body: { image: base64, mimeType, mode: "guide" },
     });
     if (error || (data as any)?.error) {
-      toast.error(`Scan failed: ${(error as any)?.message ?? (data as any)?.error}`);
+      whaleToast.error(`Scan failed: ${(error as any)?.message ?? (data as any)?.error}`);
       return;
     }
     const { data: { user } } = await supabase.auth.getUser();

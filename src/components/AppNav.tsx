@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import gogodeepLogo from "@/assets/gogodeep-logo.png";
-import { toast } from "sonner";
+import { whaleToast } from "@/lib/whaleToast";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -65,10 +65,10 @@ const AppNav = () => {
     if (!error) {
       await (supabase as any).from("profiles").update({ username: trimmed }).eq("id", user.id);
       setUser(data.user);
-      toast.success("Name updated.");
+      whaleToast.success("Name updated.");
       setRenameOpen(false);
     } else {
-      toast.error(error.message);
+      whaleToast.error(error.message);
     }
     setRenaming(false);
   }

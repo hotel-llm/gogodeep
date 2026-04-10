@@ -10,7 +10,7 @@ import gogodeepLogo from "@/assets/gogodeep-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import { SCAN_LIMITS, SCAN_CACHE_KEY } from "@/lib/supabase";
 import { pendingFileStore } from "@/lib/pendingFile";
-import { toast } from "sonner";
+import { whaleToast } from "@/lib/whaleToast";
 import type { User } from "@supabase/supabase-js";
 
 const QUOTES = [
@@ -134,7 +134,7 @@ const Dashboard = ({ user }: { user: User }) => {
   // Show success toast when redirected back from Stripe
   useEffect(() => {
     if (new URLSearchParams(location.search).get("upgraded") === "1") {
-      toast.success("Plan activated. Enjoy your upgraded scans!");
+      whaleToast.success("Plan activated. Enjoy your upgraded scans!");
       window.history.replaceState({}, "", "/");
     }
   }, [location.search]);
@@ -168,7 +168,7 @@ const Dashboard = ({ user }: { user: User }) => {
           const bonus = plan === "intermediate" ? 20 : 10;
           bonusScans += bonus;
           streakUpdates.bonus_scans = bonusScans;
-          toast.success(`7-day streak! You've earned ${bonus} bonus credits.`);
+          whaleToast.success(`7-day streak! You've earned ${bonus} bonus credits.`);
         }
         await (supabase as any).from("profiles").update(streakUpdates).eq("id", user.id);
       }
@@ -228,7 +228,7 @@ const Dashboard = ({ user }: { user: User }) => {
       } catch {}
     }
     const topics = Object.keys(byTopic);
-    if (!topics.length) { toast.error("Couldn't load practice questions from your scans."); return; }
+    if (!topics.length) { whaleToast.error("Couldn't load practice questions from your scans."); return; }
     // Even distribution: take ceil(numQuestions / numTopics) from each, shuffle within topic, then slice
     const perTopic = Math.ceil(cfg.numQuestions / topics.length);
     const pool: QuizQuestion[] = [];
@@ -672,7 +672,7 @@ const Dashboard = ({ user }: { user: User }) => {
                             />
                             <Button size="sm" className="w-full bg-primary hover:bg-primary/90"
                               onClick={() => {
-                                if (!quiz.userInput.trim()) { toast.error("Please enter your answer first."); return; }
+                                if (!quiz.userInput.trim()) { whaleToast.error("Please enter your answer first."); return; }
                                 setQuiz((q) => q && ({ ...q, revealed: true }));
                               }}>
                               Check answer

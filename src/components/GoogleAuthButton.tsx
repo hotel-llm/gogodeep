@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { whaleToast } from "@/lib/whaleToast";
 
 export function GoogleAuthButton({ label = "Continue with Google" }: { label?: string }) {
   const [loading, setLoading] = useState(false);
@@ -13,7 +13,7 @@ export function GoogleAuthButton({ label = "Continue with Google" }: { label?: s
       options: { redirectTo: `${window.location.origin}/` },
     });
     if (error) {
-      toast.error(error.message);
+      whaleToast.error(error.message);
       setLoading(false);
     }
     // On success the browser redirects — no need to setLoading(false)

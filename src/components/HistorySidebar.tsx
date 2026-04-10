@@ -5,7 +5,7 @@ import { Plus, Folder, ChevronRight, ChevronDown, Trash2, FolderOpen, Pencil } f
 
 import { supabase } from "@/integrations/supabase/client";
 import { SCAN_CACHE_KEY } from "@/lib/supabase";
-import { toast } from "sonner";
+import { whaleToast } from "@/lib/whaleToast";
 import { cn } from "@/lib/utils";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -410,7 +410,7 @@ function ScanRow({
       .single();
 
     if (error || !data?.diagnosis) {
-      toast.error("Could not load this scan. It may have been created before history sync was enabled.");
+      whaleToast.error("Could not load this scan. It may have been created before history sync was enabled.");
       return;
     }
 

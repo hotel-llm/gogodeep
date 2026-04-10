@@ -2,7 +2,7 @@ import { FormEvent, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Loader2, Mail, Lock, ArrowLeft } from "lucide-react";
 import gogodeepLogo from "@/assets/gogodeep-logo.png";
-import { toast } from "sonner";
+import { whaleToast } from "@/lib/whaleToast";
 
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -31,7 +31,7 @@ const Login = () => {
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       setIsLoading(false);
-      if (error) { toast.error(error.message); return; }
+      if (error) { whaleToast.error(error.message); return; }
       if (pendingReport) {
         navigate("/report", { replace: true, state: pendingReport });
       } else {
@@ -39,7 +39,7 @@ const Login = () => {
       }
     } catch {
       setIsLoading(false);
-      toast.error("An unexpected error occurred. Please try again.");
+      whaleToast.error("An unexpected error occurred. Please try again.");
     }
   };
 
@@ -50,7 +50,7 @@ const Login = () => {
       redirectTo: `${window.location.origin}/reset-password`,
     });
     setForgotLoading(false);
-    if (error) { toast.error(error.message); return; }
+    if (error) { whaleToast.error(error.message); return; }
     setForgotSent(true);
   };
 
