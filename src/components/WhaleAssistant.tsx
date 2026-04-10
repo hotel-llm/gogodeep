@@ -1,12 +1,12 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { X, Send, ArrowRight, Loader2 } from "lucide-react";
+import { X, Send, ArrowRight, Loader2, Maximize2, Minimize2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { RichText } from "@/components/RichText";
 
-// Drop the Whal-E image at public/whale-e.png — no build step needed
 const WHALE_IMG = "/whale-e.png";
 
 function WhaleAvatar({ className }: { className?: string }) {
@@ -38,6 +38,11 @@ Your role:
 
 const GREETING = "Hey! I'm Whal-E 👋 Ask me anything about a concept you're studying, or how to use Gogodeep.";
 
+const DEFAULT_W = 340;
+const DEFAULT_H = 460;
+const EXPANDED_W = 560;
+const EXPANDED_H = 640;
+
 export default function WhaleAssistant() {
   const navigate = useNavigate();
   const [plan, setPlan] = useState<string | null>(null);
@@ -47,8 +52,12 @@ export default function WhaleAssistant() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const dragState = useRef<{ startX: number; startY: number; top: number; left: number } | null>(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -65,6 +74,88 @@ export default function WhaleAssistant() {
   useEffect(() => {
     if (open) bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, open]);
+
+  // Listen for step context injected from the report page
+  useEffect(() => {
+    function handler(e: Event) {
+      const { stepNum, stepText, questionSummary } = (e as CustomEvent).detail;
+      setOpen(true);
+      setMessages((prev) => {
+        const base = prev.length === 0 ? [{ role: "assistant" as const, content: GREETING }] : prev;
+        const context = questionSummary
+          ? `📌 **Step ${stepNum}** (from: *${questionSummary}*)\n\n${stepText}\n\nWhat would you like to know about this step?`
+          : `📌 **Step ${stepNum}**\n\n${stepText}\n\nWhat would you like to know about this step?`;
+        return [...base, { role: "assistant" as const, content: context }];
+      });
+      setTimeout(() => {
+        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+        inputRef.current?.focus();
+      }, 100);
+    }
+    window.addEventListener("whale-context", handler);
+    return () => window.removeEventListener("whale-context", handler);
+  }, []);
+
+  // Set initial position when panel becomes visible
+  useEffect(() => {
+    if (open && pos === null) {
+      const w = expanded ? EXPANDED_W : DEFAULT_W;
+      const h = expanded ? EXPANDED_H : DEFAULT_H;
+      setPos({
+        top: Math.max(8, window.innerHeight - 96 - h),
+        left: Math.max(8, window.innerWidth - 24 - w),
+      });
+    }
+  }, [open, pos, expanded]);
+
+  const onPointerMove = useCallback((e: PointerEvent) => {
+    if (!dragState.current || !panelRef.current) return;
+    const top = dragState.current.top + (e.clientY - dragState.current.startY);
+    const left = dragState.current.left + (e.clientX - dragState.current.startX);
+    panelRef.current.style.top = `${top}px`;
+    panelRef.current.style.left = `${left}px`;
+  }, []);
+
+  const onPointerUp = useCallback(() => {
+    if (dragState.current && panelRef.current) {
+      const top = parseFloat(panelRef.current.style.top);
+      const left = parseFloat(panelRef.current.style.left);
+      setPos({ top, left });
+    }
+    dragState.current = null;
+    window.removeEventListener("pointermove", onPointerMove);
+    window.removeEventListener("pointerup", onPointerUp);
+  }, [onPointerMove]);
+
+  useEffect(() => {
+    return () => {
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+    };
+  }, [onPointerMove, onPointerUp]);
+
+  function onHeaderPointerDown(e: React.PointerEvent) {
+    if ((e.target as HTMLElement).closest("button")) return;
+    if (!pos) return;
+    e.preventDefault();
+    dragState.current = { startX: e.clientX, startY: e.clientY, top: pos.top, left: pos.left };
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+  }
+
+  function toggleExpand() {
+    const next = !expanded;
+    setExpanded(next);
+    // Reposition so panel stays near bottom-right
+    if (pos) {
+      const newW = next ? EXPANDED_W : DEFAULT_W;
+      const newH = next ? EXPANDED_H : DEFAULT_H;
+      setPos({
+        top: Math.max(8, window.innerHeight - 96 - newH),
+        left: Math.max(8, window.innerWidth - 24 - newW),
+      });
+    }
+  }
 
   function handleOpen() {
     if (open) {
@@ -100,6 +191,9 @@ export default function WhaleAssistant() {
     }
   }
 
+  const panelW = expanded ? EXPANDED_W : DEFAULT_W;
+  const panelH = expanded ? EXPANDED_H : DEFAULT_H;
+
   return (
     <>
       {/* Floating button */}
@@ -130,7 +224,7 @@ export default function WhaleAssistant() {
         </span>
       </button>
 
-      {/* Upgrade dialog for free users */}
+      {/* Upgrade dialog */}
       <Dialog open={showUpgrade} onOpenChange={setShowUpgrade}>
         <DialogContent className="border border-border bg-card sm:max-w-md">
           <DialogHeader>
@@ -153,24 +247,51 @@ export default function WhaleAssistant() {
       </Dialog>
 
       {/* Chat panel */}
-      {open && (
-        <div className="animate-in fade-in slide-in-from-bottom-3 duration-200 fixed bottom-24 right-6 z-50 flex w-[340px] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
-          {/* Header */}
-          <div className="flex items-center justify-between border-b border-border bg-secondary/50 px-4 py-3">
+      {open && pos && (
+        <div
+          ref={panelRef}
+          className="fixed z-50 flex flex-col rounded-2xl border border-border bg-card shadow-2xl"
+          style={{
+            top: pos.top,
+            left: pos.left,
+            width: panelW,
+            height: panelH,
+            minWidth: 280,
+            minHeight: 360,
+            maxWidth: "calc(100vw - 16px)",
+            maxHeight: "calc(100vh - 16px)",
+            resize: "both",
+            overflow: "hidden",
+          }}
+        >
+          {/* Header — drag handle */}
+          <div
+            className="flex shrink-0 cursor-grab items-center justify-between border-b border-border bg-secondary/50 px-4 py-3 active:cursor-grabbing select-none"
+            onPointerDown={onHeaderPointerDown}
+          >
             <div className="flex items-center gap-2.5">
               <WhaleAvatar className="h-8 w-8 shrink-0" />
               <p className="text-sm font-semibold text-foreground">Whal-E</p>
             </div>
-            <button
-              onClick={() => setOpen(false)}
-              className="rounded p-1 text-muted-foreground hover:text-foreground"
-            >
-              <X className="h-4 w-4" />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={toggleExpand}
+                className="rounded p-1 text-muted-foreground hover:text-foreground"
+                title={expanded ? "Collapse" : "Expand"}
+              >
+                {expanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+              </button>
+              <button
+                onClick={() => setOpen(false)}
+                className="rounded p-1 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
           </div>
 
           {/* Messages */}
-          <div className="flex h-80 flex-col gap-3 overflow-y-auto p-4">
+          <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-4">
             {messages.map((m, i) => (
               <div key={i} className={cn("flex animate-in fade-in duration-150", m.role === "user" ? "justify-end" : "justify-start")}>
                 {m.role === "assistant" && (
@@ -184,7 +305,7 @@ export default function WhaleAssistant() {
                       : "border border-border bg-secondary/60 text-foreground"
                   )}
                 >
-                  {m.content}
+                  <RichText text={m.content} />
                 </div>
               </div>
             ))}
@@ -201,7 +322,7 @@ export default function WhaleAssistant() {
           </div>
 
           {/* Input */}
-          <div className="border-t border-border p-3">
+          <div className="shrink-0 border-t border-border p-3">
             <div className="flex items-end gap-2">
               <textarea
                 ref={inputRef}

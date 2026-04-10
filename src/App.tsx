@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import AppNav from "@/components/AppNav";
@@ -15,6 +16,7 @@ import Contact from "./pages/Contact";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import NotFound from "./pages/NotFound";
+import ResetPassword from "./pages/ResetPassword";
 
 const queryClient = new QueryClient();
 
@@ -44,10 +46,20 @@ function AnimatedRoutes() {
         />
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/contact" element={<Contact />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AnimatePresence>
   );
+}
+
+function HashCleaner() {
+  useEffect(() => {
+    if (window.location.hash === "#" || window.location.hash === "#/") {
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    }
+  }, []);
+  return null;
 }
 
 const App = () => (
@@ -55,6 +67,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <BrowserRouter>
+        <HashCleaner />
         <div className="liquid-glass-bg" aria-hidden />
         <AppNav />
         <AnimatedRoutes />

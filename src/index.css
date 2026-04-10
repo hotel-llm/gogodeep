@@ -67,10 +67,11 @@
   }
 }
 
-/* Whale spin loading animation */
-@keyframes whale-spin {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
+/* Scan loading bar */
+@keyframes loading-bar {
+  0%   { transform: translateX(-100%); width: 60%; }
+  50%  { transform: translateX(83%);   width: 60%; }
+  100% { transform: translateX(-100%); width: 60%; }
 }
 
 /* Liquid glass background */

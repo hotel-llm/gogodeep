@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
 import { useLocation, Link, useNavigate } from "react-router-dom";
-import katex from "katex";
-import "katex/dist/katex.min.css";
 import {
   BookOpen, ArrowLeft, TriangleAlert, Lightbulb, ClipboardList,
   ChevronRight, ArrowRight, FileSearch, Lock, Loader2, Microscope, CheckCircle2,
@@ -11,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import EducatorLayout from "@/components/EducatorLayout";
+import { RichText } from "@/components/RichText";
 import { supabase } from "@/integrations/supabase/client";
 import { checkScanCredits, SCAN_CACHE_KEY } from "@/lib/supabase";
 import { scanImageStore } from "@/lib/pendingFile";
@@ -163,7 +162,7 @@ function PracticeTab({ problems, plan, onScanQuestion }: { problems: PracticeIte
               <div className="flex items-start justify-between gap-3">
                 <p className="text-sm font-medium text-foreground">
                   <span className="mr-2 text-muted-foreground/60">Q{p.id}.</span>
-                  <MathText text={p.question} />
+                  <RichText text={p.question} />
                 </p>
                 <button
                   onClick={() => {
@@ -181,7 +180,7 @@ function PracticeTab({ problems, plan, onScanQuestion }: { problems: PracticeIte
               </div>
               {open && (
                 <p className="mt-3 animate-in fade-in slide-in-from-top-1 duration-200 rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-sm text-foreground">
-                  <MathText text={p.answer} />
+                  <RichText text={p.answer} />
                 </p>
               )}
               <div className="mt-3 border-t border-border pt-3">
@@ -258,11 +257,11 @@ function ConceptTab({
             <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Key Concept</p>
           </div>
           {isPaid ? (
-            <p className="text-sm leading-relaxed text-foreground"><MathText text={concept} /></p>
+            <p className="text-sm leading-relaxed text-foreground"><RichText text={concept} /></p>
           ) : (
             <div className="space-y-3">
               <div className="relative">
-                <p className="text-sm leading-relaxed text-foreground line-clamp-2"><MathText text={concept} /></p>
+                <p className="text-sm leading-relaxed text-foreground line-clamp-2"><RichText text={concept} /></p>
                 {hasMore && (
                   <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-secondary/80 to-transparent" />
                 )}
@@ -332,7 +331,7 @@ function ConceptTab({
               <p className={`text-xs font-semibold uppercase tracking-[0.15em] ${labelClass}`}>{label}</p>
             </div>
             <p className={`text-sm leading-relaxed text-foreground ${locked ? "select-none blur-sm" : ""}`}>
-              <MathText text={content ?? ""} />
+              <RichText text={content ?? ""} />
             </p>
             {locked && (
               <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-card/70">
@@ -388,69 +387,56 @@ function IdentifyErrorTab({ diagnosis }: { diagnosis: IdentifyDiagnosis }) {
           <TriangleAlert className="h-4 w-4 text-destructive" />
           <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Where you went wrong</p>
         </div>
-        <p className="text-sm leading-relaxed text-foreground"><MathText text={diagnosis.explanation} /></p>
+        <p className="text-sm leading-relaxed text-foreground"><RichText text={diagnosis.explanation} /></p>
       </div>
     </div>
   );
 }
 
-// ── Math rendering ────────────────────────────────────────────────────────────
-
-function MathText({ text, block = false }: { text: string; block?: boolean }) {
-  if (!text) return null;
-
-  // Split on $$...$$ (display math) then $...$ (inline math)
-  const parts: { content: string; isLatex: boolean; display: boolean }[] = [];
-  const re = /(\$\$[\s\S]+?\$\$|\$[^$\n]+?\$)/g;
-  let last = 0;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(text)) !== null) {
-    if (m.index > last) parts.push({ content: text.slice(last, m.index), isLatex: false, display: false });
-    const raw = m[0];
-    const isDisplay = raw.startsWith("$$");
-    parts.push({ content: isDisplay ? raw.slice(2, -2) : raw.slice(1, -1), isLatex: true, display: isDisplay });
-    last = m.index + raw.length;
-  }
-  if (last < text.length) parts.push({ content: text.slice(last), isLatex: false, display: false });
-
-  const rendered = parts.map((p, i) => {
-    if (!p.isLatex) return <span key={i}>{p.content}</span>;
-    try {
-      const html = katex.renderToString(p.content, { displayMode: p.display, throwOnError: false, trust: false });
-      return p.display
-        ? <span key={i} className="my-2 block text-center" dangerouslySetInnerHTML={{ __html: html }} />
-        : <span key={i} dangerouslySetInnerHTML={{ __html: html }} />;
-    } catch {
-      return <span key={i}>{p.content}</span>;
-    }
-  });
-
-  return block ? <span className="block">{rendered}</span> : <span>{rendered}</span>;
-}
-
 // ── Steps tab ─────────────────────────────────────────────────────────────────
 
-function StepsTab({ diagnosis, revealed, setRevealed }: {
+function StepsTab({ diagnosis, revealed, setRevealed, plan }: {
   diagnosis: GuideDiagnosis;
   revealed: number;
   setRevealed: React.Dispatch<React.SetStateAction<number>>;
+  plan: string;
 }) {
   const steps = Array.isArray(diagnosis.steps) ? diagnosis.steps : [];
+  const isPaid = plan === "intermediate" || plan === "deep";
+
+  function askWhale(stepNum: number, stepText: string) {
+    window.dispatchEvent(new CustomEvent("whale-context", {
+      detail: { stepNum, stepText, questionSummary: diagnosis.question_summary },
+    }));
+  }
 
   return (
     <div className="space-y-4">
       {diagnosis.question_summary && (
         <p className="rounded-lg border border-border bg-secondary/40 px-4 py-3 text-sm italic text-muted-foreground">
-          <MathText text={diagnosis.question_summary} />
+          <RichText text={diagnosis.question_summary} />
         </p>
       )}
       <div className="space-y-2">
         {steps.slice(0, revealed).map((step, i) => (
-          <div key={i} className="flex items-start gap-3 rounded-lg border border-primary/20 bg-primary/5 p-4 animate-in fade-in slide-in-from-top-1 duration-200">
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">
-              {i + 1}
-            </span>
-            <p className="text-sm text-foreground leading-relaxed"><MathText text={step} /></p>
+          <div key={i} className="rounded-lg border border-primary/20 bg-primary/5 p-4 animate-in fade-in slide-in-from-top-1 duration-200">
+            <div className="flex items-start gap-3">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">
+                {i + 1}
+              </span>
+              <p className="text-sm text-foreground leading-relaxed"><RichText text={step} /></p>
+            </div>
+            {isPaid && (
+              <div className="mt-3 border-t border-primary/10 pt-3">
+                <button
+                  onClick={() => askWhale(i + 1, step)}
+                  className="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-primary"
+                >
+                  <img src="/whale-e.png" alt="" className="h-3.5 w-3.5 rounded-full object-cover" />
+                  Ask Whal-E about this step
+                </button>
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -640,7 +626,7 @@ const BlindSpotReport = () => {
                   ))}
                 </div>
                 <div className="animate-in fade-in duration-200">
-                  {activeTab === "steps" && <StepsTab diagnosis={diagnosis as GuideDiagnosis} revealed={revealedSteps} setRevealed={setRevealedSteps} />}
+                  {activeTab === "steps" && <StepsTab diagnosis={diagnosis as GuideDiagnosis} revealed={revealedSteps} setRevealed={setRevealedSteps} plan={plan} />}
                   {activeTab === "error" && <IdentifyErrorTab diagnosis={diagnosis as IdentifyDiagnosis} />}
                   {activeTab === "concept" && <ConceptTab
                     whatHappened={diagnosis.what_happened}

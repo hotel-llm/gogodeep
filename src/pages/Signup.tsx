@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import PageTransition from "@/components/PageTransition";
+import { GoogleAuthButton } from "@/components/GoogleAuthButton";
 
 const Signup = () => {
   const location = useLocation();
@@ -99,6 +100,14 @@ const Signup = () => {
               <img src={gogodeepLogo} alt="Gogodeep — AI exam mistake helper for IB, AP, and A-Level STEM students" className="h-12 w-12 object-contain" />
               <h1 className="mt-4 text-2xl font-bold tracking-tight text-foreground">Create your account</h1>
               <p className="mt-2 text-sm text-muted-foreground">Start diagnosing misconceptions in minutes.</p>
+            </div>
+
+            <GoogleAuthButton label="Sign up with Google" />
+
+            <div className="my-5 flex items-center gap-3">
+              <div className="flex-1 h-px bg-border" />
+              <span className="text-xs text-muted-foreground">or</span>
+              <div className="flex-1 h-px bg-border" />
             </div>
 
             <form onSubmit={onSignup} className="space-y-4">

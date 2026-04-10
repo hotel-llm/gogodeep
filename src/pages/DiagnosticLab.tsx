@@ -21,12 +21,19 @@ function WhaleScanLoader({ complete }: { complete: boolean }) {
         src="/whale-e.png"
         alt=""
         className="h-24 w-24 object-contain"
-        style={{
-          animation: complete
-            ? "none"
-            : "whale-spin 1s linear infinite",
-        }}
+        style={{ animation: "float 4s ease-in-out infinite" }}
       />
+      <div className="w-32 overflow-hidden rounded-full bg-secondary h-1">
+        <div
+          className="h-full rounded-full bg-primary"
+          style={{
+            animation: complete
+              ? "none"
+              : "loading-bar 1.6s ease-in-out infinite",
+            width: complete ? "100%" : undefined,
+          }}
+        />
+      </div>
       <p className="text-sm font-semibold tracking-widest text-muted-foreground uppercase">
         Analysing
       </p>
