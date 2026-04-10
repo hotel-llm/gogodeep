@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import EducatorLayout from "@/components/EducatorLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { checkScanCredits, SCAN_CACHE_KEY } from "@/lib/supabase";
+import { scanImageStore } from "@/lib/pendingFile";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -72,6 +73,7 @@ type NavState = {
   imageUrl?: string;
   imageBase64?: string;
   mimeType?: string;
+  inputText?: string;
   diagnosis?: Diagnosis;
   mode?: "guide" | "identify";
 };
@@ -457,6 +459,10 @@ const BlindSpotReport = () => {
   const diagnosis = state.diagnosis;
   const mode = state.mode ?? (diagnosis as any)?.mode ?? "guide";
   const imageSrc = resolveImageSrc(state);
+  const inputText = state.inputText ?? null;
+
+  const scanId = (state as any).scanId as string | undefined;
+  const [displaySrc, setDisplaySrc] = useState<string | null>(imageSrc);
 
   const [plan, setPlan] = useState<string>("free");
   const [activeTab, setActiveTab] = useState<ReportTab>(mode === "guide" ? "steps" : "error");
@@ -535,18 +541,34 @@ const BlindSpotReport = () => {
         <title>Your AI Analysis Breakdown | Gogodeep</title>
         <meta name="description" content="See the root cause of your mistake, the underlying concept explained, and targeted practice to close the gap. AI working analysis for IB, AP, and A-Level STEM subjects." />
       </Helmet>
-      <div className={cn("grid gap-6", imageSrc ? "lg:grid-cols-5" : "lg:grid-cols-1")}>
+      <div className={cn("grid gap-6", (displaySrc || inputText) ? "lg:grid-cols-5" : "lg:grid-cols-1")}>
 
-        {/* Image panel — only shown when image is available */}
-        {imageSrc && (
+        {/* Left panel — image or typed question */}
+        {(displaySrc || inputText) && (
           <div className="lg:col-span-2">
             <div className="sticky top-4 rounded-xl border border-border bg-card p-4">
               <div className="mb-3 flex items-center gap-2">
                 <FileSearch className="h-4 w-4 text-muted-foreground" />
-                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Uploaded image</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+                  {displaySrc ? "Uploaded image" : "Your question"}
+                </p>
               </div>
-              <div className="flex min-h-[220px] items-center justify-center rounded-lg bg-secondary/40 p-3">
-                <img src={imageSrc} alt="Uploaded work" className="max-h-80 w-full rounded object-contain" />
+              <div className={cn("rounded-lg bg-secondary/40 p-3", displaySrc ? "flex min-h-[220px] items-center justify-center" : "")}>
+                {displaySrc ? (
+                  <img
+                    src={displaySrc}
+                    alt="Uploaded work"
+                    className="max-h-80 w-full rounded object-contain"
+                    onError={() => {
+                      // Blob URL expired (e.g. tab switch) — fall back to in-memory data URL
+                      const fallback = scanId ? scanImageStore.get(scanId) : null;
+                      if (fallback) setDisplaySrc(fallback);
+                      else setDisplaySrc(null);
+                    }}
+                  />
+                ) : (
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">{inputText}</p>
+                )}
               </div>
               <div className="mt-4">
                 <Link to="/lab">
@@ -561,7 +583,7 @@ const BlindSpotReport = () => {
         )}
 
         {/* Tabs panel */}
-        <div className={imageSrc ? "lg:col-span-3" : "lg:col-span-1"}>
+        <div className={(imageSrc || inputText) ? "lg:col-span-3" : "lg:col-span-1"}>
           {(() => {
             const tabList = mode === "guide"
               ? [
@@ -611,16 +633,6 @@ const BlindSpotReport = () => {
               </>
             );
           })()}
-          {!imageSrc && (
-            <div className="mt-4">
-              <Link to="/lab">
-                <Button variant="outline" className="gap-2 border-border text-sm">
-                  <ArrowLeft className="h-3.5 w-3.5" />
-                  New scan
-                </Button>
-              </Link>
-            </div>
-          )}
         </div>
 
       </div>

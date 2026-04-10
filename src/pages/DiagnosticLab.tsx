@@ -8,17 +8,44 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import EducatorLayout from "@/components/EducatorLayout";
 import { checkScanCredits, SCAN_CACHE_KEY } from "@/lib/supabase";
-import { pendingFileStore } from "@/lib/pendingFile";
+import { pendingFileStore, scanImageStore } from "@/lib/pendingFile";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
-const SCAN_STEPS = ["Uploading", "Analysis", "Mapping gaps"] as const;
+function WhaleScanLoader() {
+  return (
+    <div className="flex flex-col items-center gap-5 px-6 text-center">
+      <div className="relative h-24 w-24">
+        {/* Dim base whale */}
+        <img
+          src="/whale-e.png"
+          alt=""
+          className="h-24 w-24 object-contain"
+          style={{ filter: "grayscale(1) brightness(0.2)" }}
+        />
+        {/* Water fill — container clips from bottom, rising upward */}
+        <div
+          className="absolute bottom-0 left-0 w-full overflow-hidden"
+          style={{ animation: "whale-water-fill 2s ease-in-out infinite" }}
+        >
+          <img
+            src="/whale-e.png"
+            alt=""
+            className="absolute bottom-0 left-0 h-24 w-24 object-contain"
+          />
+        </div>
+      </div>
+      <p className="text-sm font-semibold tracking-widest text-muted-foreground uppercase">
+        Analysing
+      </p>
+    </div>
+  );
+}
 
 const DiagnosticLab = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [scanStep, setScanStep] = useState(0);
   const [textInput, setTextInput] = useState("");
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [remainingCredits, setRemainingCredits] = useState<number | null>(null);
@@ -30,7 +57,6 @@ const DiagnosticLab = () => {
   const analyzeImage = useCallback(
     async (file: File) => {
       setIsAnalyzing(true);
-      setScanStep(0);
 
       try {
         const credits = await checkScanCredits();
@@ -40,8 +66,6 @@ const DiagnosticLab = () => {
           setShowUpgradeModal(true);
           return;
         }
-
-        const stepTimers = [window.setTimeout(() => setScanStep(1), 500), window.setTimeout(() => setScanStep(2), 1200)];
 
         let processedFile: File | Blob = file;
         let safeMime = file.type === "image/jpg" ? "image/jpeg" : file.type;
@@ -54,7 +78,7 @@ const DiagnosticLab = () => {
             safeMime = "image/jpeg";
           } catch {
             toast.error("Could not convert HEIC image. Please export as JPG and try again.");
-            setScanStep(0); setIsAnalyzing(false);
+            setIsAnalyzing(false);
             return;
           }
         }
@@ -69,20 +93,16 @@ const DiagnosticLab = () => {
           body: { image: base64, mimeType: safeMime, mode: "guide" },
         });
 
-        stepTimers.forEach(clearTimeout);
-
         if (error) {
           const msg = (error as any)?.message ?? String(error);
           toast.error(`Scan failed: ${msg}`);
           setIsAnalyzing(false);
-          setScanStep(0);
           return;
         }
 
         if ((data as any)?.error) {
           toast.error(`Scan failed: ${(data as any).error}`);
           setIsAnalyzing(false);
-          setScanStep(0);
           return;
         }
 
@@ -94,7 +114,6 @@ const DiagnosticLab = () => {
               : "That doesn't look like a STEM image. Please upload a clear PNG or JPG."
           );
           setIsAnalyzing(false);
-          setScanStep(0);
           return;
         }
 
@@ -107,7 +126,6 @@ const DiagnosticLab = () => {
         if (!user?.id) {
           pendingNavRef.current = { imageUrl: url, diagnosis: data };
           setIsAnalyzing(false);
-          setScanStep(0);
           setShowLoginGate(true);
           return;
         }
@@ -129,14 +147,14 @@ const DiagnosticLab = () => {
         const scanId = insertedScan?.id;
         if (scanId) {
           try {
-            // Store only diagnosis + mode — skip imageBase64 to avoid quota overflow
-            localStorage.setItem(
-              SCAN_CACHE_KEY(scanId),
-              JSON.stringify({ diagnosis: data, mode: "guide" })
-            );
+            localStorage.setItem(SCAN_CACHE_KEY(scanId), JSON.stringify({ diagnosis: data, mode: "guide" }));
           } catch {
             // quota exceeded — Supabase is the fallback
           }
+          // Store image in memory so tab-switch doesn't lose the blob URL
+          const reader = new FileReader();
+          reader.onload = () => { if (reader.result) scanImageStore.set(scanId, reader.result as string); };
+          reader.readAsDataURL(processedFile);
         }
 
         queryClient.invalidateQueries({ queryKey: ["history", "error_logs"] });
@@ -146,7 +164,6 @@ const DiagnosticLab = () => {
         const msg = err instanceof Error ? err.message : String(err);
         toast.error(`Scan failed: ${msg}`);
         setIsAnalyzing(false);
-        setScanStep(0);
       }
     },
     [navigate, queryClient]
@@ -157,7 +174,6 @@ const DiagnosticLab = () => {
     if (!trimmed) return;
 
     setIsAnalyzing(true);
-    setScanStep(0);
 
     try {
       const credits = await checkScanCredits();
@@ -168,25 +184,19 @@ const DiagnosticLab = () => {
         return;
       }
 
-      const stepTimers = [window.setTimeout(() => setScanStep(1), 500), window.setTimeout(() => setScanStep(2), 1200)];
-
       const { data, error } = await supabase.functions.invoke("diagnose-image", {
         body: { text: trimmed, mode: "guide" },
       });
 
-      stepTimers.forEach(clearTimeout);
-
       if (error) {
         toast.error(`Scan failed: ${(error as any)?.message ?? String(error)}`);
         setIsAnalyzing(false);
-        setScanStep(0);
         return;
       }
 
       if ((data as any)?.error) {
         toast.error(`Scan failed: ${(data as any).error}`);
         setIsAnalyzing(false);
-        setScanStep(0);
         return;
       }
 
@@ -199,7 +209,6 @@ const DiagnosticLab = () => {
       if (!user?.id) {
         pendingNavRef.current = { imageUrl: "", diagnosis: data };
         setIsAnalyzing(false);
-        setScanStep(0);
         setShowLoginGate(true);
         return;
       }
@@ -227,12 +236,11 @@ const DiagnosticLab = () => {
       }
 
       queryClient.invalidateQueries({ queryKey: ["history", "error_logs"] });
-      navigate("/report", { state: { imageUrl: null, diagnosis: data, mode: "guide", scanId } });
+      navigate("/report", { state: { imageUrl: null, inputText: trimmed, diagnosis: data, mode: "guide", scanId } });
     } catch (err: unknown) {
       console.error("Text analysis failed:", err);
       toast.error(`Scan failed: ${err instanceof Error ? err.message : String(err)}`);
       setIsAnalyzing(false);
-      setScanStep(0);
     }
   }, [textInput, navigate, queryClient]);
 
@@ -291,17 +299,7 @@ const DiagnosticLab = () => {
             >
               <input type="file" accept="image/*" className="hidden" onChange={onFileInput} disabled={isAnalyzing} />
               {isAnalyzing ? (
-                <div className="flex flex-col items-center gap-4 px-6 text-center">
-                  <Loader2 className="h-9 w-9 animate-spin text-primary" />
-                  <div className="space-y-2">
-                    {SCAN_STEPS.map((step, idx) => (
-                      <div key={step} className="flex items-center gap-2">
-                        <div className={cn("h-2 w-2 rounded-full transition-colors", idx <= scanStep ? "bg-primary" : "bg-border")} />
-                        <span className={cn("text-xs", idx <= scanStep ? "font-medium text-foreground" : "text-muted-foreground")}>{step}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <WhaleScanLoader />
               ) : (
                 <div className="flex flex-col items-center gap-4 px-6 text-center">
                   {isDragging ? (
