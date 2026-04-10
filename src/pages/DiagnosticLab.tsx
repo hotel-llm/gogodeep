@@ -12,29 +12,21 @@ import { pendingFileStore, scanImageStore } from "@/lib/pendingFile";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
-function WhaleScanLoader() {
+const SESSION_REPORT_KEY = "gogodeep_pending_report";
+
+function WhaleScanLoader({ complete }: { complete: boolean }) {
   return (
     <div className="flex flex-col items-center gap-5 px-6 text-center">
-      <div className="relative h-24 w-24">
-        {/* Dim base whale */}
-        <img
-          src="/whale-e.png"
-          alt=""
-          className="h-24 w-24 object-contain"
-          style={{ filter: "grayscale(1) brightness(0.2)" }}
-        />
-        {/* Water fill — container clips from bottom, rising upward */}
-        <div
-          className="absolute bottom-0 left-0 w-full overflow-hidden"
-          style={{ animation: "whale-water-fill 2s ease-in-out infinite" }}
-        >
-          <img
-            src="/whale-e.png"
-            alt=""
-            className="absolute bottom-0 left-0 h-24 w-24 object-contain"
-          />
-        </div>
-      </div>
+      <img
+        src="/whale-e.png"
+        alt=""
+        className="h-24 w-24 object-contain"
+        style={{
+          animation: complete
+            ? "none"
+            : "whale-spin 1s linear infinite",
+        }}
+      />
       <p className="text-sm font-semibold tracking-widest text-muted-foreground uppercase">
         Analysing
       </p>
@@ -45,6 +37,7 @@ function WhaleScanLoader() {
 const DiagnosticLab = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [scanComplete, setScanComplete] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [textInput, setTextInput] = useState("");
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
@@ -158,12 +151,19 @@ const DiagnosticLab = () => {
         }
 
         queryClient.invalidateQueries({ queryKey: ["history", "error_logs"] });
+        // Persist to sessionStorage — survives tab suspension/restore
+        try {
+          sessionStorage.setItem(SESSION_REPORT_KEY, JSON.stringify({ diagnosis: data, mode: "guide", scanId }));
+        } catch { /* ignore */ }
+        setScanComplete(true);
+        await new Promise((r) => setTimeout(r, 580));
         navigate("/report", { state: { imageUrl: url, diagnosis: data, mode: "guide", scanId } });
       } catch (err: unknown) {
         console.error("Analysis failed:", err);
         const msg = err instanceof Error ? err.message : String(err);
         toast.error(`Scan failed: ${msg}`);
         setIsAnalyzing(false);
+        setScanComplete(false);
       }
     },
     [navigate, queryClient]
@@ -236,11 +236,18 @@ const DiagnosticLab = () => {
       }
 
       queryClient.invalidateQueries({ queryKey: ["history", "error_logs"] });
+      // Persist to sessionStorage — survives tab suspension/restore
+      try {
+        sessionStorage.setItem(SESSION_REPORT_KEY, JSON.stringify({ diagnosis: data, mode: "guide", scanId, inputText: trimmed }));
+      } catch { /* ignore */ }
+      setScanComplete(true);
+      await new Promise((r) => setTimeout(r, 580));
       navigate("/report", { state: { imageUrl: null, inputText: trimmed, diagnosis: data, mode: "guide", scanId } });
     } catch (err: unknown) {
       console.error("Text analysis failed:", err);
       toast.error(`Scan failed: ${err instanceof Error ? err.message : String(err)}`);
       setIsAnalyzing(false);
+      setScanComplete(false);
     }
   }, [textInput, navigate, queryClient]);
 
@@ -299,7 +306,7 @@ const DiagnosticLab = () => {
             >
               <input type="file" accept="image/*" className="hidden" onChange={onFileInput} disabled={isAnalyzing} />
               {isAnalyzing ? (
-                <WhaleScanLoader />
+                <WhaleScanLoader complete={scanComplete} />
               ) : (
                 <div className="flex flex-col items-center gap-4 px-6 text-center">
                   {isDragging ? (

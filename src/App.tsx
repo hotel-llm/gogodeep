@@ -34,7 +34,14 @@ function AnimatedRoutes() {
             </ErrorBoundary>
           }
         />
-        <Route path="/report" element={<BlindSpotReport />} />
+        <Route
+          path="/report"
+          element={
+            <ErrorBoundary>
+              <BlindSpotReport />
+            </ErrorBoundary>
+          }
+        />
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="*" element={<NotFound />} />

@@ -17,6 +17,22 @@ import { scanImageStore } from "@/lib/pendingFile";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
+const SESSION_REPORT_KEY = "gogodeep_pending_report";
+
+/** Read location state, fall back to sessionStorage if tab was suspended/restored */
+function resolveReportState(locationState: unknown): NavState {
+  const ls = (locationState as NavState | null) ?? {};
+  if (ls.diagnosis) return ls;
+  try {
+    const stored = sessionStorage.getItem(SESSION_REPORT_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored) as Partial<NavState>;
+      if (parsed.diagnosis) return { ...ls, ...parsed } as NavState;
+    }
+  } catch { /* ignore */ }
+  return ls;
+}
+
 function questionToBase64(text: string): string {
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d")!;
@@ -129,7 +145,7 @@ function PracticeTab({ problems, plan, onScanQuestion }: { problems: PracticeIte
   const [upgradeType, setUpgradeType] = useState<"paid" | "deep" | null>(null);
   const [scanningId, setScanningId] = useState<number | null>(null);
 
-  if (!problems?.length) {
+  if (!Array.isArray(problems) || problems.length === 0) {
     return <p className="text-sm text-muted-foreground">No practice problems available.</p>;
   }
 
@@ -419,7 +435,7 @@ function StepsTab({ diagnosis, revealed, setRevealed }: {
   revealed: number;
   setRevealed: React.Dispatch<React.SetStateAction<number>>;
 }) {
-  const steps = diagnosis.steps ?? [];
+  const steps = Array.isArray(diagnosis.steps) ? diagnosis.steps : [];
 
   return (
     <div className="space-y-4">
@@ -455,18 +471,24 @@ function StepsTab({ diagnosis, revealed, setRevealed }: {
 const BlindSpotReport = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const state: NavState = location.state ?? {};
+
+  const state = resolveReportState(location.state);
   const diagnosis = state.diagnosis;
   const mode = state.mode ?? (diagnosis as any)?.mode ?? "guide";
   const imageSrc = resolveImageSrc(state);
   const inputText = state.inputText ?? null;
-
   const scanId = (state as any).scanId as string | undefined;
-  const [displaySrc, setDisplaySrc] = useState<string | null>(imageSrc);
 
+  const [displaySrc, setDisplaySrc] = useState<string | null>(imageSrc);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const [plan, setPlan] = useState<string>("free");
   const [activeTab, setActiveTab] = useState<ReportTab>(mode === "guide" ? "steps" : "error");
   const [revealedSteps, setRevealedSteps] = useState(1);
+
+  // Keep displaySrc in sync when navigation brings a new image
+  useEffect(() => {
+    setDisplaySrc(imageSrc);
+  }, [imageSrc]);
 
   useEffect(() => {
     let mounted = true;
@@ -533,7 +555,7 @@ const BlindSpotReport = () => {
     );
   }
 
-  const practice = diagnosis.practice_problems ?? [];
+  const practice = Array.isArray(diagnosis.practice_problems) ? diagnosis.practice_problems : [];
 
   return (
     <EducatorLayout>
@@ -558,9 +580,9 @@ const BlindSpotReport = () => {
                   <img
                     src={displaySrc}
                     alt="Uploaded work"
-                    className="max-h-80 w-full rounded object-contain"
+                    className="max-h-80 w-full cursor-zoom-in rounded object-contain"
+                    onClick={() => setLightboxOpen(true)}
                     onError={() => {
-                      // Blob URL expired (e.g. tab switch) — fall back to in-memory data URL
                       const fallback = scanId ? scanImageStore.get(scanId) : null;
                       if (fallback) setDisplaySrc(fallback);
                       else setDisplaySrc(null);
@@ -636,6 +658,21 @@ const BlindSpotReport = () => {
         </div>
 
       </div>
+
+      {/* Lightbox */}
+      {lightboxOpen && displaySrc && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-150"
+          onClick={() => setLightboxOpen(false)}
+        >
+          <img
+            src={displaySrc}
+            alt="Uploaded work"
+            className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </EducatorLayout>
   );
 };
