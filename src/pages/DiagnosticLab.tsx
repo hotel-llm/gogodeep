@@ -147,7 +147,7 @@ const DiagnosticLab = () => {
         const scanId = insertedScan?.id;
         if (scanId) {
           try {
-            localStorage.setItem(SCAN_CACHE_KEY(scanId), JSON.stringify({ diagnosis: data, mode: "guide" }));
+            localStorage.setItem(SCAN_CACHE_KEY(scanId), JSON.stringify({ diagnosis: data, mode: "guide", imageBase64: base64, mimeType: safeMime }));
           } catch {
             // quota exceeded — Supabase is the fallback
           }
@@ -236,7 +236,7 @@ const DiagnosticLab = () => {
       const scanId = insertedScan?.id;
       if (scanId) {
         try {
-          localStorage.setItem(SCAN_CACHE_KEY(scanId), JSON.stringify({ diagnosis: data, mode: "guide" }));
+          localStorage.setItem(SCAN_CACHE_KEY(scanId), JSON.stringify({ diagnosis: data, mode: "guide", inputText: trimmed }));
         } catch {
           // quota exceeded — Supabase is the fallback
         }
@@ -372,8 +372,7 @@ const DiagnosticLab = () => {
               You've used all your scans for today{remainingCredits !== null ? ` (${remainingCredits} left)` : ""}. Upgrade to Intermediate or Deep for more scans.
             </DialogDescription>
           </DialogHeader>
-          <div className="mt-4 flex justify-end gap-2">
-            <Button variant="outline" className="border-border" onClick={() => setShowUpgradeModal(false)}>Not now</Button>
+          <div className="mt-4 flex justify-end">
             <Button className="bg-primary hover:bg-primary/90" onClick={() => navigate("/pricing")}>
               View plans
               <ArrowRight className="ml-2 h-4 w-4" />

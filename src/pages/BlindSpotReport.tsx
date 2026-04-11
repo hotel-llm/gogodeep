@@ -119,8 +119,7 @@ function UpgradeDialog({ open, onClose, deep = false }: { open: boolean; onClose
               : "Upgrade to Intermediate or Deep to access full concept explanations and all practice questions."}
           </DialogDescription>
         </DialogHeader>
-        <div className="mt-4 flex justify-end gap-2">
-          <Button variant="outline" className="border-border" onClick={onClose}>Not now</Button>
+        <div className="mt-4 flex justify-end">
           <Button
             className={deep ? "bg-yellow-400 text-black hover:bg-yellow-400/90" : "bg-primary hover:bg-primary/90"}
             onClick={() => navigate("/pricing")}
@@ -155,8 +154,9 @@ function PracticeTab({ problems, plan, onScanQuestion }: { problems: PracticeIte
   return (
     <>
       <div className="space-y-3">
-        {visibleProblems.map((p) => {
+        {visibleProblems.map((p, idx) => {
           const open = revealed.has(p.id);
+          const canReveal = isPaid || idx === 0;
           return (
             <div key={p.id} className="rounded-lg border border-border bg-secondary/40 p-4">
               <div className="flex items-start justify-between gap-3">
@@ -166,7 +166,7 @@ function PracticeTab({ problems, plan, onScanQuestion }: { problems: PracticeIte
                 </p>
                 <button
                   onClick={() => {
-                    if (!isPaid) { setUpgradeType("paid"); return; }
+                    if (!canReveal) { setUpgradeType("paid"); return; }
                     setRevealed((prev) => {
                       const next = new Set(prev);
                       open ? next.delete(p.id) : next.add(p.id);
@@ -203,27 +203,20 @@ function PracticeTab({ problems, plan, onScanQuestion }: { problems: PracticeIte
           );
         })}
 
-        {!isPaid && hiddenCount > 0 && (
-          <button
-            onClick={() => setUpgradeType("paid")}
-            className="flex w-full items-center justify-between rounded-lg border border-dashed border-border bg-secondary/20 px-4 py-3 text-left transition-colors hover:border-primary/40 hover:bg-primary/5"
-          >
-            <span className="text-sm text-muted-foreground">
-              +{hiddenCount} more question{hiddenCount > 1 ? "s" : ""} — upgrade to unlock
-            </span>
-            <Lock className="h-4 w-4 shrink-0 text-muted-foreground" />
-          </button>
-        )}
       </div>
 
-      {isPaid && !showMore && hiddenCount > 0 && (
+      {!showMore && hiddenCount > 0 && (
         <Button
           variant="outline"
           className="mt-4 w-full border-border"
-          onClick={() => isDeep ? setShowMore(true) : setUpgradeType("deep")}
+          onClick={() => {
+            if (!isPaid) { setUpgradeType("paid"); return; }
+            if (!isDeep) { setUpgradeType("deep"); return; }
+            setShowMore(true);
+          }}
         >
           <ChevronRight className="mr-2 h-4 w-4" />
-          Generate more
+          Generate more questions
         </Button>
       )}
 
@@ -323,21 +316,30 @@ function ConceptTab({
         {sections.map(({ id, label, Icon, content, locked, cardClass, labelClass, iconClass }) => (
           <div
             key={id}
-            className={`relative rounded-lg border p-5 ${cardClass} ${locked ? "cursor-pointer overflow-hidden" : ""}`}
+            className={`relative rounded-lg border p-5 ${cardClass} ${locked ? "cursor-pointer" : ""}`}
             onClick={locked ? () => setShowUpgrade(true) : undefined}
           >
             <div className="mb-2.5 flex items-center gap-2">
               <Icon className={`h-4 w-4 ${iconClass}`} />
               <p className={`text-xs font-semibold uppercase tracking-[0.15em] ${labelClass}`}>{label}</p>
             </div>
-            <p className={`text-sm leading-relaxed text-foreground ${locked ? "select-none blur-sm" : ""}`}>
-              <RichText text={content ?? ""} />
-            </p>
-            {locked && (
-              <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-card/70">
-                <Lock className="h-4 w-4 text-primary" />
-                <span className="text-xs font-semibold text-primary">Upgrade to unlock</span>
-              </div>
+            {locked ? (
+              <>
+                <div className="relative overflow-hidden" style={{ maxHeight: "4.5rem" }}>
+                  <p className="text-sm leading-relaxed text-foreground select-none">
+                    <RichText text={content ?? ""} />
+                  </p>
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-black/30 to-transparent" />
+                </div>
+                <div className="mt-2 flex items-center gap-1.5">
+                  <Lock className="h-3 w-3 text-primary" />
+                  <span className="text-xs font-semibold text-primary">Upgrade to unlock</span>
+                </div>
+              </>
+            ) : (
+              <p className="text-sm leading-relaxed text-foreground">
+                <RichText text={content ?? ""} />
+              </p>
             )}
           </div>
         ))}
@@ -493,7 +495,7 @@ const BlindSpotReport = () => {
   const scanPracticeQuestion = useCallback(async (question: string) => {
     const credits = await checkScanCredits();
     if (!credits.allowed) {
-      whaleToast.error("No scan credits left. Upgrade to continue.", { action: { label: "Upgrade", onClick: () => navigate("/pricing") } });
+      whaleToast.error("No scan credits left. Upgrade to continue.");
       return;
     }
     const base64 = questionToBase64(question);
@@ -511,6 +513,7 @@ const BlindSpotReport = () => {
         student_id: user?.id ?? null,
         subject: "Practice",
         topic: (data as any)?.concept_label ?? (data as any)?.question_summary ?? null,
+        diagnosis: data,
       }).select("id").single(),
       user?.id ? (supabase as any).rpc("increment_scan_count", { user_id: user.id }) : Promise.resolve(null),
     ]);

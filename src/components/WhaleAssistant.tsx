@@ -55,7 +55,9 @@ export default function WhaleAssistant() {
   const [expanded, setExpanded] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const [bubble, setBubble] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const [bubbleFading, setBubbleFading] = useState(false);
   const bubbleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const bubbleFadeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -77,14 +79,52 @@ export default function WhaleAssistant() {
     function handler(e: Event) {
       const { message, type } = (e as CustomEvent).detail;
       if (bubbleTimer.current) clearTimeout(bubbleTimer.current);
+      if (bubbleFadeTimer.current) clearTimeout(bubbleFadeTimer.current);
+      setBubbleFading(false);
       setBubble({ message, type });
-      bubbleTimer.current = setTimeout(() => setBubble(null), 4000);
+      bubbleTimer.current = setTimeout(() => {
+        setBubbleFading(true);
+        bubbleFadeTimer.current = setTimeout(() => {
+          setBubble(null);
+          setBubbleFading(false);
+        }, 300);
+      }, 3700);
     }
     window.addEventListener("whale-notify", handler);
     return () => {
       window.removeEventListener("whale-notify", handler);
       if (bubbleTimer.current) clearTimeout(bubbleTimer.current);
+      if (bubbleFadeTimer.current) clearTimeout(bubbleFadeTimer.current);
     };
+  }, []);
+
+  // Welcome message on sign-in (once per session per user)
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" && session?.user) {
+        const key = `whale_greeted_${session.user.id}`;
+        if (!sessionStorage.getItem(key)) {
+          sessionStorage.setItem(key, "1");
+          const name = (session.user.user_metadata?.username as string | undefined)
+            ?? session.user.email?.split("@")[0]
+            ?? "there";
+          const phrases = [
+            "No excuses today.",
+            "Let's get to work.",
+            "Time to lock in.",
+            "Make today count.",
+            "Every mistake is data.",
+          ];
+          const phrase = phrases[Math.floor(Math.random() * phrases.length)];
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent("whale-notify", {
+              detail: { message: `Welcome back, ${name}. ${phrase}`, type: "success" },
+            }));
+          }, 800);
+        }
+      }
+    });
+    return () => subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -214,7 +254,10 @@ export default function WhaleAssistant() {
     <>
       {/* Whal-E speech bubble notification */}
       {bubble && (
-        <div className="fixed bottom-24 right-6 z-50 animate-in fade-in slide-in-from-bottom-2 duration-200">
+        <div className={cn(
+          "fixed bottom-24 right-6 z-50 duration-300",
+          bubbleFading ? "animate-out fade-out slide-out-to-bottom-2" : "animate-in fade-in slide-in-from-bottom-2"
+        )}>
           <div className={cn(
             "max-w-[220px] rounded-2xl rounded-br-sm px-4 py-2.5 text-sm shadow-lg",
             bubble.type === "error"
@@ -271,8 +314,7 @@ export default function WhaleAssistant() {
               Whal-E is your personal study assistant — ask him anything about a concept, a question you're stuck on, or how to navigate Gogodeep. Available on Intermediate and Deep plans.
             </DialogDescription>
           </DialogHeader>
-          <div className="mt-4 flex justify-end gap-2">
-            <Button variant="outline" className="border-border" onClick={() => setShowUpgrade(false)}>Not now</Button>
+          <div className="mt-4 flex justify-end">
             <Button className="bg-primary hover:bg-primary/90" onClick={() => navigate("/pricing")}>
               View plans
               <ArrowRight className="ml-2 h-4 w-4" />
@@ -328,7 +370,7 @@ export default function WhaleAssistant() {
           {/* Messages */}
           <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-4">
             {messages.map((m, i) => (
-              <div key={i} className={cn("flex animate-in fade-in duration-150", m.role === "user" ? "justify-end" : "justify-start")}>
+              <div key={i} className={cn("flex animate-in fade-in slide-in-from-bottom-1 duration-200", m.role === "user" ? "justify-end" : "justify-start")}>
                 {m.role === "assistant" && (
                   <WhaleAvatar className="mr-2 mt-1 h-6 w-6 shrink-0 self-start" />
                 )}

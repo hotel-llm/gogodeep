@@ -414,7 +414,7 @@ function ScanRow({
       return;
     }
 
-    navigate("/report", { state: { diagnosis: data.diagnosis, mode: "guide", scanId: scan.id } });
+    navigate("/report", { state: { diagnosis: data.diagnosis, mode: (data.diagnosis as any)?.mode ?? "guide", scanId: scan.id } });
   }
 
   const label = customName || scan.topic || scan.specific_error_tag || scan.subject || "Untitled scan";
