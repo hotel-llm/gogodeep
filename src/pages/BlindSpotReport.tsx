@@ -324,18 +324,18 @@ function ConceptTab({
               <p className={`text-xs font-semibold uppercase tracking-[0.15em] ${labelClass}`}>{label}</p>
             </div>
             {locked ? (
-              <>
-                <div className="relative overflow-hidden" style={{ maxHeight: "4.5rem" }}>
+              <div className="relative">
+                <div className="overflow-hidden" style={{ maxHeight: "2.8rem" }}>
                   <p className="text-sm leading-relaxed text-foreground select-none">
                     <RichText text={content ?? ""} />
                   </p>
-                  <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-black/30 to-transparent" />
                 </div>
-                <div className="mt-2 flex items-center gap-1.5">
+                <div className="pointer-events-none absolute inset-x-0 top-0 bottom-0 bg-gradient-to-b from-transparent via-card/60 to-card" style={{ top: "1rem" }} />
+                <div className="relative mt-2 flex items-center gap-1.5">
                   <Lock className="h-3 w-3 text-primary" />
                   <span className="text-xs font-semibold text-primary">Upgrade to unlock</span>
                 </div>
-              </>
+              </div>
             ) : (
               <p className="text-sm leading-relaxed text-foreground">
                 <RichText text={content ?? ""} />
