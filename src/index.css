@@ -48,6 +48,70 @@
     --sidebar-accent-foreground: 210 40% 98%;
     --sidebar-border: 217 33% 14%;
     --sidebar-ring: 225 75% 55%;
+
+    /* liquid orb colours — overridden per theme */
+    --liquid-orb-1: 225 75% 55%;
+    --liquid-orb-2: 215 80% 45%;
+
+    /* whale image tint — hue-rotate from the whale's native blue (~225°) */
+    --whale-filter: none;
+  }
+
+  /* ── Blue (default) ───────────────────────────────────────────────────── */
+  [data-theme="blue"] {
+    --primary: 225 75% 55%;
+    --ring: 225 75% 55%;
+    --sidebar-primary: 225 75% 55%;
+    --sidebar-ring: 225 75% 55%;
+    --liquid-orb-1: 225 75% 55%;
+    --liquid-orb-2: 215 80% 45%;
+    --whale-filter: none;
+  }
+
+  /* ── Purple ──────────────────────────────────────────────────────────── */
+  [data-theme="purple"] {
+    --primary: 270 68% 60%;
+    --ring: 270 68% 60%;
+    --sidebar-primary: 270 68% 60%;
+    --sidebar-ring: 270 68% 60%;
+    --liquid-orb-1: 270 68% 60%;
+    --liquid-orb-2: 260 62% 48%;
+    --whale-filter: hue-rotate(45deg);
+  }
+
+  /* ── Green ───────────────────────────────────────────────────────────── */
+  [data-theme="green"] {
+    --primary: 142 60% 40%;
+    --ring: 142 60% 40%;
+    --sidebar-primary: 142 60% 40%;
+    --sidebar-ring: 142 60% 40%;
+    --liquid-orb-1: 142 60% 40%;
+    --liquid-orb-2: 160 55% 32%;
+    --whale-filter: hue-rotate(-83deg) saturate(1.1);
+  }
+
+  /* ── Rose ────────────────────────────────────────────────────────────── */
+  [data-theme="rose"] {
+    --primary: 350 72% 56%;
+    --ring: 350 72% 56%;
+    --sidebar-primary: 350 72% 56%;
+    --sidebar-ring: 350 72% 56%;
+    --liquid-orb-1: 350 72% 56%;
+    --liquid-orb-2: 340 68% 44%;
+    --whale-filter: hue-rotate(125deg) saturate(1.1);
+  }
+
+  /* ── Amber ───────────────────────────────────────────────────────────── */
+  [data-theme="amber"] {
+    --primary: 38 90% 50%;
+    --primary-foreground: 20 10% 5%;
+    --ring: 38 90% 50%;
+    --sidebar-primary: 38 90% 50%;
+    --sidebar-primary-foreground: 20 10% 5%;
+    --sidebar-ring: 38 90% 50%;
+    --liquid-orb-1: 38 90% 50%;
+    --liquid-orb-2: 28 85% 40%;
+    --whale-filter: hue-rotate(173deg) saturate(1.3);
   }
 }
 
@@ -101,6 +165,9 @@
 .animate-scan-sweep      { animation: scan-sweep 1.2s ease-in-out forwards; }
 .animate-fade-up         { animation: fade-up 0.45s ease-out forwards; }
 
+/* Whale image — tints to match the active colour theme */
+.whale-img { filter: var(--whale-filter); transition: filter 0.4s ease; }
+
 @keyframes liquid-drift {
   0%, 100% { transform: translate(0%, 0%) scale(1); }
   25% { transform: translate(10%, -15%) scale(1.1); }
@@ -128,7 +195,7 @@
 .liquid-glass-bg::before {
   width: 600px;
   height: 600px;
-  background: hsl(225 75% 55%);
+  background: hsl(var(--liquid-orb-1));
   top: -10%;
   left: -5%;
   animation: liquid-drift 20s ease-in-out infinite;
@@ -137,7 +204,7 @@
 .liquid-glass-bg::after {
   width: 500px;
   height: 500px;
-  background: hsl(215 80% 45%);
+  background: hsl(var(--liquid-orb-2));
   bottom: -10%;
   right: -5%;
   animation: liquid-drift 25s ease-in-out infinite reverse;

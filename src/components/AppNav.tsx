@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import gogodeepLogo from "@/assets/gogodeep-logo.png";
 import { whaleToast } from "@/lib/whaleToast";
+import { cn } from "@/lib/utils";
+import { applyTheme, getStoredTheme, THEMES, THEME_COLORS, THEME_LABELS, type Theme } from "@/lib/theme";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,7 +38,13 @@ const AppNav = () => {
   const [renameOpen, setRenameOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [renaming, setRenaming] = useState(false);
+  const [currentTheme, setCurrentTheme] = useState<Theme>(getStoredTheme);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  function handleThemeChange(theme: Theme) {
+    applyTheme(theme);
+    setCurrentTheme(theme);
+  }
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user ?? null));
@@ -119,6 +127,26 @@ const AppNav = () => {
                     <Pencil className="h-4 w-4" />
                     Rename
                   </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  {/* Colour scheme picker */}
+                  <div className="px-2 py-2">
+                    <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">Colour</p>
+                    <div className="flex gap-2">
+                      {THEMES.map((t) => (
+                        <button
+                          key={t}
+                          title={THEME_LABELS[t]}
+                          onClick={() => handleThemeChange(t)}
+                          className={cn(
+                            "h-5 w-5 rounded-full border-2 transition-transform hover:scale-110",
+                            currentTheme === t ? "border-foreground scale-110" : "border-transparent"
+                          )}
+                          style={{ backgroundColor: THEME_COLORS[t] }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={onLogout} className="cursor-pointer gap-2">
                     <LogOut className="h-4 w-4" />
                     Logout

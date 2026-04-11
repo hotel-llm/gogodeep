@@ -211,6 +211,25 @@ const Dashboard = ({ user }: { user: User }) => {
     return Array.from(concepts);
   };
 
+  const QUIZ_DAY_KEY = "gogodeep_quiz_day";
+  const QUIZ_COUNT_KEY = "gogodeep_quiz_count";
+
+  const getQuizzesToday = (): number => {
+    try {
+      const today = new Date().toISOString().split("T")[0];
+      if (localStorage.getItem(QUIZ_DAY_KEY) !== today) return 0;
+      return parseInt(localStorage.getItem(QUIZ_COUNT_KEY) ?? "0", 10);
+    } catch { return 0; }
+  };
+
+  const recordQuizStarted = () => {
+    try {
+      const today = new Date().toISOString().split("T")[0];
+      localStorage.setItem(QUIZ_DAY_KEY, today);
+      localStorage.setItem(QUIZ_COUNT_KEY, String(getQuizzesToday() + 1));
+    } catch { /* ignore */ }
+  };
+
   const startQuizWithConfig = (cfg: QuizConfig) => {
     if (!data) return;
     setShowQuizConfig(false);
@@ -249,19 +268,22 @@ const Dashboard = ({ user }: { user: User }) => {
       });
     }
     setQuiz({ questions: final, current: 0, revealed: false, questionType: cfg.questionType, userInput: "", results: [], currentResult: null, showStats: false });
+    // Record quiz usage for daily limit enforcement
+    if (data.plan === "intermediate") recordQuizStarted();
   };
 
   const startQuiz = () => {
     if (!data) return;
     if (data.plan === "free") return;
     if (data.recentScans.length < 5) return;
-    if (data.plan !== "free") {
-      const concepts = availableConcepts();
-      setQuizConfig({ numQuestions: 10, questionType: "both", selectedConcepts: concepts });
-      setShowQuizConfig(true);
+    // Intermediate: 1 recap quiz per day
+    if (data.plan === "intermediate" && getQuizzesToday() >= 1) {
+      whaleToast.error("You've used your daily recap quiz. Upgrade to Deep for unlimited quizzes.");
       return;
     }
-    startQuizWithConfig({ numQuestions: 10, questionType: "both", selectedConcepts: [] });
+    const concepts = availableConcepts();
+    setQuizConfig({ numQuestions: 10, questionType: "both", selectedConcepts: concepts });
+    setShowQuizConfig(true);
   };
 
   const navigate = useNavigate();

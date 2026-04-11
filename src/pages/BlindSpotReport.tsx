@@ -135,33 +135,45 @@ function UpgradeDialog({ open, onClose, deep = false }: { open: boolean; onClose
 
 // ── Practice tab ──────────────────────────────────────────────────────────────
 
-function PracticeTab({ problems, plan, onScanQuestion }: { problems: PracticeItem[]; plan: string; onScanQuestion: (question: string) => Promise<void> }) {
+function PracticeTab({ problems, plan, onScanQuestion, onGenerateMore, isGeneratingMore, isLoadingPractice }: {
+  problems: PracticeItem[];
+  plan: string;
+  onScanQuestion: (question: string) => Promise<void>;
+  onGenerateMore: () => Promise<void>;
+  isGeneratingMore: boolean;
+  isLoadingPractice: boolean;
+}) {
   const isPaid = plan === "intermediate" || plan === "deep";
-  const isDeep = plan === "deep";
   const [revealed, setRevealed] = useState<Set<number>>(new Set());
-  const [showMore, setShowMore] = useState(false);
-  const [upgradeType, setUpgradeType] = useState<"paid" | "deep" | null>(null);
+  const [upgradeType, setUpgradeType] = useState<"paid" | null>(null);
   const [scanningId, setScanningId] = useState<number | null>(null);
+
+  if (isLoadingPractice) {
+    return (
+      <div className="flex items-center justify-center py-10">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <p className="text-xs text-muted-foreground">Generating practice questions…</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!Array.isArray(problems) || problems.length === 0) {
     return <p className="text-sm text-muted-foreground">No practice problems available.</p>;
   }
 
-  const baseCount = isPaid ? 3 : 1;
-  const visibleProblems = showMore ? problems : problems.slice(0, baseCount);
-  const hiddenCount = problems.length - baseCount;
-
   return (
     <>
       <div className="space-y-3">
-        {visibleProblems.map((p, idx) => {
+        {problems.map((p, idx) => {
           const open = revealed.has(p.id);
           const canReveal = isPaid || idx === 0;
           return (
             <div key={p.id} className="rounded-lg border border-border bg-secondary/40 p-4">
               <div className="flex items-start justify-between gap-3">
                 <p className="text-sm font-medium text-foreground">
-                  <span className="mr-2 text-muted-foreground/60">Q{p.id}.</span>
+                  <span className="mr-2 text-muted-foreground/60">Q{idx + 1}.</span>
                   <RichText text={p.question} />
                 </p>
                 <button
@@ -202,26 +214,24 @@ function PracticeTab({ problems, plan, onScanQuestion }: { problems: PracticeIte
             </div>
           );
         })}
-
       </div>
 
-      {!showMore && hiddenCount > 0 && (
-        <Button
-          variant="outline"
-          className="mt-4 w-full border-border"
-          onClick={() => {
-            if (!isPaid) { setUpgradeType("paid"); return; }
-            if (!isDeep) { setUpgradeType("deep"); return; }
-            setShowMore(true);
-          }}
-        >
-          <ChevronRight className="mr-2 h-4 w-4" />
-          Generate more questions
-        </Button>
-      )}
+      <Button
+        variant="outline"
+        className="mt-4 w-full border-border"
+        disabled={isGeneratingMore}
+        onClick={() => {
+          if (!isPaid) { setUpgradeType("paid"); return; }
+          onGenerateMore();
+        }}
+      >
+        {isGeneratingMore
+          ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          : <ChevronRight className="mr-2 h-4 w-4" />}
+        {isGeneratingMore ? "Generating…" : "Generate more questions"}
+      </Button>
 
       <UpgradeDialog open={upgradeType === "paid"} onClose={() => setUpgradeType(null)} />
-      <UpgradeDialog open={upgradeType === "deep"} onClose={() => setUpgradeType(null)} deep />
     </>
   );
 }
@@ -229,10 +239,10 @@ function PracticeTab({ problems, plan, onScanQuestion }: { problems: PracticeIte
 // ── Concept tab ───────────────────────────────────────────────────────────────
 
 function ConceptTab({
-  whatHappened, coreConcept, recognitionCue, legacyConcept, plan, onMasterClick,
+  whatHappened, coreConcept, recognitionCue, legacyConcept, plan, onMasterClick, isLoadingConcept,
 }: {
   whatHappened?: string; coreConcept?: string; recognitionCue?: string;
-  legacyConcept?: string; plan: string; onMasterClick: () => void;
+  legacyConcept?: string; plan: string; onMasterClick: () => void; isLoadingConcept?: boolean;
 }) {
   const isPaid = plan === "intermediate" || plan === "deep";
   const [showUpgrade, setShowUpgrade] = useState(false);
@@ -317,24 +327,35 @@ function ConceptTab({
           <div
             key={id}
             className={`relative rounded-lg border p-5 ${cardClass} ${locked ? "cursor-pointer" : ""}`}
+            style={{ minHeight: "8rem" }}
             onClick={locked ? () => setShowUpgrade(true) : undefined}
           >
             <div className="mb-2.5 flex items-center gap-2">
               <Icon className={`h-4 w-4 ${iconClass}`} />
               <p className={`text-xs font-semibold uppercase tracking-[0.15em] ${labelClass}`}>{label}</p>
             </div>
-            {locked ? (
+            {isLoadingConcept && locked ? (
+              <div className="flex items-center gap-2 py-2">
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">Loading…</span>
+              </div>
+            ) : locked ? (
               <div className="relative">
-                <div className="overflow-hidden" style={{ maxHeight: "2.8rem" }}>
+                <div className="overflow-hidden" style={{ maxHeight: "4.2rem" }}>
                   <p className="text-sm leading-relaxed text-foreground select-none">
                     <RichText text={content ?? ""} />
                   </p>
                 </div>
-                <div className="pointer-events-none absolute inset-x-0 top-0 bottom-0 bg-gradient-to-b from-transparent via-card/60 to-card" style={{ top: "1rem" }} />
+                <div className="pointer-events-none absolute inset-x-0 top-0 bottom-0 bg-gradient-to-b from-transparent via-card/70 to-card" style={{ top: "1.4rem" }} />
                 <div className="relative mt-2 flex items-center gap-1.5">
                   <Lock className="h-3 w-3 text-primary" />
                   <span className="text-xs font-semibold text-primary">Upgrade to unlock</span>
                 </div>
+              </div>
+            ) : isLoadingConcept ? (
+              <div className="flex items-center gap-2 py-2">
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">Loading…</span>
               </div>
             ) : (
               <p className="text-sm leading-relaxed text-foreground">
@@ -434,7 +455,7 @@ function StepsTab({ diagnosis, revealed, setRevealed, plan }: {
                   onClick={() => askWhale(i + 1, step)}
                   className="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-primary"
                 >
-                  <img src="/whale-e.png" alt="" className="h-3.5 w-3.5 rounded-full object-cover" />
+                  <img src="/whale-e.png" alt="" className="whale-img h-3.5 w-3.5 rounded-full object-cover" />
                   Ask Whal-E about this step
                 </button>
               </div>
@@ -470,8 +491,15 @@ const BlindSpotReport = () => {
   const [displaySrc, setDisplaySrc] = useState<string | null>(imageSrc);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [plan, setPlan] = useState<string>("free");
+  const [planLoaded, setPlanLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState<ReportTab>(mode === "guide" ? "steps" : "error");
   const [revealedSteps, setRevealedSteps] = useState(1);
+  const [extraProblems, setExtraProblems] = useState<PracticeItem[]>([]);
+  const [isGeneratingMore, setIsGeneratingMore] = useState(false);
+  const [lazyConceptData, setLazyConceptData] = useState<{ core_concept?: string; recognition_cue?: string } | null>(null);
+  const [lazyPractice, setLazyPractice] = useState<PracticeItem[] | null>(null);
+  const [loadingConcept, setLoadingConcept] = useState(false);
+  const [loadingPractice, setLoadingPractice] = useState(false);
 
   // Keep displaySrc in sync when navigation brings a new image
   useEffect(() => {
@@ -487,10 +515,68 @@ const BlindSpotReport = () => {
         .select("plan")
         .eq("id", user.id)
         .single();
-      if (mounted) setPlan(data?.plan ?? "free");
+      if (mounted) { setPlan(data?.plan ?? "free"); setPlanLoaded(true); }
     });
     return () => { mounted = false; };
   }, []);
+
+  // Lazy load concept when Concept tab is first clicked
+  useEffect(() => {
+    if (activeTab !== "concept") return;
+    if (loadingConcept || lazyConceptData) return;
+    if ((diagnosis as any)?.core_concept) return; // already in cached diagnosis
+    const topic = (diagnosis as any)?.concept_label ?? (diagnosis as any)?.question_summary ?? "STEM";
+    setLoadingConcept(true);
+    supabase.functions.invoke("diagnose-image", {
+      body: { mode: "guide_concept", topic, what_happened: (diagnosis as any)?.what_happened },
+    }).then(({ data, error }) => {
+      setLoadingConcept(false);
+      if (error || (data as any)?.error) { whaleToast.error("Failed to load concept."); return; }
+      const result = { core_concept: (data as any)?.core_concept, recognition_cue: (data as any)?.recognition_cue };
+      setLazyConceptData(result);
+      if (scanId) {
+        try {
+          const key = SCAN_CACHE_KEY(scanId);
+          const cached = localStorage.getItem(key);
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            parsed.diagnosis = { ...parsed.diagnosis, ...result };
+            localStorage.setItem(key, JSON.stringify(parsed));
+          }
+        } catch { /* ignore */ }
+      }
+    });
+  }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Lazy load practice when Practice tab is first clicked (waits for plan)
+  useEffect(() => {
+    if (activeTab !== "practice") return;
+    if (!planLoaded) return;
+    if (loadingPractice || lazyPractice !== null) return;
+    if (Array.isArray((diagnosis as any)?.practice_problems) && (diagnosis as any).practice_problems.length > 0) return;
+    const topic = (diagnosis as any)?.concept_label ?? (diagnosis as any)?.question_summary ?? "STEM";
+    const practice_count = plan === "free" ? 1 : 3;
+    setLoadingPractice(true);
+    supabase.functions.invoke("diagnose-image", {
+      body: { mode: "more_practice", topic, practice_count, start_id: 1 },
+    }).then(({ data, error }) => {
+      setLoadingPractice(false);
+      if (error || (data as any)?.error) { whaleToast.error("Failed to load practice questions."); return; }
+      const problems: PracticeItem[] = (data as any)?.practice_problems ?? [];
+      setLazyPractice(problems);
+      if (scanId) {
+        try {
+          const key = SCAN_CACHE_KEY(scanId);
+          const cached = localStorage.getItem(key);
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            parsed.diagnosis = { ...parsed.diagnosis, practice_problems: problems };
+            localStorage.setItem(key, JSON.stringify(parsed));
+          }
+        } catch { /* ignore */ }
+      }
+    });
+  }, [activeTab, planLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const scanPracticeQuestion = useCallback(async (question: string) => {
     const credits = await checkScanCredits();
@@ -524,6 +610,24 @@ const BlindSpotReport = () => {
     navigate("/report", { state: { imageBase64: base64, mimeType, diagnosis: data, mode: "guide", scanId } });
   }, [navigate]);
 
+  const generateMoreProblems = useCallback(async () => {
+    if (isGeneratingMore) return;
+    setIsGeneratingMore(true);
+    const basePractice = lazyPractice ?? (Array.isArray(diagnosis?.practice_problems) ? diagnosis.practice_problems : []);
+    const allProblems = [...basePractice, ...extraProblems];
+    const topic = (diagnosis as any)?.concept_label ?? (diagnosis as any)?.question_summary ?? "STEM";
+    const { data, error } = await supabase.functions.invoke("diagnose-image", {
+      body: { mode: "more_practice", topic, practice_count: 2, start_id: allProblems.length + 1 },
+    });
+    setIsGeneratingMore(false);
+    if (error || (data as any)?.error) {
+      whaleToast.error("Failed to generate more questions.");
+      return;
+    }
+    const newProblems: PracticeItem[] = (data as any)?.practice_problems ?? [];
+    setExtraProblems((prev) => [...prev, ...newProblems]);
+  }, [diagnosis, extraProblems, isGeneratingMore]);
+
   if (!diagnosis) {
     return (
       <EducatorLayout>
@@ -544,7 +648,10 @@ const BlindSpotReport = () => {
     );
   }
 
-  const practice = Array.isArray(diagnosis.practice_problems) ? diagnosis.practice_problems : [];
+  const basePractice = lazyPractice ?? (Array.isArray(diagnosis.practice_problems) ? diagnosis.practice_problems : []);
+  const practice = [...basePractice, ...extraProblems];
+  const effectiveConcept = lazyConceptData?.core_concept ?? (diagnosis as any)?.core_concept;
+  const effectiveRecognitionCue = lazyConceptData?.recognition_cue ?? (diagnosis as any)?.recognition_cue;
 
   return (
     <EducatorLayout>
@@ -633,13 +740,14 @@ const BlindSpotReport = () => {
                   {activeTab === "error" && <IdentifyErrorTab diagnosis={diagnosis as IdentifyDiagnosis} />}
                   {activeTab === "concept" && <ConceptTab
                     whatHappened={diagnosis.what_happened}
-                    coreConcept={diagnosis.core_concept}
-                    recognitionCue={diagnosis.recognition_cue}
+                    coreConcept={effectiveConcept}
+                    recognitionCue={effectiveRecognitionCue}
                     legacyConcept={diagnosis.underlying_concept}
                     plan={plan}
                     onMasterClick={() => setActiveTab("practice")}
+                    isLoadingConcept={loadingConcept}
                   />}
-                  {activeTab === "practice" && <PracticeTab problems={practice} plan={plan} onScanQuestion={scanPracticeQuestion} />}
+                  {activeTab === "practice" && <PracticeTab problems={practice} plan={plan} onScanQuestion={scanPracticeQuestion} onGenerateMore={generateMoreProblems} isGeneratingMore={isGeneratingMore} isLoadingPractice={loadingPractice} />}
                 </div>
               </>
             );

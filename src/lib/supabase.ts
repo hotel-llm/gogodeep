@@ -11,6 +11,7 @@ export const SCAN_LIMITS: Record<string, number | null> = {
 export type ScanCreditState = {
   allowed: boolean;
   credits: number | null;
+  plan: string;
 };
 
 
@@ -20,7 +21,7 @@ export async function checkScanCredits(): Promise<ScanCreditState> {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return { allowed: true, credits: null };
+    return { allowed: true, credits: null, plan: "free" };
   }
 
   const { data, error } = await (supabase as any)
@@ -30,13 +31,13 @@ export async function checkScanCredits(): Promise<ScanCreditState> {
     .single();
 
   if (error) {
-    return { allowed: true, credits: null };
+    return { allowed: true, credits: null, plan: "free" };
   }
 
   const plan = (data as any)?.plan ?? "free";
   const limit = plan in SCAN_LIMITS ? SCAN_LIMITS[plan] : SCAN_LIMITS.free;
 
-  if (limit === null) return { allowed: true, credits: null };
+  if (limit === null) return { allowed: true, credits: null, plan };
 
   const today = new Date().toISOString().split("T")[0];
   const resetDate = (data as any)?.scan_reset_date ?? "";
@@ -52,5 +53,5 @@ export async function checkScanCredits(): Promise<ScanCreditState> {
   const used = isNewDay ? 0 : ((data as any)?.daily_scan_count ?? 0);
   const bonusScans = (data as any)?.bonus_scans ?? 0;
   const remaining = Math.max(0, limit - used) + bonusScans;
-  return { allowed: remaining > 0, credits: remaining };
+  return { allowed: remaining > 0, credits: remaining, plan };
 }

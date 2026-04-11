@@ -14,7 +14,7 @@ function WhaleAvatar({ className }: { className?: string }) {
   return err ? (
     <span className={cn("flex items-center justify-center rounded-full bg-primary/10 text-lg", className)}>🐋</span>
   ) : (
-    <img src={WHALE_IMG} alt="Whal-E" onError={() => setErr(true)} className={cn("rounded-full object-cover", className)} />
+    <img src={WHALE_IMG} alt="Whal-E" onError={() => setErr(true)} className={cn("whale-img rounded-full object-cover", className)} />
   );
 }
 
@@ -266,11 +266,10 @@ export default function WhaleAssistant() {
           )}>
             {bubble.message}
           </div>
-          {/* Tail pointing to whale button */}
-          <div className={cn(
-            "ml-auto mr-3 h-2 w-2 rotate-45 translate-y-[-1px]",
-            bubble.type === "error" ? "bg-destructive" : "bg-card border-r border-b border-border"
-          )} style={{ width: 8, height: 8 }} />
+          {/* Tail pointing to whale button — only shown for non-error bubbles */}
+          {bubble.type !== "error" && (
+            <div className="ml-auto mr-3 h-2 w-2 rotate-45 translate-y-[-1px] bg-card border-r border-b border-border" style={{ width: 8, height: 8 }} />
+          )}
         </div>
       )}
 

@@ -20,7 +20,7 @@ function WhaleScanLoader({ complete }: { complete: boolean }) {
       <img
         src="/whale-e.png"
         alt=""
-        className="h-24 w-24 object-contain"
+        className="whale-img h-24 w-24 object-contain"
         style={{ animation: "float 4s ease-in-out infinite" }}
       />
       <div className="w-32 overflow-hidden rounded-full bg-secondary h-1">
@@ -90,7 +90,7 @@ const DiagnosticLab = () => {
         );
 
         const { data, error } = await supabase.functions.invoke("diagnose-image", {
-          body: { image: base64, mimeType: safeMime, mode: "guide" },
+          body: { image: base64, mimeType: safeMime, mode: "guide_steps" },
         });
 
         if (error) {
@@ -192,7 +192,7 @@ const DiagnosticLab = () => {
       }
 
       const { data, error } = await supabase.functions.invoke("diagnose-image", {
-        body: { text: trimmed, mode: "guide" },
+        body: { text: trimmed, mode: "guide_steps" },
       });
 
       if (error) {
