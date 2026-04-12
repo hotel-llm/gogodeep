@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import PageTransition from "@/components/PageTransition";
+import { RichText } from "@/components/RichText";
 import gogodeepLogo from "@/assets/gogodeep-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import { SCAN_LIMITS, SCAN_CACHE_KEY } from "@/lib/supabase";
@@ -296,7 +297,7 @@ const Dashboard = ({ user }: { user: User }) => {
         return;
       } catch {}
     }
-    navigate("/lab");
+    navigate("/workspace");
   }
 
   return (
@@ -327,7 +328,7 @@ const Dashboard = ({ user }: { user: User }) => {
                 ][new Date().getUTCDay() * 3 % 10]}, {username}
               </h1>
             </div>
-            <Link to="/lab">
+            <Link to="/workspace">
               <Button className="mt-4 h-10 gap-2 bg-primary px-6 text-sm font-semibold hover:bg-primary/90 sm:mt-0">
                 <ScanLine className="h-4 w-4" />
                 New Scan
@@ -464,7 +465,7 @@ const Dashboard = ({ user }: { user: User }) => {
                 <div className="flex flex-col items-center justify-center py-8 pb-5 text-center">
                   <BookOpen className="h-8 w-8 text-muted-foreground/30" />
                   <p className="mt-3 text-sm text-muted-foreground">Your scans will appear here after your first diagnosis.</p>
-                  <Link to="/lab" className="mt-4 inline-block">
+                  <Link to="/workspace" className="mt-4 inline-block">
                     <Button size="sm" className="gap-2 bg-primary hover:bg-primary/90">
                       <ScanLine className="h-3.5 w-3.5" />
                       Run first scan
@@ -803,83 +804,83 @@ const Dashboard = ({ user }: { user: User }) => {
 // ─── Landing page ─────────────────────────────────────────────────────────────
 
 const PHYSICS_STEPS = [
-  "Identify the known values: height h = 45 m, initial velocity u = 0, g = 9.8 m/s².",
-  "Choose the right kinematic equation: v² = u² + 2as, which simplifies to v² = 2gh.",
-  "Substitute values: v² = 2 × 9.8 × 45 = 882.",
-  "Take the square root: v = √882 ≈ 29.7 m/s.",
-  "State the final answer: the ball hits the ground at approximately 29.7 m/s.",
+  "Identify the known values: $h = 45\\text{ m}$, $u = 0$, $g = 9.8\\text{ m/s}^2$.",
+  "Choose the time-independent kinematic equation: $v^2 = u^2 + 2as$. Since $u = 0$ this simplifies to $v^2 = 2gh$.",
+  "Substitute: $v^2 = 2 \\times 9.8 \\times 45 = 882\\text{ m}^2\\text{/s}^2$.",
+  "Take the square root: $v = \\sqrt{882} \\approx 29.7\\text{ m/s}$.",
+  "The ball hits the ground at $\\approx 29.7\\text{ m/s}$.",
 ];
 
-const PHYSICS_WHAT_HAPPENED = "The problem gives a ball dropped from 45 m with no initial velocity and asks for its speed on impact. Using v² = 2gh with h = 45 gives v² = 882, so v ≈ 29.7 m/s. The key step is recognising u = 0, which eliminates the u² term entirely.";
-const PHYSICS_CORE_CONCEPT = "In free fall, gravity is the only force acting on an object. The kinematic equation v² = u² + 2as connects velocity, acceleration, and displacement without needing time. With u = 0 and a = g, it simplifies to v = √(2gh) — directly derived from the work-energy theorem: mgh = ½mv². The most common mistake is using v = u + at when time is not given; always prefer the time-independent equation.";
-const PHYSICS_RECOGNITION_CUE = "When you see an object dropped or thrown from a height and asked for speed on impact, reach for v² = u² + 2gh. If the object starts from rest, u = 0 and the equation becomes v = √(2gh). Always check whether initial velocity is zero before substituting — this single step halves the working.";
+const PHYSICS_WHAT_HAPPENED = "A ball is dropped from $45\\text{ m}$ with $u = 0$ and the problem asks for its speed on impact. Using $v^2 = 2gh$ gives $v^2 = 882$, so $v \\approx 29.7\\text{ m/s}$. The key step is recognising $u = 0$, which eliminates the $u^2$ term entirely.";
+const PHYSICS_CORE_CONCEPT = "In free fall, gravity is the only force. The equation $v^2 = u^2 + 2as$ connects velocity, acceleration, and displacement without needing time. With $u = 0$ and $a = g$ it becomes $v = \\sqrt{2gh}$ — equivalent to the work-energy theorem $mgh = \\tfrac{1}{2}mv^2$. The most common mistake is using $v = u + at$ when time is not given; always prefer the time-independent equation.";
+const PHYSICS_RECOGNITION_CUE = "When you see an object dropped or thrown from a height and asked for speed on impact, reach for $v^2 = u^2 + 2gh$. If the object starts from rest, $u = 0$ and the equation becomes $v = \\sqrt{2gh}$. Always check whether initial velocity is zero before substituting — this single step halves the working.";
 
 const PHYSICS_PRACTICE = [
   {
-    q: "A ball is dropped from 80 m. Find its speed just before impact.",
+    q: "A ball is dropped from $80\\text{ m}$. Find its speed just before impact.",
     steps: [
-      "Use v² = 2gh with h = 80 m and g = 9.8 m/s².",
-      "v² = 2 × 9.8 × 80 = 1568.",
-      "v = √1568 ≈ 39.6 m/s.",
+      "Use $v^2 = 2gh$ with $h = 80\\text{ m}$, $g = 9.8\\text{ m/s}^2$.",
+      "$v^2 = 2 \\times 9.8 \\times 80 = 1568$.",
+      "$v = \\sqrt{1568} \\approx 39.6\\text{ m/s}$.",
     ],
   },
   {
-    q: "From what height must a ball be dropped to reach 30 m/s on impact?",
+    q: "From what height must a ball be dropped to reach $30\\text{ m/s}$ on impact?",
     steps: [
-      "Rearrange v² = 2gh for h: h = v²/(2g).",
-      "h = 30² / (2 × 9.8) = 900 / 19.6 ≈ 45.9 m.",
+      "Rearrange $v^2 = 2gh$ for $h$: $h = \\dfrac{v^2}{2g}$.",
+      "$h = \\dfrac{900}{2 \\times 9.8} = \\dfrac{900}{19.6} \\approx 45.9\\text{ m}$.",
     ],
   },
   {
-    q: "A stone is thrown downward at 5 m/s from 20 m. Find its speed on impact.",
+    q: "A stone is thrown downward at $5\\text{ m/s}$ from $20\\text{ m}$. Find its speed on impact.",
     steps: [
-      "Now u = 5 m/s, so use v² = u² + 2gh.",
-      "v² = 25 + 2 × 9.8 × 20 = 25 + 392 = 417.",
-      "v = √417 ≈ 20.4 m/s.",
+      "Now $u = 5\\text{ m/s}$, so use $v^2 = u^2 + 2gh$.",
+      "$v^2 = 25 + 2 \\times 9.8 \\times 20 = 25 + 392 = 417$.",
+      "$v = \\sqrt{417} \\approx 20.4\\text{ m/s}$.",
     ],
   },
 ];
 
 const DEMO_STEPS = [
-  "Recognise two functions multiplied together: x and eˣ. This calls for integration by parts.",
-  "Set u = x and dv = eˣ dx, so du = dx and v = eˣ.",
-  "Apply the IBP formula: ∫x·eˣ dx = x·eˣ − ∫eˣ dx.",
-  "Integrate the remaining term: ∫eˣ dx = eˣ.",
-  "Write the final answer: ∫x·eˣ dx = eˣ(x − 1) + C.",
+  "Spot two different function types multiplied together: $x$ (algebraic) and $e^x$ (exponential). This calls for integration by parts.",
+  "By LIATE, choose $u = x$ and $dv = e^x\\,dx$, so $du = dx$ and $v = e^x$.",
+  "Apply the IBP formula: $\\displaystyle\\int x\\,e^x\\,dx = x e^x - \\int e^x\\,dx$.",
+  "Evaluate the remaining integral: $\\displaystyle\\int e^x\\,dx = e^x$.",
+  "Write the final answer: $\\displaystyle\\int x\\,e^x\\,dx = e^x(x-1) + C$.",
 ];
 
-const DEMO_WHAT_HAPPENED = "The problem asks to evaluate ∫x·eˣ dx — a polynomial multiplied by an exponential. This product of two different function types calls for integration by parts. Setting u = x and dv = eˣ dx, the rule ∫u dv = uv − ∫v du reduces the integral to one that can be solved directly.";
-const DEMO_CORE_CONCEPT = "Integration by parts is the reverse of the product rule for differentiation. The formula ∫u dv = uv − ∫v du trades one integral for a simpler one. The goal is to choose u and dv so that ∫v du is easier than the original. Use LIATE to choose u: Logarithmic → Inverse trig → Algebraic → Trig → Exponential. The most common mistake is choosing u as the exponential, which makes the new integral harder, not simpler.";
-const DEMO_RECOGNITION_CUE = "When you see two different function types multiplied under an integral — like x·eˣ or x·sin(x) — use integration by parts. Apply LIATE: pick the algebraic term as u when paired with an exponential or trig function. If the new integral ∫v du looks more complex than what you started with, you chose u and dv the wrong way round — swap them.";
+const DEMO_WHAT_HAPPENED = "The problem asks to evaluate $\\int x\\,e^x\\,dx$ — a polynomial multiplied by an exponential. This product of two different function types calls for integration by parts. Setting $u = x$ and $dv = e^x\\,dx$, the rule $\\int u\\,dv = uv - \\int v\\,du$ reduces the integral to one that can be solved directly.";
+const DEMO_CORE_CONCEPT = "Integration by parts is the reverse of the product rule. The formula $\\int u\\,dv = uv - \\int v\\,du$ trades one integral for a simpler one. Use LIATE to choose $u$: Logarithmic → Inverse trig → Algebraic → Trig → Exponential. The most common mistake is choosing $u$ as the exponential, which makes the new integral harder, not simpler.";
+const DEMO_RECOGNITION_CUE = "When you see two different function types multiplied under an integral — like $x e^x$ or $x\\sin(x)$ — use integration by parts. Apply LIATE: pick the algebraic term as $u$ when paired with an exponential or trig function. If $\\int v\\,du$ looks more complex than the original, swap $u$ and $dv$.";
 
 const DEMO_PRACTICE = [
   {
-    q: "Find ∫x·cos(x) dx using integration by parts.",
+    q: "Find $\\int x\\cos(x)\\,dx$ using integration by parts.",
     steps: [
-      "By LIATE, x is Algebraic and cos(x) is Trig — so set u = x.",
-      "Then dv = cos(x) dx, giving du = dx and v = sin(x).",
-      "Apply the formula: ∫x·cos(x) dx = x·sin(x) − ∫sin(x) dx.",
-      "Evaluate the remaining integral: −∫sin(x) dx = cos(x).",
-      "Final answer: x·sin(x) + cos(x) + C.",
+      "By LIATE, $x$ is Algebraic and $\\cos(x)$ is Trig — set $u = x$.",
+      "Then $dv = \\cos(x)\\,dx$, giving $du = dx$ and $v = \\sin(x)$.",
+      "Apply IBP: $\\int x\\cos(x)\\,dx = x\\sin(x) - \\int\\sin(x)\\,dx$.",
+      "Evaluate: $-\\int\\sin(x)\\,dx = \\cos(x)$.",
+      "Final answer: $x\\sin(x) + \\cos(x) + C$.",
     ],
   },
   {
-    q: "Evaluate ∫x²·eˣ dx. You may need to apply IBP twice.",
+    q: "Evaluate $\\int x^2 e^x\\,dx$. You may need IBP twice.",
     steps: [
-      "First pass — u = x², dv = eˣ dx → du = 2x dx, v = eˣ.",
-      "After first IBP: x²·eˣ − 2∫x·eˣ dx.",
-      "Second pass on ∫x·eˣ dx — u = x, dv = eˣ dx → x·eˣ − eˣ.",
-      "Substitute back: x²·eˣ − 2(x·eˣ − eˣ).",
-      "Final answer: eˣ(x² − 2x + 2) + C.",
+      "First pass: $u = x^2$, $dv = e^x\\,dx$ $\\Rightarrow$ $du = 2x\\,dx$, $v = e^x$.",
+      "After first IBP: $x^2 e^x - 2\\int x\\,e^x\\,dx$.",
+      "Second pass on $\\int x\\,e^x\\,dx$: result is $x e^x - e^x$.",
+      "Substitute back: $x^2 e^x - 2(x e^x - e^x)$.",
+      "Final answer: $e^x(x^2 - 2x + 2) + C$.",
     ],
   },
   {
-    q: "Calculate ∫ln(x) dx. Let u = ln(x) and dv = dx.",
+    q: "Calculate $\\int \\ln(x)\\,dx$. Let $u = \\ln(x)$ and $dv = dx$.",
     steps: [
-      "Set u = ln(x) and dv = dx, so du = (1/x) dx and v = x.",
-      "Apply IBP: ∫ln(x) dx = x·ln(x) − ∫x·(1/x) dx.",
-      "Simplify the integral: ∫1 dx = x.",
-      "Final answer: x·ln(x) − x + C.",
+      "Set $u = \\ln(x)$, $dv = dx$, so $du = \\tfrac{1}{x}\\,dx$ and $v = x$.",
+      "Apply IBP: $\\int\\ln(x)\\,dx = x\\ln(x) - \\int x \\cdot \\tfrac{1}{x}\\,dx$.",
+      "Simplify: $\\int 1\\,dx = x$.",
+      "Final answer: $x\\ln(x) - x + C$.",
     ],
   },
 ];
@@ -922,7 +923,7 @@ const DemoPanel = () => {
 
       <div className="relative h-[calc(100%-41px)]">
 
-        {/* Phase 0: idle drop zone — real drag/drop to /lab */}
+        {/* Phase 0: idle drop zone — real drag/drop to /workspace */}
         {phase === 0 && (
           <label
             className="flex h-full cursor-pointer items-center justify-center p-8"
@@ -934,14 +935,14 @@ const DemoPanel = () => {
               const file = e.dataTransfer.files[0];
               if (!file || !ALLOWED_TYPES.includes(file.type)) return;
               pendingFileStore.set(file);
-              navigate("/lab");
+              navigate("/workspace");
             }}
           >
             <input type="file" accept="image/*" className="hidden" onChange={(e) => {
               const file = e.target.files?.[0];
               if (!file || !ALLOWED_TYPES.includes(file.type)) return;
               pendingFileStore.set(file);
-              navigate("/lab");
+              navigate("/workspace");
             }} />
             <div className={`flex w-full flex-col items-center gap-3 rounded-xl border-2 border-dashed py-16 text-center transition-colors ${demoDragging ? "border-primary bg-primary/5" : "border-border/50"}`}>
               <Upload className={`h-8 w-8 transition-colors ${demoDragging ? "text-primary" : "text-muted-foreground/40"}`} />
@@ -961,7 +962,7 @@ const DemoPanel = () => {
                 <div className="h-2 w-full rounded bg-gray-300" />
                 <div className="h-2 w-4/5 rounded bg-gray-300" />
                 <div className="mt-3 flex items-center justify-center rounded bg-gray-100 py-2">
-                  <span className="font-mono text-sm text-gray-700">v = √(2gh)</span>
+                  <span className="font-mono text-sm text-gray-700">v² = 2gh</span>
                 </div>
                 <div className="h-2 w-3/4 rounded bg-gray-300" />
                 <div className="h-2 w-full rounded bg-gray-200" />
@@ -984,7 +985,7 @@ const DemoPanel = () => {
                 <div className="h-2 w-full rounded bg-gray-200" />
                 <div className="h-2 w-4/5 rounded bg-gray-200" />
                 <div className="mt-3 flex items-center justify-center rounded bg-gray-100 py-2">
-                  <span className="font-mono text-sm text-gray-400">v = √(2gh)</span>
+                  <span className="font-mono text-sm text-gray-400">v² = 2gh</span>
                 </div>
                 <div className="h-2 w-3/4 rounded bg-gray-200" />
               </div>
@@ -1026,11 +1027,11 @@ const DemoPanel = () => {
 
             {tab === "steps" && (
               <div className="flex-1 space-y-2 overflow-y-auto pr-0.5">
-                <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-primary">Find v = √(2gh), h = 45 m</p>
+                <div className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-primary"><RichText text="Find $v = \sqrt{2gh}$, $h = 45\,\text{m}$" /></div>
                 {PHYSICS_STEPS.slice(0, revealedSteps).map((step, i) => (
                   <div key={i} className="flex items-start gap-2.5 rounded-lg border border-primary/20 bg-primary/5 p-3">
                     <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">{i + 1}</span>
-                    <p className="text-xs leading-relaxed text-foreground">{step}</p>
+                    <div className="text-xs leading-relaxed text-foreground"><RichText text={step} /></div>
                   </div>
                 ))}
                 {revealedSteps < PHYSICS_STEPS.length && (
@@ -1054,21 +1055,21 @@ const DemoPanel = () => {
                     <Microscope className="h-3 w-3 text-primary" />
                     <p className="text-[10px] font-semibold uppercase tracking-widest text-primary">In this problem</p>
                   </div>
-                  <p className="text-xs leading-relaxed text-muted-foreground">{PHYSICS_WHAT_HAPPENED}</p>
+                  <div className="text-xs leading-relaxed text-muted-foreground"><RichText text={PHYSICS_WHAT_HAPPENED} /></div>
                 </div>
                 <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
                   <div className="mb-1.5 flex items-center gap-1.5">
                     <Lightbulb className="h-3 w-3 text-primary" />
                     <p className="text-[10px] font-semibold uppercase tracking-widest text-primary">The concept</p>
                   </div>
-                  <p className="text-xs leading-relaxed text-muted-foreground">{PHYSICS_CORE_CONCEPT}</p>
+                  <div className="text-xs leading-relaxed text-muted-foreground"><RichText text={PHYSICS_CORE_CONCEPT} /></div>
                 </div>
                 <div className="rounded-lg border border-border bg-secondary/60 p-3">
                   <div className="mb-1.5 flex items-center gap-1.5">
                     <ArrowRight className="h-3 w-3 text-primary" />
                     <p className="text-[10px] font-semibold uppercase tracking-widest text-primary">When you see this</p>
                   </div>
-                  <p className="text-xs leading-relaxed text-muted-foreground">{PHYSICS_RECOGNITION_CUE}</p>
+                  <div className="text-xs leading-relaxed text-muted-foreground"><RichText text={PHYSICS_RECOGNITION_CUE} /></div>
                 </div>
               </div>
             )}
@@ -1081,7 +1082,7 @@ const DemoPanel = () => {
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-start gap-2">
                         <span className="mt-0.5 shrink-0 text-xs font-bold text-primary">{i + 1}.</span>
-                        <span className="text-xs leading-relaxed text-foreground">{item.q}</span>
+                        <div className="text-xs leading-relaxed text-foreground"><RichText text={item.q} /></div>
                       </div>
                       <button
                         onClick={() => setRevealedAnswers((prev) => {
@@ -1099,7 +1100,7 @@ const DemoPanel = () => {
                         {item.steps.map((step, si) => (
                           <div key={si} className="flex items-start gap-2 rounded border border-primary/20 bg-card px-2.5 py-1.5">
                             <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-primary-foreground">{si + 1}</span>
-                            <span className="text-[11px] leading-relaxed text-foreground">{step}</span>
+                            <div className="text-[11px] leading-relaxed text-foreground"><RichText text={step} /></div>
                           </div>
                         ))}
                       </div>
@@ -1121,7 +1122,7 @@ const DemoPanel = () => {
                 <div className="h-2 w-full rounded bg-gray-300" />
                 <div className="h-2 w-5/6 rounded bg-gray-300" />
                 <div className="mt-3 flex items-center justify-center rounded bg-gray-100 py-2">
-                  <span className="font-mono text-sm text-gray-700">∫ x · eˣ dx</span>
+                  <span className="font-mono text-sm text-gray-700">∫ x eˣ dx</span>
                 </div>
                 <div className="h-2 w-3/4 rounded bg-gray-300" />
                 <div className="h-2 w-full rounded bg-gray-200" />
@@ -1144,7 +1145,7 @@ const DemoPanel = () => {
                 <div className="h-2 w-full rounded bg-gray-200" />
                 <div className="h-2 w-5/6 rounded bg-gray-200" />
                 <div className="mt-3 flex items-center justify-center rounded bg-gray-100 py-2">
-                  <span className="font-mono text-sm text-gray-400">∫ x · eˣ dx</span>
+                  <span className="font-mono text-sm text-gray-400">∫ x eˣ dx</span>
                 </div>
                 <div className="h-2 w-3/4 rounded bg-gray-200" />
               </div>
@@ -1187,11 +1188,11 @@ const DemoPanel = () => {
 
             {tab === "steps" && (
               <div className="flex-1 space-y-2 overflow-y-auto pr-0.5">
-                <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-primary">Evaluate ∫x·eˣ dx</p>
+                <div className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-primary"><RichText text="Evaluate $\int x\,e^x\,dx$" /></div>
                 {DEMO_STEPS.slice(0, revealedSteps).map((step, i) => (
                   <div key={i} className="flex items-start gap-2.5 rounded-lg border border-primary/20 bg-primary/5 p-3">
                     <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">{i + 1}</span>
-                    <p className="text-xs leading-relaxed text-foreground">{step}</p>
+                    <div className="text-xs leading-relaxed text-foreground"><RichText text={step} /></div>
                   </div>
                 ))}
                 {revealedSteps < DEMO_STEPS.length && (
@@ -1215,21 +1216,21 @@ const DemoPanel = () => {
                     <Microscope className="h-3 w-3 text-primary" />
                     <p className="text-[10px] font-semibold uppercase tracking-widest text-primary">In this problem</p>
                   </div>
-                  <p className="text-xs leading-relaxed text-muted-foreground">{DEMO_WHAT_HAPPENED}</p>
+                  <div className="text-xs leading-relaxed text-muted-foreground"><RichText text={DEMO_WHAT_HAPPENED} /></div>
                 </div>
                 <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
                   <div className="mb-1.5 flex items-center gap-1.5">
                     <Lightbulb className="h-3 w-3 text-primary" />
                     <p className="text-[10px] font-semibold uppercase tracking-widest text-primary">The concept</p>
                   </div>
-                  <p className="text-xs leading-relaxed text-muted-foreground">{DEMO_CORE_CONCEPT}</p>
+                  <div className="text-xs leading-relaxed text-muted-foreground"><RichText text={DEMO_CORE_CONCEPT} /></div>
                 </div>
                 <div className="rounded-lg border border-border bg-secondary/60 p-3">
                   <div className="mb-1.5 flex items-center gap-1.5">
                     <ArrowRight className="h-3 w-3 text-primary" />
                     <p className="text-[10px] font-semibold uppercase tracking-widest text-primary">When you see this</p>
                   </div>
-                  <p className="text-xs leading-relaxed text-muted-foreground">{DEMO_RECOGNITION_CUE}</p>
+                  <div className="text-xs leading-relaxed text-muted-foreground"><RichText text={DEMO_RECOGNITION_CUE} /></div>
                 </div>
               </div>
             )}
@@ -1242,7 +1243,7 @@ const DemoPanel = () => {
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-start gap-2">
                         <span className="mt-0.5 shrink-0 text-xs font-bold text-primary">{i + 1}.</span>
-                        <span className="text-xs leading-relaxed text-foreground">{item.q}</span>
+                        <div className="text-xs leading-relaxed text-foreground"><RichText text={item.q} /></div>
                       </div>
                       <button
                         onClick={() => setRevealedAnswers((prev) => {
@@ -1260,7 +1261,7 @@ const DemoPanel = () => {
                         {item.steps.map((step, si) => (
                           <div key={si} className="flex items-start gap-2 rounded border border-primary/20 bg-card px-2.5 py-1.5">
                             <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-primary-foreground">{si + 1}</span>
-                            <span className="text-[11px] leading-relaxed text-foreground">{step}</span>
+                            <div className="text-[11px] leading-relaxed text-foreground"><RichText text={step} /></div>
                           </div>
                         ))}
                       </div>
@@ -1277,11 +1278,24 @@ const DemoPanel = () => {
   );
 };
 
+const WHALE_BUBBLES = [
+  "Upload a photo of any STEM question.",
+  "I'll walk you through it step by step.",
+  "No more staring at the same problem.",
+  "Works with handwritten notes too!",
+  "Used by IB, AP & A-Level students.",
+  "Every hard question makes you stronger.",
+  "Targeted practice, not passive re-reading.",
+  "Your exam self will thank you.",
+];
+
 const Landing = () => {
   const logoRef = useRef<HTMLDivElement>(null);
   const [eyeOffset, setEyeOffset] = useState({ x: 0, y: 0 });
   const [isHovered, setIsHovered] = useState(false);
   const [landingQuoteOffset, setLandingQuoteOffset] = useState(0);
+  const [bubbleIdx, setBubbleIdx] = useState(0);
+  const [bubbleVisible, setBubbleVisible] = useState(true);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -1303,6 +1317,18 @@ const Landing = () => {
     return () => window.removeEventListener("mousemove", handleMouseMove);
   }, []);
 
+  // Cycle whale speech bubbles
+  useEffect(() => {
+    const id = setInterval(() => {
+      setBubbleVisible(false);
+      setTimeout(() => {
+        setBubbleIdx((i) => (i + 1) % WHALE_BUBBLES.length);
+        setBubbleVisible(true);
+      }, 350);
+    }, 5000);
+    return () => clearInterval(id);
+  }, []);
+
   return (
     <PageTransition>
       <Helmet>
@@ -1318,45 +1344,60 @@ const Landing = () => {
 
               {/* Left */}
               <div className="flex flex-col items-start">
-                <Link to="/lab" className="relative mb-8 inline-block">
-                  <div
-                    ref={logoRef}
-                    onMouseEnter={() => setIsHovered(true)}
-                    onMouseLeave={() => setIsHovered(false)}
-                    className="relative cursor-pointer"
-                    style={{ width: 100, height: 100, transform: isHovered ? "scale(1.12)" : "scale(1)", transition: "transform 0.3s ease" }}
-                  >
+                {/* Whale + speech bubble bob together */}
+                <div className="mb-10 flex items-center gap-5" style={{ animation: "float 4s ease-in-out infinite" }}>
+                  <Link to="/workspace" className="relative inline-block flex-shrink-0">
                     <div
-                      className="absolute inset-0 rounded-full transition-all duration-500"
-                      style={{
-                        background: isHovered
-                          ? "radial-gradient(circle, hsl(225 75% 55% / 0.5) 0%, transparent 70%)"
-                          : "radial-gradient(circle, hsl(225 75% 55% / 0.15) 0%, transparent 70%)",
-                        transform: isHovered ? "scale(1.6)" : "scale(1.2)",
-                        filter: isHovered ? "blur(20px)" : "blur(12px)",
-                      }}
-                    />
-                    <img
-                      src={gogodeepLogo}
-                      alt="Gogodeep — AI exam mistake helper for IB, AP, and A-Level STEM students"
-                      className="relative z-10 h-full w-full object-contain"
-                      style={{
-                        animation: "float 4s ease-in-out infinite",
-                        transform: `translate(${eyeOffset.x * 0.3}px, ${eyeOffset.y * 0.3}px)`,
-                      }}
-                    />
-                    <div
-                      className="absolute -bottom-8 left-1/2 -translate-x-1/2 transition-all duration-300"
-                      style={{ opacity: isHovered ? 1 : 0, transform: `translateX(-50%) translateY(${isHovered ? "0px" : "4px"})` }}
+                      ref={logoRef}
+                      onMouseEnter={() => setIsHovered(true)}
+                      onMouseLeave={() => setIsHovered(false)}
+                      className="relative cursor-pointer"
+                      style={{ width: 100, height: 100, transform: isHovered ? "scale(1.12)" : "scale(1)", transition: "transform 0.3s ease" }}
                     >
-                      <span className="whitespace-nowrap rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">
-                        Try now
-                      </span>
+                      <div
+                        className="absolute inset-0 rounded-full transition-all duration-500"
+                        style={{
+                          background: isHovered
+                            ? "radial-gradient(circle, hsl(225 75% 55% / 0.5) 0%, transparent 70%)"
+                            : "radial-gradient(circle, hsl(225 75% 55% / 0.15) 0%, transparent 70%)",
+                          transform: isHovered ? "scale(1.6)" : "scale(1.2)",
+                          filter: isHovered ? "blur(20px)" : "blur(12px)",
+                        }}
+                      />
+                      <img
+                        src={gogodeepLogo}
+                        alt="Gogodeep — AI exam mistake helper for IB, AP, and A-Level STEM students"
+                        className="whale-img relative z-10 h-full w-full object-contain"
+                        style={{ transform: `translate(${eyeOffset.x * 0.3}px, ${eyeOffset.y * 0.3}px)` }}
+                      />
+                      <div
+                        className="absolute -bottom-8 left-1/2 -translate-x-1/2 transition-all duration-300"
+                        style={{ opacity: isHovered ? 1 : 0, transform: `translateX(-50%) translateY(${isHovered ? "0px" : "4px"})` }}
+                      >
+                        <span className="whitespace-nowrap rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">
+                          Try now
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
+
+                  {/* Speech bubble */}
+                  <div
+                    style={{
+                      opacity: bubbleVisible ? 1 : 0,
+                      transform: bubbleVisible ? "translateX(0)" : "translateX(-4px)",
+                      transition: "opacity 0.35s ease, transform 0.35s ease",
+                    }}
+                  >
+                    <div className="relative rounded-2xl rounded-tl-sm border border-border bg-card px-4 py-2.5 shadow-sm">
+                      <p className="text-sm text-foreground">{WHALE_BUBBLES[bubbleIdx]}</p>
+                      {/* Tail pointing left toward whale */}
+                      <div className="absolute -left-1.5 top-3 h-3 w-3 rotate-45 border-b border-l border-border bg-card" />
                     </div>
                   </div>
-                </Link>
+                </div>
 
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Diagnostic Teaching</p>
+                <p className="mt-0 text-xs font-semibold uppercase tracking-[0.2em] text-primary">Diagnostic Teaching</p>
                 <h1 className="mt-4 text-5xl font-extrabold tracking-tight text-foreground md:text-6xl">
                   Fix the thinking,<br />not just the answer.
                 </h1>

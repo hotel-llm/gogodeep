@@ -113,6 +113,50 @@
     --liquid-orb-2: 28 85% 40%;
     --whale-filter: hue-rotate(173deg) saturate(1.3);
   }
+
+  /* ── White (professional light mode) ────────────────────────────────── */
+  [data-theme="white"] {
+    --background: 0 0% 100%;
+    --foreground: 220 13% 9%;
+
+    --card: 0 0% 97%;
+    --card-foreground: 220 13% 9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 13% 9%;
+
+    --primary: 220 85% 40%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 10% 93%;
+    --secondary-foreground: 220 13% 9%;
+
+    --muted: 220 10% 93%;
+    --muted-foreground: 220 9% 46%;
+
+    --accent: 220 10% 90%;
+    --accent-foreground: 220 13% 9%;
+
+    --destructive: 0 84% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 13% 86%;
+    --input: 220 13% 86%;
+    --ring: 220 85% 40%;
+
+    --sidebar-background: 220 15% 97%;
+    --sidebar-foreground: 220 13% 9%;
+    --sidebar-primary: 220 85% 40%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 10% 90%;
+    --sidebar-accent-foreground: 220 13% 9%;
+    --sidebar-border: 220 13% 86%;
+    --sidebar-ring: 220 85% 40%;
+
+    --liquid-orb-1: 220 85% 60%;
+    --liquid-orb-2: 210 70% 50%;
+    --whale-filter: none;
+  }
 }
 
 @layer base {

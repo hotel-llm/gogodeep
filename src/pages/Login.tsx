@@ -22,7 +22,7 @@ const Login = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const locationState = location.state as { from?: string; pendingReport?: { imageUrl: string; diagnosis: unknown } } | null;
-  const redirectTo = locationState?.from ?? "/lab";
+  const redirectTo = locationState?.from ?? "/workspace";
   const pendingReport = locationState?.pendingReport;
 
   const onLogin = async (e: FormEvent) => {

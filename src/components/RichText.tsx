@@ -8,8 +8,11 @@ import "katex/dist/katex.min.css";
 export function RichText({ text, block = false }: { text: string; block?: boolean }) {
   if (!text) return null;
 
-  // Tokenise: $$...$$ (display math), $...$ (inline math), **bold**, *italic*, \n
-  const re = /(\$\$[\s\S]+?\$\$|\$[^$\n]+?\$|\*\*[^*\n]+\*\*|\*[^*\n]+\*|\n)/g;
+  // Tokenise: $$...$$ (display math), $...$ (inline math),
+  // bare superscripts like x^2 / x^{n+1} that the model forgot to wrap in $,
+  // **bold**, *italic*, \n.
+  // The bare-^ patterns come AFTER the $-patterns so dollar-wrapped math takes priority.
+  const re = /(\$\$[\s\S]+?\$\$|\$[^$\n]+?\$|\w+\^(?:\{[^}]+\}|\w+)|\*\*[^*\n]+\*\*|\*[^*\n]+\*|\n)/g;
   const nodes: React.ReactNode[] = [];
   let last = 0;
   let m: RegExpExecArray | null;
@@ -33,6 +36,14 @@ export function RichText({ text, block = false }: { text: string; block?: boolea
       const latex = raw.slice(1, -1);
       try {
         const html = katex.renderToString(latex, { displayMode: false, throwOnError: false, trust: false });
+        nodes.push(<span key={key++} dangerouslySetInnerHTML={{ __html: html }} />);
+      } catch {
+        nodes.push(<span key={key++}>{raw}</span>);
+      }
+    } else if (raw.includes("^") && !raw.startsWith("$")) {
+      // bare superscript — render as inline KaTeX
+      try {
+        const html = katex.renderToString(raw, { displayMode: false, throwOnError: false, trust: false });
         nodes.push(<span key={key++} dangerouslySetInnerHTML={{ __html: html }} />);
       } catch {
         nodes.push(<span key={key++}>{raw}</span>);

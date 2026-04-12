@@ -27,14 +27,14 @@ export class ErrorBoundary extends Component<Props, State> {
               <p className="mt-1 max-w-sm font-mono text-xs text-destructive break-all">{this.state.message}</p>
             )}
             <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-              Reload the page or go back to the lab and try again.
+              Reload the page or go back to the Workspace and try again.
             </p>
             <div className="mt-6 flex gap-3">
               <Button variant="outline" className="border-border" onClick={() => { this.setState({ hasError: false, message: "" }); window.location.reload(); }}>
                 Reload
               </Button>
               <Button asChild className="bg-primary hover:bg-primary/90">
-                <Link to="/lab">Back to Lab</Link>
+                <Link to="/workspace">Back to Workspace</Link>
               </Button>
             </div>
           </div>

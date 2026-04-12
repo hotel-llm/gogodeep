@@ -26,7 +26,7 @@ import {
 
 const navItems = [
   { path: "/", label: "Home", icon: LayoutDashboard },
-  { path: "/lab", label: "Lab", icon: Microscope },
+  { path: "/workspace", label: "Workspace", icon: Microscope },
   { path: "/pricing", label: "Pricing", icon: CircleDollarSign },
   { path: "/contact", label: "Contact", icon: Mail },
 ];

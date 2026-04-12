@@ -28,7 +28,7 @@ function AnimatedRoutes() {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route
-          path="/lab"
+          path="/workspace"
           element={
             <ErrorBoundary>
               <DiagnosticLab />

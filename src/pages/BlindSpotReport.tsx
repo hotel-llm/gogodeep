@@ -635,8 +635,8 @@ const BlindSpotReport = () => {
           <div className="space-y-4 text-center">
             <BookOpen className="mx-auto h-10 w-10 text-muted-foreground" />
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">No report available</p>
-            <p className="text-sm text-muted-foreground">Upload an image in the Lab first.</p>
-            <Link to="/lab">
+            <p className="text-sm text-muted-foreground">Upload an image in the Workspace first.</p>
+            <Link to="/workspace">
               <Button variant="outline" className="mt-4 gap-2 border-border">
                 <ArrowLeft className="h-3.5 w-3.5" />
                 Go to Lab
@@ -687,14 +687,6 @@ const BlindSpotReport = () => {
                 ) : (
                   <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">{inputText}</p>
                 )}
-              </div>
-              <div className="mt-4">
-                <Link to="/lab">
-                  <Button variant="outline" className="w-full gap-2 border-border text-sm">
-                    <ArrowLeft className="h-3.5 w-3.5" />
-                    New scan
-                  </Button>
-                </Link>
               </div>
             </div>
           </div>

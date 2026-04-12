@@ -12,7 +12,7 @@ const Welcome = () => {
     const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
       if (next) {
         setSession(next);
-        navigate("/lab", { replace: true });
+        navigate("/workspace", { replace: true });
       } else {
         navigate("/login", { replace: true });
       }
@@ -20,7 +20,7 @@ const Welcome = () => {
 
     const fallback = window.setTimeout(() => {
       void supabase.auth.getSession().then(({ data }) => {
-        if (data.session) navigate("/lab", { replace: true });
+        if (data.session) navigate("/workspace", { replace: true });
         else navigate("/login", { replace: true });
       });
     }, 3000);

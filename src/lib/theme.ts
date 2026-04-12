@@ -1,4 +1,4 @@
-export const THEMES = ["blue", "purple", "green", "rose", "amber"] as const;
+export const THEMES = ["blue", "purple", "green", "rose", "amber", "white"] as const;
 export type Theme = typeof THEMES[number];
 
 export const THEME_LABELS: Record<Theme, string> = {
@@ -7,6 +7,7 @@ export const THEME_LABELS: Record<Theme, string> = {
   green: "Green",
   rose: "Rose",
   amber: "Amber",
+  white: "White",
 };
 
 // Swatch colours shown in the picker
@@ -16,6 +17,7 @@ export const THEME_COLORS: Record<Theme, string> = {
   green: "#3ab76e",
   rose: "#e85875",
   amber: "#f5a623",
+  white: "#e2e8f0",
 };
 
 const KEY = "gogodeep_theme";

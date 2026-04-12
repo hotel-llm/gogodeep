@@ -292,9 +292,9 @@ const DiagnosticLab = () => {
   }, [analyzeImage]);
 
   return (
-    <EducatorLayout title="Diagnostic Lab" subtitle="Upload a question and we'll guide you through it step by step.">
+    <EducatorLayout title="Workspace" subtitle="Upload a question and we'll guide you through it step by step.">
       <Helmet>
-        <title>Diagnostic Lab — AI Scanner for Hard STEM Questions | Gogodeep</title>
+        <title>Workspace — AI Scanner for Hard STEM Questions | Gogodeep</title>
         <meta name="description" content="Upload a photo of your exam working or handwritten notes. Gogodeep analyses hard STEM questions, finds your error, and guides you step by step. Supports Physics HL, Math HL AA, AP Calculus BC, and AP Statistics." />
       </Helmet>
       <div className="mx-auto max-w-2xl mt-12" data-feature="ai-scanner-for-hard-stem-questions" data-input-type="handwritten-notes,photo-upload,exam-working">
