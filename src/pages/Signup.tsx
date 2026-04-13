@@ -55,7 +55,11 @@ const Signup = () => {
       setIsLoading(false);
 
       if (error) {
-        whaleToast.error(error.message);
+        if (error.message.toLowerCase().includes("already registered") || error.message.toLowerCase().includes("already exists")) {
+          whaleToast.error("An account with that email already exists. Try logging in instead.");
+        } else {
+          whaleToast.error(error.message);
+        }
         return;
       }
 
