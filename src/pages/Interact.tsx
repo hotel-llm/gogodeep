@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { Helmet } from "react-helmet-async";
-import { Search, X, FlaskConical, Atom, Globe, BrainCircuit, Telescope, Heart } from "lucide-react";
+import { Search, X, FlaskConical, Atom, Globe, BrainCircuit, Telescope, Heart, ChevronDown } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import PageTransition from "@/components/PageTransition";
@@ -104,49 +104,11 @@ const MODELS: Model[] = [
   { id: "momentum",           category: "Physics", title: "Momentum Conservation",        description: "Elastic and inelastic collisions.", component: Momentum },
   { id: "heat-transfer",      category: "Physics", title: "Heat Transfer",                description: "Conduction, convection, and radiation.", component: HeatTransfer },
 
-  // ── Chemistry ────────────────────────────────────────────────────────────
-  { id: "bohr-model",         category: "Chemistry", title: "Bohr Atomic Model",          description: "Electrons orbiting a central nucleus in energy shells.", component: BohrModel },
-  { id: "vsepr",              category: "Chemistry", title: "VSEPR Theory",               description: "Molecular geometry and 3D shapes from electron pairs.", component: VSEPR },
-  { id: "crystal-lattice",    category: "Chemistry", title: "Crystal Lattice Structures", description: "Atomic arrangements in solids — FCC, BCC, simple cubic.", component: CrystalLattice },
-  { id: "titration-curves",   category: "Chemistry", title: "Titration Curves",           description: "pH changes during acid-base neutralization.", component: TitrationCurves },
-  { id: "chromatography",     category: "Chemistry", title: "Chromatography",             description: "Separation of mixtures based on affinity.", component: Chromatography },
-  { id: "electrolysis",       category: "Chemistry", title: "Electrolysis",               description: "Chemical decomposition via electric current.", component: Electrolysis },
-  { id: "phase-diagrams",     category: "Chemistry", title: "Phase Diagrams",             description: "Transitions between solid, liquid, and gas states.", component: PhaseDiagrams },
-  { id: "reaction-kinetics",  category: "Chemistry", title: "Reaction Kinetics",          description: "Activation energy barriers in chemical reactions.", component: ReactionKinetics },
-  { id: "colligative",        category: "Chemistry", title: "Colligative Properties",     description: "Boiling point elevation and freezing point depression.", component: Colligative },
-  { id: "ionic-covalent",     category: "Chemistry", title: "Ionic vs. Covalent Bonding", description: "Electron transfer versus electron sharing.", component: IonicCovalent },
-  { id: "le-chatelier",       category: "Chemistry", title: "Le Chatelier's Principle",   description: "Equilibrium shifts under stress.", component: LeChatelier },
-  { id: "polymers",           category: "Chemistry", title: "Polymers",                   description: "Long-chain molecular structures.", component: Polymers },
-  { id: "radioactive-decay",  category: "Chemistry", title: "Radioactive Decay",          description: "Alpha, beta, and gamma emission over time.", component: RadioactiveDecay },
-  { id: "ideal-gas-law",      category: "Chemistry", title: "Ideal Gas Law",              description: "Relationships between P, V, n, and T.", component: IdealGasLaw },
-  { id: "orbital-hybridization", category: "Chemistry", title: "Orbital Hybridization",  description: "Mixing of atomic orbitals — sp, sp², sp³.", component: OrbitalHybridization },
-  { id: "galvanic-cells",     category: "Chemistry", title: "Galvanic Cells",             description: "Chemical energy converting to electrical energy.", component: GalvanicCells },
-  { id: "mass-spectrometry",  category: "Chemistry", title: "Mass Spectrometry",          description: "Sorting ions by mass-to-charge ratio.", component: MassSpectrometry },
-  { id: "endo-exo",           category: "Chemistry", title: "Endothermic vs. Exothermic", description: "Heat absorption and release in reactions.", component: EndoExo },
-  { id: "hydrogen-bonding",   category: "Chemistry", title: "Hydrogen Bonding",           description: "Intermolecular forces in water and DNA.", component: HydrogenBonding },
-  { id: "superconductivity",  category: "Chemistry", title: "Superconductivity",          description: "Zero electrical resistance at low temperatures.", component: Superconductivity },
-  { id: "stoichiometry",      category: "Chemistry", title: "Stoichiometry",              description: "Balancing chemical equations and molar ratios.", component: Stoichiometry },
-  { id: "functional-groups",  category: "Chemistry", title: "Functional Groups",          description: "Hydroxyl, carboxyl, amino, and other molecular appendages.", component: FunctionalGroups },
-  { id: "solubility-rules",   category: "Chemistry", title: "Solubility Rules",           description: "Precipitate formation in aqueous solutions.", component: SolubilityRules },
-  { id: "ph-scale",           category: "Chemistry", title: "Acidity & Basicity (pH)",    description: "Logarithmic scale of hydrogen ion concentration.", component: PHScale },
-  { id: "metallic-bonding",   category: "Chemistry", title: "Metallic Bonding",           description: "The sea-of-electrons model in metals.", component: MetallicBonding },
-
-  // ── Earth & Space ────────────────────────────────────────────────────────
-  { id: "plate-tectonics",    category: "Earth & Space", title: "Plate Tectonics",        description: "Subduction, divergence, and transform fault boundaries.", component: PlateTectonics },
-  { id: "stellar-lifecycle",  category: "Earth & Space", title: "Stellar Life Cycle",     description: "From nebula to white dwarf or supernova.", component: StellarLifecycle },
-  { id: "black-hole",         category: "Earth & Space", title: "Black Hole Event Horizon", description: "The point of no return for light near a black hole.", component: BlackHole },
-  { id: "kepler-laws",        category: "Earth & Space", title: "Orbital Mechanics (Kepler)", description: "Planetary paths and elliptical orbits around stars.", component: KeplerLaws },
-  { id: "big-bang",           category: "Earth & Space", title: "The Big Bang",           description: "Cosmic expansion over 13.8 billion years.", component: BigBang },
-  { id: "exoplanet-transit",  category: "Earth & Space", title: "Exoplanet Transit Method", description: "Detecting planets via star brightness dips.", component: ExoplanetTransit },
+  // ── Math & CS ────────────────────────────────────────────────────────────
   { id: "fibonacci",          category: "Math & CS",     title: "Fibonacci Sequence",     description: "Mathematical patterns in nature — shells, flowers, spirals.", component: Fibonacci },
   { id: "fractals",           category: "Math & CS",     title: "Fractals (Mandelbrot)",  description: "Self-similar geometric patterns and the Mandelbrot set.", component: Fractals },
   { id: "normal-distribution", category: "Math & CS",   title: "Normal Distribution",    description: "Bell curve probability modelling.", component: NormalDistribution },
-  { id: "volcanism",          category: "Earth & Space", title: "Tectonic Volcanism",     description: "Magma chambers and mantle plumes.", component: Volcanism },
-  { id: "atmosphere-layers",  category: "Earth & Space", title: "Atmospheric Layers",     description: "Troposphere, stratosphere, mesosphere, and beyond.", component: AtmosphereLayers },
   { id: "vector-calculus",    category: "Math & CS",     title: "Vector Calculus",        description: "Gradient, divergence, and curl in field models.", component: VectorCalculus },
-  { id: "ocean-currents",     category: "Earth & Space", title: "Ocean Currents",         description: "The global thermohaline conveyor belt.", component: OceanCurrents },
-  { id: "glacial-retreat",    category: "Earth & Space", title: "Glacial Retreat",        description: "Ice mass changes over geological time.", component: GlacialRetreat },
-  { id: "greenhouse-effect",  category: "Earth & Space", title: "The Greenhouse Effect",  description: "Trap-and-release of infrared radiation in the atmosphere.", component: GreenhouseEffect },
   { id: "neural-networks",    category: "Math & CS",     title: "Neural Networks",        description: "Mathematical nodes mimicking brain architecture.", component: NeuralNetworks },
   { id: "binary-search-trees", category: "Math & CS",   title: "Binary Search Trees",    description: "Logarithmic data organisation — insert, search, delete.", component: BinarySearchTrees },
   { id: "graph-theory",       category: "Math & CS",     title: "Graph Theory",           description: "Nodes and edges in network analysis.", component: GraphTheory },
@@ -200,6 +162,46 @@ const MODELS: Model[] = [
   { id: "boolean-algebra",       category: "Math & CS", title: "Boolean Algebra",          description: "Truth tables and gate diagrams for AND, OR, XOR and more.", component: BooleanAlgebra },
   { id: "prime-factorization",   category: "Math & CS", title: "Prime Factorization",      description: "Factor tree breaking any number into its prime bases.", component: PrimeFactorization },
 
+  // ── Chemistry ────────────────────────────────────────────────────────────
+  { id: "bohr-model",         category: "Chemistry", title: "Bohr Atomic Model",          description: "Electrons orbiting a central nucleus in energy shells.", component: BohrModel },
+  { id: "vsepr",              category: "Chemistry", title: "VSEPR Theory",               description: "Molecular geometry and 3D shapes from electron pairs.", component: VSEPR },
+  { id: "crystal-lattice",    category: "Chemistry", title: "Crystal Lattice Structures", description: "Atomic arrangements in solids — FCC, BCC, simple cubic.", component: CrystalLattice },
+  { id: "titration-curves",   category: "Chemistry", title: "Titration Curves",           description: "pH changes during acid-base neutralization.", component: TitrationCurves },
+  { id: "chromatography",     category: "Chemistry", title: "Chromatography",             description: "Separation of mixtures based on affinity.", component: Chromatography },
+  { id: "electrolysis",       category: "Chemistry", title: "Electrolysis",               description: "Chemical decomposition via electric current.", component: Electrolysis },
+  { id: "phase-diagrams",     category: "Chemistry", title: "Phase Diagrams",             description: "Transitions between solid, liquid, and gas states.", component: PhaseDiagrams },
+  { id: "reaction-kinetics",  category: "Chemistry", title: "Reaction Kinetics",          description: "Activation energy barriers in chemical reactions.", component: ReactionKinetics },
+  { id: "colligative",        category: "Chemistry", title: "Colligative Properties",     description: "Boiling point elevation and freezing point depression.", component: Colligative },
+  { id: "ionic-covalent",     category: "Chemistry", title: "Ionic vs. Covalent Bonding", description: "Electron transfer versus electron sharing.", component: IonicCovalent },
+  { id: "le-chatelier",       category: "Chemistry", title: "Le Chatelier's Principle",   description: "Equilibrium shifts under stress.", component: LeChatelier },
+  { id: "polymers",           category: "Chemistry", title: "Polymers",                   description: "Long-chain molecular structures.", component: Polymers },
+  { id: "radioactive-decay",  category: "Chemistry", title: "Radioactive Decay",          description: "Alpha, beta, and gamma emission over time.", component: RadioactiveDecay },
+  { id: "ideal-gas-law",      category: "Chemistry", title: "Ideal Gas Law",              description: "Relationships between P, V, n, and T.", component: IdealGasLaw },
+  { id: "orbital-hybridization", category: "Chemistry", title: "Orbital Hybridization",  description: "Mixing of atomic orbitals — sp, sp², sp³.", component: OrbitalHybridization },
+  { id: "galvanic-cells",     category: "Chemistry", title: "Galvanic Cells",             description: "Chemical energy converting to electrical energy.", component: GalvanicCells },
+  { id: "mass-spectrometry",  category: "Chemistry", title: "Mass Spectrometry",          description: "Sorting ions by mass-to-charge ratio.", component: MassSpectrometry },
+  { id: "endo-exo",           category: "Chemistry", title: "Endothermic vs. Exothermic", description: "Heat absorption and release in reactions.", component: EndoExo },
+  { id: "hydrogen-bonding",   category: "Chemistry", title: "Hydrogen Bonding",           description: "Intermolecular forces in water and DNA.", component: HydrogenBonding },
+  { id: "superconductivity",  category: "Chemistry", title: "Superconductivity",          description: "Zero electrical resistance at low temperatures.", component: Superconductivity },
+  { id: "stoichiometry",      category: "Chemistry", title: "Stoichiometry",              description: "Balancing chemical equations and molar ratios.", component: Stoichiometry },
+  { id: "functional-groups",  category: "Chemistry", title: "Functional Groups",          description: "Hydroxyl, carboxyl, amino, and other molecular appendages.", component: FunctionalGroups },
+  { id: "solubility-rules",   category: "Chemistry", title: "Solubility Rules",           description: "Precipitate formation in aqueous solutions.", component: SolubilityRules },
+  { id: "ph-scale",           category: "Chemistry", title: "Acidity & Basicity (pH)",    description: "Logarithmic scale of hydrogen ion concentration.", component: PHScale },
+  { id: "metallic-bonding",   category: "Chemistry", title: "Metallic Bonding",           description: "The sea-of-electrons model in metals.", component: MetallicBonding },
+
+  // ── Earth & Space ────────────────────────────────────────────────────────
+  { id: "plate-tectonics",    category: "Earth & Space", title: "Plate Tectonics",        description: "Subduction, divergence, and transform fault boundaries.", component: PlateTectonics },
+  { id: "stellar-lifecycle",  category: "Earth & Space", title: "Stellar Life Cycle",     description: "From nebula to white dwarf or supernova.", component: StellarLifecycle },
+  { id: "black-hole",         category: "Earth & Space", title: "Black Hole Event Horizon", description: "The point of no return for light near a black hole.", component: BlackHole },
+  { id: "kepler-laws",        category: "Earth & Space", title: "Orbital Mechanics (Kepler)", description: "Planetary paths and elliptical orbits around stars.", component: KeplerLaws },
+  { id: "big-bang",           category: "Earth & Space", title: "The Big Bang",           description: "Cosmic expansion over 13.8 billion years.", component: BigBang },
+  { id: "exoplanet-transit",  category: "Earth & Space", title: "Exoplanet Transit Method", description: "Detecting planets via star brightness dips.", component: ExoplanetTransit },
+  { id: "volcanism",          category: "Earth & Space", title: "Tectonic Volcanism",     description: "Magma chambers and mantle plumes.", component: Volcanism },
+  { id: "atmosphere-layers",  category: "Earth & Space", title: "Atmospheric Layers",     description: "Troposphere, stratosphere, mesosphere, and beyond.", component: AtmosphereLayers },
+  { id: "ocean-currents",     category: "Earth & Space", title: "Ocean Currents",         description: "The global thermohaline conveyor belt.", component: OceanCurrents },
+  { id: "glacial-retreat",    category: "Earth & Space", title: "Glacial Retreat",        description: "Ice mass changes over geological time.", component: GlacialRetreat },
+  { id: "greenhouse-effect",  category: "Earth & Space", title: "The Greenhouse Effect",  description: "Trap-and-release of infrared radiation in the atmosphere.", component: GreenhouseEffect },
+
   // ── Biology ─────────────────────────────────────────────────────────────
   { id: "mitosis-meiosis",    category: "Biology", title: "Mitosis & Meiosis",            description: "Stages of cell division and chromosome alignment.", component: MitosisMeiosis },
   { id: "dna-helix",          category: "Biology", title: "DNA Double Helix",             description: "Molecular structure of base pairs and sugar-phosphate backbones.", component: DNADoubleHelix },
@@ -241,6 +243,15 @@ export default function Interact() {
   const [search, setSearch] = useState("");
   const [openModel, setOpenModel] = useState<Model | null>(null);
   const [favorites, setFavorites] = useState<Set<string>>(loadFavorites);
+  const [collapsed, setCollapsed] = useState<Set<Category>>(new Set(["Physics", "Math & CS", "Biology", "Chemistry", "Earth & Space"]));
+
+  function toggleCollapsed(category: Category) {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(category)) next.delete(category); else next.add(category);
+      return next;
+    });
+  }
 
   function toggleFavorite(id: string, e: React.MouseEvent) {
     e.stopPropagation();
@@ -263,7 +274,7 @@ export default function Interact() {
 
   // Group by category for display
   const grouped = useMemo(() => {
-    const order: Category[] = ["Biology", "Physics", "Chemistry", "Earth & Space", "Math & CS"];
+    const order: Category[] = ["Physics", "Math & CS", "Biology", "Chemistry", "Earth & Space"];
     const map: Partial<Record<Category, Model[]>> = {};
     filtered.forEach((m) => {
       if (!map[m.category]) map[m.category] = [];
@@ -351,25 +362,35 @@ export default function Interact() {
           {grouped.length === 0 ? (
             <div className="py-24 text-center text-muted-foreground text-sm">No models match "{search}".</div>
           ) : (
-            grouped.map(({ category, models }) => (
-              <section key={category}>
-                <div className="mb-4 flex items-center gap-2">
-                  <span className={`h-2 w-2 rounded-full ${CATEGORY_COLORS[category].dot}`} />
-                  <h2 className="text-sm font-semibold text-foreground">{category}</h2>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                  {models.map((model) => (
-                    <ModelCard
-                      key={model.id}
-                      model={model}
-                      isFavorite={favorites.has(model.id)}
-                      onToggleFavorite={(e) => toggleFavorite(model.id, e)}
-                      onClick={() => model.component && setOpenModel(model)}
-                    />
-                  ))}
-                </div>
-              </section>
-            ))
+            grouped.map(({ category, models }) => {
+              const isCollapsed = collapsed.has(category);
+              return (
+                <section key={category}>
+                  <button
+                    onClick={() => toggleCollapsed(category)}
+                    className={`flex w-full items-center gap-2 rounded-xl border px-4 py-3 text-left transition-colors hover:border-primary/40 hover:bg-accent ${isCollapsed ? "border-border bg-card" : "mb-4 border-border bg-card"}`}
+                  >
+                    <span className={`h-2 w-2 rounded-full ${CATEGORY_COLORS[category].dot}`} />
+                    <h2 className="text-sm font-semibold text-foreground flex-1">{category}</h2>
+                    <span className="text-xs text-muted-foreground mr-1">{models.length}</span>
+                    <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 ${isCollapsed ? "" : "rotate-180"}`} />
+                  </button>
+                  {!isCollapsed && (
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                      {models.map((model) => (
+                        <ModelCard
+                          key={model.id}
+                          model={model}
+                          isFavorite={favorites.has(model.id)}
+                          onToggleFavorite={(e) => toggleFavorite(model.id, e)}
+                          onClick={() => model.component && setOpenModel(model)}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </section>
+              );
+            })
           )}
         </div>
       </div>

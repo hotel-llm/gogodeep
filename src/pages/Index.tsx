@@ -1,8 +1,8 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
-import { Camera, Microscope, Route, ArrowRight, ScanLine, BookOpen, Upload, Loader2, Flame, ChevronRight, BrainCircuit, Lock, Settings2, Lightbulb, RefreshCw, Layers } from "lucide-react";
-import { Momentum } from "@/components/interact/PhysicsModels";
+import { Camera, Microscope, Route, ArrowRight, ScanLine, BookOpen, Upload, Loader2, Flame, ChevronRight, ChevronDown, BrainCircuit, Lock, Settings2, Lightbulb, RefreshCw } from "lucide-react";
+import { UnitCircle } from "@/components/interact/MathModels2";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -39,7 +39,6 @@ const QUOTES = [
   { text: "Live as if you were to die tomorrow. Learn as if you were to live forever.", author: "Mahatma Gandhi" },
   { text: "The expert in anything was once a beginner.", author: "Helen Hayes" },
   { text: "Nothing in the world can take the place of persistence.", author: "Calvin Coolidge" },
-  { text: "I am still learning.", author: "Michelangelo" },
   { text: "Do something today that your future self will thank you for.", author: "Sean Patrick Flanery" },
   { text: "You don't lose marks for not knowing. You lose them for not finding out.", author: "Anonymous" },
   { text: "The student who reviews their mistakes outperforms the one who only studies new material.", author: "Anonymous" },
@@ -59,7 +58,7 @@ const QUOTES = [
 ];
 
 const steps = [
-  { icon: Camera, step: "01", title: "Screenshot", desc: "Take a screenshot of a difficult problem." },
+  { icon: Camera, step: "01", title: "Screenshot", desc: "Drop a screenshot of a difficult problem." },
   { icon: Route, step: "02", title: "Repair", desc: "Gogodeep breaks the question down, and you'll understand it within minutes." },
 ];
 
@@ -133,6 +132,7 @@ const Dashboard = ({ user }: { user: User }) => {
   const username = user.user_metadata?.username ?? user.email?.split("@")[0] ?? "there";
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [dropHover, setDropHover] = useState(false);
   const [quiz, setQuiz] = useState<QuizState | null>(null);
   const [showQuizConfig, setShowQuizConfig] = useState(false);
   const [quizConfig, setQuizConfig] = useState<QuizConfig>({ numQuestions: 10, questionType: "both", selectedConcepts: [] });
@@ -338,12 +338,31 @@ const Dashboard = ({ user }: { user: User }) => {
                 ][new Date().getUTCDay() * 3 % 10]}, {username}
               </h1>
             </div>
-            <Link to="/workspace">
-              <Button className="mt-4 h-10 gap-2 bg-primary px-6 text-sm font-semibold hover:bg-primary/90 sm:mt-0">
-                <ScanLine className="h-4 w-4" />
-                New Scan
-              </Button>
-            </Link>
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => navigate("/workspace")}
+              onKeyDown={(e) => e.key === "Enter" && navigate("/workspace")}
+              onDragEnter={(e) => { e.preventDefault(); setDropHover(true); }}
+              onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropHover(false); }}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDropHover(false);
+                const file = e.dataTransfer.files[0];
+                if (!file || !ALLOWED_TYPES.includes(file.type)) return;
+                pendingFileStore.set(file);
+                navigate("/workspace");
+              }}
+              className={`mt-4 sm:mt-0 flex cursor-pointer items-center gap-2.5 rounded-xl border-2 border-dashed px-5 py-3 text-sm font-semibold transition-all duration-200 select-none ${
+                dropHover
+                  ? "border-primary bg-primary/10 text-primary shadow-[0_0_16px_hsl(var(--primary)/0.2)] scale-[1.02]"
+                  : "border-primary/40 bg-primary/5 text-primary/70 hover:border-primary hover:text-primary hover:bg-primary/10"
+              }`}
+            >
+              <Upload className="h-4 w-4 shrink-0" />
+              <span>Drop a screenshot or click to scan</span>
+            </div>
           </div>
 
           {/* Stat row */}
@@ -781,39 +800,37 @@ const Dashboard = ({ user }: { user: User }) => {
 // ─── Landing page ─────────────────────────────────────────────────────────────
 
 const PHYSICS_STEPS = [
-  "Identify the known values: $h = 45\\text{ m}$, $u = 0$, $g = 9.8\\text{ m/s}^2$.",
-  "Choose the time-independent kinematic equation: $v^2 = u^2 + 2as$. Since $u = 0$ this simplifies to $v^2 = 2gh$.",
-  "Substitute: $v^2 = 2 \\times 9.8 \\times 45 = 882\\text{ m}^2\\text{/s}^2$.",
-  "Take the square root: $v = \\sqrt{882} \\approx 29.7\\text{ m/s}$.",
-  "The ball hits the ground at $\\approx 29.7\\text{ m/s}$.",
+  "Label the triangle: hypotenuse $= 10\\text{ cm}$, angle $\\theta = 35°$, and we want the side opposite $\\theta$.",
+  "The ratio linking the opposite side to the hypotenuse is sine: $\\sin\\theta = \\dfrac{\\text{opposite}}{\\text{hypotenuse}}$.",
+  "Substitute the known values: $\\sin(35°) = \\dfrac{x}{10}$.",
+  "Rearrange: $x = 10 \\times \\sin(35°)$.",
+  "Calculate: $x = 10 \\times 0.574 \\approx 5.74\\text{ cm}$.",
 ];
 
-const PHYSICS_WHAT_HAPPENED = "A ball is dropped from $45\\text{ m}$ with $u = 0$ and the problem asks for its speed on impact. Using $v^2 = 2gh$ gives $v^2 = 882$, so $v \\approx 29.7\\text{ m/s}$. The key step is recognising $u = 0$, which eliminates the $u^2$ term entirely.";
-const PHYSICS_CORE_CONCEPT = "In free fall, gravity is the only force. The equation $v^2 = u^2 + 2as$ connects velocity, acceleration, and displacement without needing time. With $u = 0$ and $a = g$ it becomes $v = \\sqrt{2gh}$ — equivalent to the work-energy theorem $mgh = \\tfrac{1}{2}mv^2$. The most common mistake is using $v = u + at$ when time is not given; always prefer the time-independent equation.";
-const PHYSICS_RECOGNITION_CUE = "When you see an object dropped or thrown from a height and asked for speed on impact, reach for $v^2 = u^2 + 2gh$. If the object starts from rest, $u = 0$ and the equation becomes $v = \\sqrt{2gh}$. Always check whether initial velocity is zero before substituting — this single step halves the working.";
+const PHYSICS_WHAT_HAPPENED = "The triangle has hypotenuse $10\\text{ cm}$ and an angle of $35°$. We need the side opposite that angle.\n\nSOH–CAH–TOA gives us:\n$$\\sin\\theta = \\dfrac{\\text{opp}}{\\text{hyp}}$$\nSubstituting: $\\text{opp} = 10 \\times \\sin(35°) \\approx 5.74\\text{ cm}$.";
+const PHYSICS_CORE_CONCEPT = "SOH–CAH–TOA is the shortcut for right-triangle trig:\n$$\\sin\\theta = \\frac{\\text{opp}}{\\text{hyp}}, \\quad \\cos\\theta = \\frac{\\text{adj}}{\\text{hyp}}, \\quad \\tan\\theta = \\frac{\\text{opp}}{\\text{adj}}$$\nPick the ratio that connects the side you know to the side you want.\n\nThe unit circle extends these definitions beyond $90°$ by placing the angle on a circle of radius $1$.";
+const PHYSICS_RECOGNITION_CUE = "When a problem gives a right triangle with one angle and one side, reach for SOH–CAH–TOA.\n\nIdentify which two sides are involved:\n**opp + hyp** → use sine\n**adj + hyp** → use cosine\n**opp + adj** → use tangent\n\nRearrange to isolate the unknown, then evaluate with a calculator.";
 
 const PHYSICS_PRACTICE = [
   {
-    q: "A ball is dropped from $80\\text{ m}$. Find its speed just before impact.",
+    q: "A right triangle has hypotenuse $8\\text{ cm}$ and angle $\\theta = 40°$. Find the adjacent side.",
     steps: [
-      "Use $v^2 = 2gh$ with $h = 80\\text{ m}$, $g = 9.8\\text{ m/s}^2$.",
-      "$v^2 = 2 \\times 9.8 \\times 80 = 1568$.",
-      "$v = \\sqrt{1568} \\approx 39.6\\text{ m/s}$.",
+      "Adjacent and hypotenuse → use cosine: $\\cos\\theta = \\text{adj}/\\text{hyp}$.",
+      "$\\text{adj} = 8 \\times \\cos(40°) = 8 \\times 0.766 \\approx 6.13\\text{ cm}$.",
     ],
   },
   {
-    q: "From what height must a ball be dropped to reach $30\\text{ m/s}$ on impact?",
+    q: "A ladder leans against a wall at $60°$ to the ground. The ladder is $5\\text{ m}$ long. How high up the wall does it reach?",
     steps: [
-      "Rearrange $v^2 = 2gh$ for $h$: $h = \\dfrac{v^2}{2g}$.",
-      "$h = \\dfrac{900}{2 \\times 9.8} = \\dfrac{900}{19.6} \\approx 45.9\\text{ m}$.",
+      "The height is the side opposite $60°$; the ladder is the hypotenuse.",
+      "$\\text{height} = 5 \\times \\sin(60°) = 5 \\times \\tfrac{\\sqrt{3}}{2} \\approx 4.33\\text{ m}$.",
     ],
   },
   {
-    q: "A stone is thrown downward at $5\\text{ m/s}$ from $20\\text{ m}$. Find its speed on impact.",
+    q: "An angle of elevation is $25°$ and the opposite side is $6\\text{ m}$. Find the hypotenuse.",
     steps: [
-      "Now $u = 5\\text{ m/s}$, so use $v^2 = u^2 + 2gh$.",
-      "$v^2 = 25 + 2 \\times 9.8 \\times 20 = 25 + 392 = 417$.",
-      "$v = \\sqrt{417} \\approx 20.4\\text{ m/s}$.",
+      "Opposite and hypotenuse → $\\sin(25°) = 6/\\text{hyp}$.",
+      "$\\text{hyp} = 6 / \\sin(25°) = 6 / 0.423 \\approx 14.19\\text{ m}$.",
     ],
   },
 ];
@@ -873,19 +890,24 @@ const DemoPanel = () => {
   const [revealedSteps, setRevealedSteps] = useState(1);
   const [revealedAnswers, setRevealedAnswers] = useState<Set<number>>(new Set());
   const [demoDragging, setDemoDragging] = useState(false);
+  const lastInteractionRef = useRef<number>(Date.now());
 
   useEffect(() => {
-    const durations = [2000, 2200, 1800, 18000];
-    const t = setTimeout(() => {
-      const next = (phase + 1) % 4;
-      setPhase(next);
-      if (next === 0 || next === 3) {
+    if (phase < 3) {
+      const durations = [2000, 2200, 1800];
+      const t = setTimeout(() => setPhase(phase + 1), durations[phase]);
+      return () => clearTimeout(t);
+    }
+    // Phase 3: only reset after 30 s of idle (no tab/step/answer interaction)
+    const t = setInterval(() => {
+      if (Date.now() - lastInteractionRef.current > 30000) {
+        setPhase(0);
         setTab("steps");
         setRevealedSteps(1);
         setRevealedAnswers(new Set());
       }
-    }, durations[phase]);
-    return () => clearTimeout(t);
+    }, 5000);
+    return () => clearInterval(t);
   }, [phase]);
 
   return (
@@ -937,9 +959,16 @@ const DemoPanel = () => {
               <div className="mb-2 h-2.5 w-3/5 rounded bg-gray-600" />
               <div className="space-y-2">
                 <div className="h-2 w-full rounded bg-gray-300" />
-                <div className="h-2 w-4/5 rounded bg-gray-300" />
-                <div className="mt-3 flex items-center justify-center rounded bg-gray-100 py-2">
-                  <span className="font-mono text-sm text-gray-700">v² = 2gh</span>
+                <div className="mt-3 flex items-center justify-center rounded bg-gray-100 py-3">
+                  <svg viewBox="0 0 170 115" className="w-36 h-24">
+                    <polygon points="25,98 125,98 125,28" fill="none" stroke="#374151" strokeWidth="1.5" />
+                    <rect x="114" y="87" width="11" height="11" fill="none" stroke="#374151" strokeWidth="1.2" />
+                    <path d="M 43,98 A 18,18 0 0,0 39.7,87.7" fill="none" stroke="#2563eb" strokeWidth="1.3" />
+                    <text x="50" y="91" fontSize="9" fill="#2563eb" fontWeight="600">35°</text>
+                    <text x="75" y="52" fontSize="9" fill="#6b7280" textAnchor="middle" transform="rotate(-35,75,52)">hyp = 10 cm</text>
+                    <text x="133" y="66" fontSize="9" fill="#16a34a" fontWeight="600">x = ?</text>
+                    <text x="75" y="111" fontSize="9" fill="#9ca3af" textAnchor="middle">adj</text>
+                  </svg>
                 </div>
                 <div className="h-2 w-3/4 rounded bg-gray-300" />
                 <div className="h-2 w-full rounded bg-gray-200" />
@@ -961,8 +990,16 @@ const DemoPanel = () => {
               <div className="space-y-2">
                 <div className="h-2 w-full rounded bg-gray-200" />
                 <div className="h-2 w-4/5 rounded bg-gray-200" />
-                <div className="mt-3 flex items-center justify-center rounded bg-gray-100 py-2">
-                  <span className="font-mono text-sm text-gray-400">v² = 2gh</span>
+                <div className="mt-3 flex items-center justify-center rounded bg-gray-100 py-3">
+                  <svg viewBox="0 0 170 115" className="w-36 h-24 opacity-40">
+                    <polygon points="25,98 125,98 125,28" fill="none" stroke="#374151" strokeWidth="1.5" />
+                    <rect x="114" y="87" width="11" height="11" fill="none" stroke="#374151" strokeWidth="1.2" />
+                    <path d="M 43,98 A 18,18 0 0,0 39.7,87.7" fill="none" stroke="#2563eb" strokeWidth="1.3" />
+                    <text x="50" y="91" fontSize="9" fill="#2563eb" fontWeight="600">35°</text>
+                    <text x="75" y="52" fontSize="9" fill="#6b7280" textAnchor="middle" transform="rotate(-35,75,52)">hyp = 10 cm</text>
+                    <text x="133" y="66" fontSize="9" fill="#16a34a" fontWeight="600">x = ?</text>
+                    <text x="75" y="111" fontSize="9" fill="#9ca3af" textAnchor="middle">adj</text>
+                  </svg>
                 </div>
                 <div className="h-2 w-3/4 rounded bg-gray-200" />
               </div>
@@ -995,12 +1032,11 @@ const DemoPanel = () => {
                   {demoTabs.map(({ value, label }) => (
                     <button
                       key={value}
-                      onClick={() => setTab(value)}
+                      onClick={() => { setTab(value); lastInteractionRef.current = Date.now(); }}
                       className={`relative z-10 flex flex-1 items-center justify-center gap-1 rounded-md py-1.5 text-[10px] font-semibold transition-colors duration-200 ${
                         tab === value ? "text-foreground" : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
-                      {value === "model" && <Layers className="h-2.5 w-2.5 shrink-0" />}
                       <span className="truncate">{label}</span>
                     </button>
                   ))}
@@ -1010,7 +1046,25 @@ const DemoPanel = () => {
 
             {tab === "steps" && (
               <div className="flex-1 space-y-2 overflow-y-auto pr-0.5">
-                <div className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-primary"><RichText text="Find $v = \sqrt{2gh}$, $h = 45\,\text{m}$" /></div>
+                {/* Triangle diagram — vertices: A(25,98) B(125,98) C(125,28); tan(35°)=70/100 ✓ */}
+                <div className="flex justify-center rounded-lg border border-border bg-secondary/30 py-2">
+                  <svg viewBox="0 0 170 115" className="w-44 h-28">
+                    <polygon points="25,98 125,98 125,28" fill="none" stroke="hsl(var(--foreground) / 0.5)" strokeWidth="1.5" />
+                    {/* right-angle box at B(125,98) */}
+                    <rect x="114" y="87" width="11" height="11" fill="none" stroke="hsl(var(--foreground) / 0.4)" strokeWidth="1.2" />
+                    {/* 35° arc at A — from base (43,98) to hyp (39.7,87.7) counterclockwise */}
+                    <path d="M 43,98 A 18,18 0 0,0 39.7,87.7" fill="none" stroke="#5b7fef" strokeWidth="1.3" />
+                    {/* 35° label — along angle bisector, r=27 from A */}
+                    <text x="50" y="91" fontSize="9" fill="#5b7fef" fontWeight="600">35°</text>
+                    {/* hyp label — centred on hyp midpoint (75,63), outside triangle */}
+                    <text x="75" y="52" fontSize="9" fill="hsl(var(--foreground) / 0.55)" textAnchor="middle" transform="rotate(-35,75,52)">hyp = 10 cm</text>
+                    {/* opposite label — right of vertical side */}
+                    <text x="133" y="66" fontSize="9" fill="#4ade80" fontWeight="600">x = ?</text>
+                    {/* base label — below horizontal */}
+                    <text x="75" y="111" fontSize="9" fill="hsl(var(--foreground) / 0.3)" textAnchor="middle">adj</text>
+                  </svg>
+                </div>
+                <div className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-primary"><RichText text="Find the opposite side" /></div>
                 {PHYSICS_STEPS.slice(0, revealedSteps).map((step, i) => (
                   <div key={i} className="flex items-start gap-2.5 rounded-lg border border-primary/20 bg-primary/5 p-3">
                     <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">{i + 1}</span>
@@ -1019,7 +1073,7 @@ const DemoPanel = () => {
                 ))}
                 {revealedSteps < PHYSICS_STEPS.length && (
                   <button
-                    onClick={() => setRevealedSteps((v) => v + 1)}
+                    onClick={() => { setRevealedSteps((v) => v + 1); lastInteractionRef.current = Date.now(); }}
                     className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-lg border border-border py-2 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
                   >
                     Next step <ChevronRight className="h-3 w-3" />
@@ -1068,11 +1122,7 @@ const DemoPanel = () => {
                         <div className="text-xs leading-relaxed text-foreground"><RichText text={item.q} /></div>
                       </div>
                       <button
-                        onClick={() => setRevealedAnswers((prev) => {
-                          const next = new Set(prev);
-                          next.has(i) ? next.delete(i) : next.add(i);
-                          return next;
-                        })}
+                        onClick={() => { lastInteractionRef.current = Date.now(); setRevealedAnswers((prev) => { const next = new Set(prev); next.has(i) ? next.delete(i) : next.add(i); return next; }); }}
                         className="shrink-0 text-[10px] font-semibold text-primary underline underline-offset-2 hover:text-primary/80"
                       >
                         {revealedAnswers.has(i) ? "Hide" : "Answer"}
@@ -1094,15 +1144,8 @@ const DemoPanel = () => {
             )}
 
             {tab === "model" && (
-              /* Clip the ModelWrap controls sidebar so only the canvas fills the demo panel */
-              <div className="flex-1 overflow-hidden rounded-lg border border-border bg-[#080e1c]" style={{ minHeight: 0 }}>
-                <p className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Interactive — Momentum & Impulse</p>
-                {/* Override ModelWrap's w-52 controls column: hide it, let canvas fill width */}
-                <div className="overflow-hidden" style={{ height: "calc(100% - 28px)" }}>
-                  <div className="[&>div]:!gap-0 [&_.w-52]:hidden" style={{ height: "100%" }}>
-                    <Momentum />
-                  </div>
-                </div>
+              <div className="flex-1 min-h-0 overflow-hidden rounded-lg border border-border">
+                <UnitCircle />
               </div>
             )}
           </div>
@@ -1126,11 +1169,28 @@ const WHALE_BUBBLES = [
 
 const Landing = () => {
   const logoRef = useRef<HTMLDivElement>(null);
+  const howItWorksRef = useRef<HTMLElement>(null);
   const [eyeOffset, setEyeOffset] = useState({ x: 0, y: 0 });
   const [isHovered, setIsHovered] = useState(false);
   const [landingQuoteOffset, setLandingQuoteOffset] = useState(0);
   const [bubbleIdx, setBubbleIdx] = useState(0);
   const [bubbleVisible, setBubbleVisible] = useState(true);
+  const [highlightedStep, setHighlightedStep] = useState<0 | 1 | 2>(0);
+  const [chevronVisible, setChevronVisible] = useState(true);
+
+  useEffect(() => {
+    const onScroll = () => setChevronVisible(window.scrollY < 80);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  function scrollToHowItWorks() {
+    setChevronVisible(false);
+    howItWorksRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    setTimeout(() => setHighlightedStep(1), 700);
+    setTimeout(() => setHighlightedStep(2), 1400);
+    setTimeout(() => setHighlightedStep(0), 2600);
+  }
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -1236,7 +1296,7 @@ const Landing = () => {
                   Fix the thinking,<br />not just the answer.
                 </h1>
                 <p className="mt-6 max-w-md text-lg leading-relaxed text-muted-foreground">
-                  Trace any difficult question down to its roots so it never bothers you again.
+                  Drop a screenshot of any hard problem right here, right now, and start learning efficiently.
                 </p>
                 <div className="mt-8">
                   <Link to="/workspace" className="group relative inline-block">
@@ -1251,26 +1311,60 @@ const Landing = () => {
               </div>
 
               {/* Right — live demo */}
-              <DemoPanel />
+              <div className="flex flex-col gap-2">
+                <p className="text-right text-xs font-semibold uppercase tracking-[0.15em] text-primary">Drop a screenshot now ↓</p>
+                <DemoPanel />
+              </div>
+            </div>
+            {/* Scroll invitation */}
+            <div className="mt-10 flex justify-center">
+              <button
+                onClick={scrollToHowItWorks}
+                aria-label="See how it works"
+                className={`animate-bounce rounded-full border border-border bg-card p-2 shadow-sm transition-all duration-500 hover:border-primary/50 hover:bg-primary/5 ${
+                  chevronVisible ? "opacity-100" : "opacity-0 pointer-events-none"
+                }`}
+              >
+                <ChevronDown className="h-5 w-5 text-primary/70" />
+              </button>
             </div>
           </div>
         </section>
 
         {/* ── How it works ── */}
-        <section className="container pb-24">
+        <section ref={howItWorksRef} className="container pb-10">
           <div className="mx-auto max-w-5xl">
             <h2 className="mb-10 text-center text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">How it works</h2>
             <div className="grid gap-6 md:grid-cols-2">
-              {steps.map(({ icon: Icon, step, title, desc }) => (
-                <Card key={step} className="border border-border bg-card p-8 transition-colors hover:bg-accent/50">
-                  <div className="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-lg border border-border bg-secondary text-primary">
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <p className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground">{step}</p>
-                  <h3 className="mt-2 text-xl font-bold tracking-tight text-foreground">{title}</h3>
-                  <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{desc}</p>
-                </Card>
-              ))}
+              {steps.map(({ icon: Icon, step, title, desc }) => {
+                const isHighlighted = (highlightedStep === 1 && step === "01") || (highlightedStep === 2 && step === "02");
+                const sweepStyle = (opacity: number, delay = 0): React.CSSProperties => ({
+                  background: `linear-gradient(to right, hsl(var(--primary) / ${opacity}) 50%, transparent 50%)`,
+                  backgroundSize: "200% 100%",
+                  backgroundPosition: isHighlighted ? "0% 0%" : "100% 0%",
+                  transition: isHighlighted
+                    ? `background-position 0.3s ease-out ${delay}s`
+                    : "background-position 0.35s ease-in",
+                  WebkitBoxDecorationBreak: "clone",
+                  boxDecorationBreak: "clone" as React.CSSProperties["boxDecorationBreak"],
+                  borderRadius: "2px",
+                  padding: "1px 2px",
+                });
+                return (
+                  <Card key={step} className="border-border bg-card p-8 transition-colors hover:bg-accent/50">
+                    <div className="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-lg border border-border bg-secondary text-primary">
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <p className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground">{step}</p>
+                    <h3 className="mt-2 text-xl font-bold tracking-tight text-foreground">
+                      <span style={sweepStyle(0.38)}>{title}</span>
+                    </h3>
+                    <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                      <span style={sweepStyle(0.22, 0.06)}>{desc}</span>
+                    </p>
+                  </Card>
+                );
+              })}
             </div>
           </div>
         </section>
@@ -1302,12 +1396,6 @@ const Landing = () => {
           </div>
         </section>
 
-        <footer className="border-t border-border">
-          <div className="container flex flex-col items-center justify-between gap-3 py-8 text-sm text-muted-foreground md:flex-row">
-            <p>Built for students, teachers, and schools.</p>
-            <Link to="/pricing" className="font-medium text-primary hover:underline">Pricing</Link>
-          </div>
-        </footer>
       </div>
     </PageTransition>
   );

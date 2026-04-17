@@ -1,8 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
+import { BrowserRouter, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Upload } from "lucide-react";
+import { pendingFileStore } from "@/lib/pendingFile";
 import AppNav from "@/components/AppNav";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import WhaleAssistant from "@/components/WhaleAssistant";
@@ -19,6 +21,51 @@ import ResetPassword from "./pages/ResetPassword";
 import Interact from "./pages/Interact";
 
 const queryClient = new QueryClient();
+
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp", "image/heic", "image/heif"];
+
+// Listens for file drops anywhere on the page and navigates to workspace
+function GlobalDropZone() {
+  const navigate = useNavigate();
+  const [dragging, setDragging] = useState(false);
+  const dragCounterRef = useRef(0);
+
+  useEffect(() => {
+    const onEnter = (e: DragEvent) => { e.preventDefault(); dragCounterRef.current++; setDragging(true); };
+    const onLeave = () => { dragCounterRef.current--; if (dragCounterRef.current === 0) setDragging(false); };
+    const onOver = (e: DragEvent) => e.preventDefault();
+    const onDrop = (e: DragEvent) => {
+      e.preventDefault();
+      dragCounterRef.current = 0;
+      setDragging(false);
+      const file = e.dataTransfer?.files[0];
+      if (!file || !ALLOWED_IMAGE_TYPES.includes(file.type)) return;
+      pendingFileStore.set(file);
+      navigate("/workspace");
+    };
+    document.addEventListener("dragenter", onEnter);
+    document.addEventListener("dragleave", onLeave);
+    document.addEventListener("dragover", onOver);
+    document.addEventListener("drop", onDrop);
+    return () => {
+      document.removeEventListener("dragenter", onEnter);
+      document.removeEventListener("dragleave", onLeave);
+      document.removeEventListener("dragover", onOver);
+      document.removeEventListener("drop", onDrop);
+    };
+  }, [navigate]);
+
+  if (!dragging) return null;
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-background/90 backdrop-blur-sm pointer-events-none">
+      <div className="flex flex-col items-center gap-4 rounded-2xl border-2 border-dashed border-primary bg-card/80 px-16 py-12 text-center shadow-2xl">
+        <Upload className="h-14 w-14 text-primary" />
+        <p className="text-2xl font-bold text-foreground">Drop your screenshot here</p>
+        <p className="text-sm text-muted-foreground">PNG or JPG · any STEM subject</p>
+      </div>
+    </div>
+  );
+}
 
 function AnimatedRoutes() {
   const location = useLocation();
@@ -68,6 +115,7 @@ const App = () => (
     <TooltipProvider>
       <BrowserRouter>
         <HashCleaner />
+        <GlobalDropZone />
         <div className="liquid-glass-bg" aria-hidden />
         <AppNav />
         <AnimatedRoutes />

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   useRaf, ModelWrap, Slider, Stat, SectionLabel, StepNav,
   C_BG, C_FG, C_DIM, C_GRID, C_PRIMARY, C_GREEN, C_RED, C_AMBER, C_PURPLE, C_CYAN,
@@ -832,18 +832,14 @@ export function PythagoreanTheorem() {
 export function UnitCircle() {
   const [theta, setTheta] = useState(45);
   const [animate, setAnimate] = useState(false);
-  const thetaRef = useRef(theta);
-  thetaRef.current = theta;
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  useRaf((t) => {
-    if (!animate) return;
-    setTheta((Math.floor(t * 60) % 360));
-  }, animate);
-  useEffect(() => {
+
+  const draw = useCallback(() => {
     const cv = canvasRef.current; if (!cv) return;
-    const ctx = setupCanvas(cv);
     const W = cv.width, H = cv.height;
-    const ox = W / 2 - 20, oy = H / 2, R = Math.min(W, H) * 0.38;
+    if (W === 0 || H === 0) return;
+    const ctx = setupCanvas(cv);
+    const ox = W / 2, oy = H / 2, R = Math.min(W, H) * 0.38;
     // grid
     ctx.strokeStyle = C_GRID; ctx.lineWidth = 1;
     for (let i = -1; i <= 1; i++) {
@@ -859,43 +855,90 @@ export function UnitCircle() {
     ctx.beginPath(); ctx.moveTo(ox, oy - R - 10); ctx.lineTo(ox, oy + R + 10); ctx.stroke();
     // angle labels
     ctx.fillStyle = C_DIM; ctx.font = "10px Inter,sans-serif"; ctx.textAlign = "center";
-    [[1,0,"0"],[0,-1,"90°"],[-1,0,"180°"],[0,1,"270°"]].forEach(([cx,cy,label]) => {
+    [[1,0,"0°"],[0,-1,"90°"],[-1,0,"180°"],[0,1,"270°"]].forEach(([cx,cy,label]) => {
       ctx.fillText(label as string, ox + (cx as number) * (R + 18), oy + (cy as number) * (R + 18) + 4);
     });
     const rad = theta * Math.PI / 180;
     const px = ox + Math.cos(rad) * R, py = oy - Math.sin(rad) * R;
-    // sin line (vertical)
+    // sin line (vertical, dashed green)
     ctx.strokeStyle = C_GREEN; ctx.lineWidth = 2; ctx.setLineDash([5, 3]);
     ctx.beginPath(); ctx.moveTo(px, oy); ctx.lineTo(px, py); ctx.stroke();
-    // cos line (horizontal)
+    // cos line (horizontal, blue)
     ctx.strokeStyle = C_PRIMARY; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(px, oy); ctx.stroke();
     ctx.setLineDash([]);
-    // radius
+    // radius (amber)
     ctx.strokeStyle = C_AMBER; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(px, py); ctx.stroke();
     // arc for angle
     ctx.strokeStyle = C_DIM; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.arc(ox, oy, R * 0.2, 0, -rad, Math.sin(rad) >= 0); ctx.stroke();
-    // point
+    // point on circle
     ctx.beginPath(); ctx.arc(px, py, 5, 0, TAU); ctx.fillStyle = C_AMBER; ctx.fill();
-    // values panel
-    const panelX = ox + R + 20;
-    ctx.fillStyle = C_FG; ctx.font = "bold 11px Inter,sans-serif"; ctx.textAlign = "left";
-    ctx.fillText(`θ = ${theta}°`, panelX, oy - 60);
-    ctx.fillStyle = C_PRIMARY; ctx.fillText(`cos θ = ${Math.cos(rad).toFixed(3)}`, panelX, oy - 40);
-    ctx.fillStyle = C_GREEN; ctx.fillText(`sin θ = ${Math.sin(rad).toFixed(3)}`, panelX, oy - 20);
-    ctx.fillStyle = C_CYAN;
-    const tan = Math.cos(rad) !== 0 ? Math.tan(rad) : Infinity;
-    ctx.fillText(`tan θ = ${isFinite(tan) ? tan.toFixed(3) : "∞"}`, panelX, oy);
-  }, [theta, animate]);
+  }, [theta]);
+
+  useRaf((t) => {
+    if (!animate) return;
+    setTheta(Math.floor(t * 60) % 360);
+  }, animate);
+
+  // Redraw whenever theta changes
+  useEffect(() => { draw(); }, [draw]);
+
+  // Resize canvas buffer to match CSS display size, then redraw
+  useEffect(() => {
+    const cv = canvasRef.current; if (!cv) return;
+    const ro = new ResizeObserver(() => {
+      cv.width = cv.offsetWidth;
+      cv.height = cv.offsetHeight;
+      draw();
+    });
+    ro.observe(cv);
+    return () => ro.disconnect();
+  }, [draw]);
+
+  const rad = theta * Math.PI / 180;
+  const sinVal = Math.sin(rad);
+  const cosVal = Math.cos(rad);
+  const tanVal = cosVal !== 0 ? Math.tan(rad) : Infinity;
+
   return (
-    <ModelWrap viz={<canvas ref={canvasRef} width={580} height={340} className="w-full h-full" />} controls={<>
-      <Slider label="Angle θ (°)" value={theta} min={0} max={360} onChange={setTheta} />
-      <button onClick={() => setAnimate(a => !a)} className={`w-full rounded py-1.5 text-xs font-medium border ${animate ? "bg-primary/20 text-primary border-primary/30" : "border-border text-muted-foreground"}`}>{animate ? "Pause" : "Animate"}</button>
-      <Stat label="Quadrant" value={theta <= 90 ? "I" : theta <= 180 ? "II" : theta <= 270 ? "III" : "IV"} />
-      <Stat label="Radians" value={`${(theta * Math.PI / 180).toFixed(3)}`} />
-    </>} />
+    <div className="flex h-full min-h-0 gap-6 p-4">
+      {/* Canvas + stat boxes */}
+      <div className="flex flex-1 min-w-0 flex-col gap-4">
+        <div className="flex-1 min-h-0 rounded-xl border border-white/[0.07] bg-[#080e1c] overflow-hidden">
+          <canvas ref={canvasRef} className="block w-full h-full" />
+        </div>
+        {/* Stat row — neutral cards, centered group, 2 dp */}
+        <div className="flex justify-center gap-3 shrink-0">
+          {[
+            { label: "θ",     value: `${theta}°`,                              color: C_AMBER   },
+            { label: "cos θ", value: cosVal.toFixed(2),                        color: C_PRIMARY },
+            { label: "sin θ", value: sinVal.toFixed(2),                        color: C_GREEN   },
+            { label: "tan θ", value: isFinite(tanVal) ? tanVal.toFixed(2) : "∞", color: C_CYAN  },
+          ].map(({ label, value, color }) => (
+            <div key={label} className="w-20 rounded-xl border border-white/[0.07] bg-[#0d1528] py-3 text-center">
+              <p className="text-[10px] text-muted-foreground mb-1">{label}</p>
+              <p className="text-sm font-bold tabular-nums" style={{ color }}>{value}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+      {/* Controls */}
+      <div className="w-48 flex-shrink-0 flex flex-col gap-5 overflow-y-auto py-1">
+        <Slider label="Angle θ (°)" value={theta} min={0} max={360} onChange={setTheta} />
+        <button
+          onClick={() => setAnimate(a => !a)}
+          className={`w-full rounded-lg py-2 text-xs font-medium border transition-colors ${animate ? "bg-primary/20 text-primary border-primary/30" : "border-border text-muted-foreground hover:text-foreground"}`}
+        >
+          {animate ? "Pause" : "Animate"}
+        </button>
+        <div className="space-y-2">
+          <Stat label="Quadrant" value={theta <= 90 ? "I" : theta <= 180 ? "II" : theta <= 270 ? "III" : "IV"} />
+          <Stat label="Radians" value={(theta * Math.PI / 180).toFixed(3)} />
+        </div>
+      </div>
+    </div>
   );
 }
 

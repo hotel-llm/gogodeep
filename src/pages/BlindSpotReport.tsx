@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import EducatorLayout from "@/components/EducatorLayout";
 import { RichText } from "@/components/RichText";
 import { supabase } from "@/integrations/supabase/client";
-import { checkScanCredits, SCAN_CACHE_KEY } from "@/lib/supabase";
+import { SCAN_CACHE_KEY } from "@/lib/supabase";
 import { FREE_FOR_ALL } from "@/lib/featureFlags";
 import { scanImageStore } from "@/lib/pendingFile";
 import { whaleToast } from "@/lib/whaleToast";
@@ -218,10 +218,9 @@ function UpgradeDialog({ open, onClose, deep = false }: { open: boolean; onClose
 
 // ── Practice tab ──────────────────────────────────────────────────────────────
 
-function PracticeTab({ problems, plan, onScanQuestion, onGenerateMore, isGeneratingMore, isLoadingPractice }: {
+function PracticeTab({ problems, plan, onGenerateMore, isGeneratingMore, isLoadingPractice }: {
   problems: PracticeItem[];
   plan: string;
-  onScanQuestion: (question: string) => Promise<void>;
   onGenerateMore: () => Promise<void>;
   isGeneratingMore: boolean;
   isLoadingPractice: boolean;
@@ -229,7 +228,6 @@ function PracticeTab({ problems, plan, onScanQuestion, onGenerateMore, isGenerat
   const isPaid = FREE_FOR_ALL || plan === "intermediate" || plan === "deep";
   const [revealed, setRevealed] = useState<Set<number>>(new Set());
   const [upgradeType, setUpgradeType] = useState<"paid" | null>(null);
-  const [scanningId, setScanningId] = useState<number | null>(null);
 
   if (isLoadingPractice) {
     return (
@@ -278,22 +276,6 @@ function PracticeTab({ problems, plan, onScanQuestion, onGenerateMore, isGenerat
                   <RichText text={p.answer} />
                 </p>
               )}
-              <div className="mt-3 border-t border-border pt-3">
-                <button
-                  disabled={scanningId === p.id}
-                  onClick={async () => {
-                    setScanningId(p.id);
-                    await onScanQuestion(p.question);
-                    setScanningId(null);
-                  }}
-                  className="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
-                >
-                  {scanningId === p.id
-                    ? <Loader2 className="h-3 w-3 animate-spin" />
-                    : <Microscope className="h-3 w-3" />}
-                  {scanningId === p.id ? "Scanning…" : "Scan this question (1 credit)"}
-                </button>
-              </div>
             </div>
           );
         })}
@@ -784,37 +766,6 @@ const BlindSpotReport = () => {
     });
   }, [activeTab, planLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const scanPracticeQuestion = useCallback(async (question: string) => {
-    const credits = await checkScanCredits();
-    if (!credits.allowed) {
-      whaleToast.error("No scan credits left. Upgrade to continue.");
-      return;
-    }
-    const base64 = questionToBase64(question);
-    const mimeType = "image/png";
-    const { data, error } = await supabase.functions.invoke("diagnose-image", {
-      body: { image: base64, mimeType, mode: "guide" },
-    });
-    if (error || (data as any)?.error) {
-      whaleToast.error(`Scan failed: ${(error as any)?.message ?? (data as any)?.error}`);
-      return;
-    }
-    const { data: { user } } = await supabase.auth.getUser();
-    const [{ data: insertedScan }] = await Promise.all([
-      (supabase as any).from("error_logs").insert({
-        student_id: user?.id ?? null,
-        subject: "Practice",
-        topic: (data as any)?.concept_label ?? (data as any)?.question_summary ?? null,
-        diagnosis: data,
-      }).select("id").single(),
-      user?.id ? (supabase as any).rpc("increment_scan_count", { user_id: user.id }) : Promise.resolve(null),
-    ]);
-    const scanId = insertedScan?.id;
-    if (scanId) {
-      localStorage.setItem(SCAN_CACHE_KEY(scanId), JSON.stringify({ imageBase64: base64, mimeType, diagnosis: data, mode: "guide" }));
-    }
-    navigate("/report", { state: { imageBase64: base64, mimeType, diagnosis: data, mode: "guide", scanId } });
-  }, [navigate]);
 
   const generateMoreProblems = useCallback(async () => {
     if (isGeneratingMore) return;
@@ -951,7 +902,7 @@ const BlindSpotReport = () => {
                     onMasterClick={() => setActiveTab("practice")}
                     isLoadingConcept={loadingConcept}
                   />}
-                  {activeTab === "practice" && <PracticeTab problems={practice} plan={plan} onScanQuestion={scanPracticeQuestion} onGenerateMore={generateMoreProblems} isGeneratingMore={isGeneratingMore} isLoadingPractice={loadingPractice} />}
+                  {activeTab === "practice" && <PracticeTab problems={practice} plan={plan} onGenerateMore={generateMoreProblems} isGeneratingMore={isGeneratingMore} isLoadingPractice={loadingPractice} />}
                   {activeTab === "model" && relatedModel && (
                     <div className="rounded-xl border border-border bg-card overflow-hidden">
                       <div className="px-4 pt-4 pb-2">
