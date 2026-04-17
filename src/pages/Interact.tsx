@@ -35,6 +35,16 @@ import {
   BinarySearchTrees, GraphTheory, MarkovChains, GameTheory, ChaosTheory,
   SphericalTrig, Encryption, BigO, Blockchain,
 } from "@/components/interact/MathCSModels";
+import {
+  QuadraticEquations, SystemsOfEquations, Logarithms, ComplexNumbers,
+  SequencesSeries, BinomialTheorem, InverseFunctions, LimitsAndContinuity,
+  TheDerivative, DefiniteIntegrals, TaylorSeries, DifferentialEquations,
+  PythagoreanTheorem, UnitCircle, LawOfSinesCosines, ConicSections,
+  Vectors2D, BinomialDistribution, LinearRegression, MatrixTransformations,
+  ModularArithmetic, SetTheory, MeanMedianMode, ConditionalProbability,
+  BayesTheorem, BooleanAlgebra, PrimeFactorization, Optimization,
+  VolumesOfRevolution, SimilarTriangles, TrigIdentities, Inequalities,
+} from "@/components/interact/MathModels2";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type Category = "Biology" | "Physics" | "Chemistry" | "Earth & Space" | "Math & CS";
@@ -174,6 +184,48 @@ const MODELS: Model[] = [
   { id: "encryption",         category: "Math & CS",     title: "Encryption Algorithms",  description: "RSA and public/private key mechanics.", component: Encryption },
   { id: "big-o",              category: "Math & CS",     title: "Big O Notation",         description: "Complexity scaling in computer algorithms.", component: BigO },
   { id: "blockchain",         category: "Math & CS",     title: "Blockchain Ledger",      description: "Distributed, sequential data verification.", component: Blockchain },
+
+  // ── Math (Algebra & Functions) ───────────────────────────────────────────
+  { id: "quadratic-equations",   category: "Math & CS", title: "Quadratic Equations",      description: "Parabolas, roots, vertex and discriminant with live sliders.", component: QuadraticEquations },
+  { id: "systems-of-equations",  category: "Math & CS", title: "Systems of Equations",     description: "Two intersecting lines — substitution and elimination visualised.", component: SystemsOfEquations },
+  { id: "logarithms",            category: "Math & CS", title: "Logarithms",               description: "Log curves, their exponential inverse, and key properties.", component: Logarithms },
+  { id: "complex-numbers",       category: "Math & CS", title: "Complex Numbers",          description: "Addition and multiplication of complex numbers on the Argand plane.", component: ComplexNumbers },
+  { id: "sequences-series",      category: "Math & CS", title: "Sequences & Series",       description: "Arithmetic and geometric progressions with partial sum visualisation.", component: SequencesSeries },
+  { id: "binomial-theorem",      category: "Math & CS", title: "Binomial Theorem",         description: "Pascal's triangle and (x+y)^n expansions.", component: BinomialTheorem },
+  { id: "inverse-functions",     category: "Math & CS", title: "Inverse Functions",        description: "f(x) and f⁻¹(x) reflected over y = x.", component: InverseFunctions },
+  { id: "inequalities",          category: "Math & CS", title: "Inequalities",             description: "Shaded solution regions for linear and quadratic inequalities.", component: Inequalities },
+
+  // ── Math (Calculus) ──────────────────────────────────────────────────────
+  { id: "limits-continuity",     category: "Math & CS", title: "Limits & Continuity",      description: "Left- and right-hand limits, holes, and discontinuities.", component: LimitsAndContinuity },
+  { id: "the-derivative",        category: "Math & CS", title: "The Derivative",           description: "Tangent line sliding along a curve — slope as rate of change.", component: TheDerivative },
+  { id: "optimization",          category: "Math & CS", title: "Optimization",             description: "Finding maxima and minima of functions within a domain.", component: Optimization },
+  { id: "definite-integrals",    category: "Math & CS", title: "Definite Integrals",       description: "Riemann sums converging to the area under a curve.", component: DefiniteIntegrals },
+  { id: "taylor-series",         category: "Math & CS", title: "Taylor & Maclaurin Series", description: "Polynomial approximations converging to sin, cos, and eˣ.", component: TaylorSeries },
+  { id: "differential-equations",category: "Math & CS", title: "Differential Equations",   description: "Slope fields and solution curves for dy/dt = ky.", component: DifferentialEquations },
+  { id: "volumes-of-revolution", category: "Math & CS", title: "Volumes of Revolution",    description: "Disk and shell methods for rotating a curve around an axis.", component: VolumesOfRevolution },
+
+  // ── Math (Geometry & Trig) ───────────────────────────────────────────────
+  { id: "pythagorean-theorem",   category: "Math & CS", title: "Pythagorean Theorem",      description: "Visual square-area proof of a² + b² = c².", component: PythagoreanTheorem },
+  { id: "unit-circle",           category: "Math & CS", title: "Unit Circle",              description: "sin, cos, and tan in all four quadrants — animatable.", component: UnitCircle },
+  { id: "law-sines-cosines",     category: "Math & CS", title: "Law of Sines & Cosines",   description: "Solving non-right triangles with sliders for angles and sides.", component: LawOfSinesCosines },
+  { id: "conic-sections",        category: "Math & CS", title: "Conic Sections",           description: "Eccentricity slider morphs between circle, ellipse, and hyperbola.", component: ConicSections },
+  { id: "vectors-2d",            category: "Math & CS", title: "Vectors in 2D",            description: "Addition, dot product, and angle between two vectors.", component: Vectors2D },
+  { id: "similar-triangles",     category: "Math & CS", title: "Similar Triangles",        description: "Scale factor and proportional sides under AA similarity.", component: SimilarTriangles },
+  { id: "trig-identities",       category: "Math & CS", title: "Trig Identities",          description: "Pythagorean, double-angle and tan identities verified numerically.", component: TrigIdentities },
+
+  // ── Math (Statistics & Probability) ─────────────────────────────────────
+  { id: "binomial-distribution", category: "Math & CS", title: "Binomial Distribution",    description: "P(X=k) bar chart with adjustable n and p.", component: BinomialDistribution },
+  { id: "linear-regression",     category: "Math & CS", title: "Linear Regression",        description: "Least-squares line of best fit and r² correlation coefficient.", component: LinearRegression },
+  { id: "mean-median-mode",      category: "Math & CS", title: "Mean, Median & Mode",      description: "How outliers shift the mean while the median stays robust.", component: MeanMedianMode },
+  { id: "conditional-probability",category:"Math & CS", title: "Conditional Probability",  description: "P(A|B) from proportional Venn diagram areas.", component: ConditionalProbability },
+  { id: "bayes-theorem",         category: "Math & CS", title: "Bayes' Theorem",           description: "Prior, likelihood and posterior in a medical-test scenario.", component: BayesTheorem },
+
+  // ── Math (Discrete & Logic) ──────────────────────────────────────────────
+  { id: "matrix-transformations",category: "Math & CS", title: "Matrix Transformations",   description: "2×2 matrix warping of a unit grid — determinant and presets.", component: MatrixTransformations },
+  { id: "modular-arithmetic",    category: "Math & CS", title: "Modular Arithmetic",       description: "Clock-face visualisation of mod n and step cycles.", component: ModularArithmetic },
+  { id: "set-theory",            category: "Math & CS", title: "Set Theory",               description: "Venn diagram for union, intersection, difference and complement.", component: SetTheory },
+  { id: "boolean-algebra",       category: "Math & CS", title: "Boolean Algebra",          description: "Truth tables and gate diagrams for AND, OR, XOR and more.", component: BooleanAlgebra },
+  { id: "prime-factorization",   category: "Math & CS", title: "Prime Factorization",      description: "Factor tree breaking any number into its prime bases.", component: PrimeFactorization },
 ];
 
 // ── Page component ────────────────────────────────────────────────────────────
