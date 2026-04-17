@@ -60,11 +60,11 @@ interface Model {
 // ── Category config ───────────────────────────────────────────────────────────
 const CATEGORIES: { label: Category | "All"; icon: React.ComponentType<{ className?: string }> }[] = [
   { label: "All",         icon: Search       },
-  { label: "Biology",     icon: FlaskConical  },
   { label: "Physics",     icon: Atom          },
+  { label: "Math & CS",   icon: BrainCircuit  },
+  { label: "Biology",     icon: FlaskConical  },
   { label: "Chemistry",   icon: Globe         },
   { label: "Earth & Space", icon: Telescope  },
-  { label: "Math & CS",   icon: BrainCircuit  },
 ];
 
 const CATEGORY_COLORS: Record<Category, { badge: string; dot: string }> = {
@@ -77,33 +77,6 @@ const CATEGORY_COLORS: Record<Category, { badge: string; dot: string }> = {
 
 // ── Model catalog ─────────────────────────────────────────────────────────────
 const MODELS: Model[] = [
-  // ── Biology ─────────────────────────────────────────────────────────────
-  { id: "mitosis-meiosis",    category: "Biology", title: "Mitosis & Meiosis",            description: "Stages of cell division and chromosome alignment.", component: MitosisMeiosis },
-  { id: "dna-helix",          category: "Biology", title: "DNA Double Helix",             description: "Molecular structure of base pairs and sugar-phosphate backbones.", component: DNADoubleHelix },
-  { id: "photosynthesis",     category: "Biology", title: "Photosynthesis",               description: "Chemical conversion process inside chloroplasts.", component: Photosynthesis },
-  { id: "circulatory-system", category: "Biology", title: "Human Circulatory System",     description: "Flow of oxygenated and deoxygenated blood through the heart.", component: CirculatorySystem },
-  { id: "nitrogen-cycle",     category: "Biology", title: "The Nitrogen Cycle",           description: "How nitrogen moves through the biosphere and atmosphere.", component: NitrogenCycle },
-  { id: "protein-folding",    category: "Biology", title: "Protein Folding",              description: "How amino acid chains form complex 3D structures.", component: ProteinFolding },
-  { id: "action-potential",   category: "Biology", title: "Action Potential",             description: "Electrical signal travelling down a neuron's axon.", component: ActionPotential },
-  { id: "synaptic-transmission", category: "Biology", title: "Synaptic Transmission",    description: "Neurotransmitters crossing the synaptic cleft.", component: SynapticTransmission },
-  { id: "homeostasis",        category: "Biology", title: "Homeostasis",                  description: "Feedback loops — insulin/glucagon regulation.", component: Homeostasis },
-  { id: "phylogenetic-trees", category: "Biology", title: "Phylogenetic Trees",           description: "Mapping common ancestry across evolutionary time.", component: PhylogeneticTrees },
-  { id: "cell-membrane",      category: "Biology", title: "Cell Membrane Fluid Mosaic",  description: "Phospholipid bilayer and embedded membrane proteins.", component: CellMembrane },
-  { id: "carbon-cycle",       category: "Biology", title: "The Carbon Cycle",             description: "Carbon exchange between oceans, land, and atmosphere.", component: CarbonCycle },
-  { id: "osmosis-diffusion",  category: "Biology", title: "Osmosis & Diffusion",          description: "Movement of molecules across semi-permeable membranes.", component: OsmosisDiffusion },
-  { id: "enzyme-substrate",   category: "Biology", title: "Enzyme-Substrate Lock & Key", description: "The mechanics of biological catalysis.", component: EnzymeSubstrate },
-  { id: "gas-exchange",       category: "Biology", title: "Respiratory Gas Exchange",     description: "Alveoli function in the lungs.", component: GasExchange },
-  { id: "water-cycle",        category: "Biology", title: "The Water Cycle",              description: "Evaporation, condensation, and precipitation.", component: WaterCycle },
-  { id: "immune-response",    category: "Biology", title: "Immune Response",              description: "Pathogen recognition by T-cells and B-cells.", component: ImmuneResponse },
-  { id: "food-webs",          category: "Biology", title: "Food Webs",                    description: "Energy transfer across trophic levels.", component: FoodWebs },
-  { id: "pollination",        category: "Biology", title: "Pollination Cycles",           description: "Reproductive mechanics of flowering plants.", component: Pollination },
-  { id: "skeletal-biomechanics", category: "Biology", title: "Skeletal Biomechanics",    description: "Pivot, hinge, and ball-and-socket joints.", component: SkeletalBiomechanics },
-  { id: "binary-fission",     category: "Biology", title: "Bacterial Binary Fission",    description: "Asexual reproduction in prokaryotes.", component: BinaryFission },
-  { id: "viral-replication",  category: "Biology", title: "Viral Replication",            description: "The lytic and lysogenic cycles.", component: ViralReplication },
-  { id: "crispr",             category: "Biology", title: "CRISPR-Cas9",                  description: "Mechanism of targeted gene editing.", component: CRISPRCas9 },
-  { id: "carbon-sequestration", category: "Biology", title: "Carbon Sequestration",      description: "How plants and soil store atmospheric carbon.", component: CarbonSequestration },
-  { id: "biome-distribution", category: "Biology", title: "Biome Distribution",          description: "Global mapping of climates and ecosystems.", component: BiomeDistribution },
-
   // ── Physics ─────────────────────────────────────────────────────────────
   { id: "projectile-motion",  category: "Physics", title: "Projectile Motion",            description: "Parabolic trajectories under gravity — drag to set angle.", component: ProjectileMotion },
   { id: "shm",                category: "Physics", title: "Simple Harmonic Motion",       description: "Oscillation of pendulums and springs.", component: SHM },
@@ -226,6 +199,33 @@ const MODELS: Model[] = [
   { id: "set-theory",            category: "Math & CS", title: "Set Theory",               description: "Venn diagram for union, intersection, difference and complement.", component: SetTheory },
   { id: "boolean-algebra",       category: "Math & CS", title: "Boolean Algebra",          description: "Truth tables and gate diagrams for AND, OR, XOR and more.", component: BooleanAlgebra },
   { id: "prime-factorization",   category: "Math & CS", title: "Prime Factorization",      description: "Factor tree breaking any number into its prime bases.", component: PrimeFactorization },
+
+  // ── Biology ─────────────────────────────────────────────────────────────
+  { id: "mitosis-meiosis",    category: "Biology", title: "Mitosis & Meiosis",            description: "Stages of cell division and chromosome alignment.", component: MitosisMeiosis },
+  { id: "dna-helix",          category: "Biology", title: "DNA Double Helix",             description: "Molecular structure of base pairs and sugar-phosphate backbones.", component: DNADoubleHelix },
+  { id: "photosynthesis",     category: "Biology", title: "Photosynthesis",               description: "Chemical conversion process inside chloroplasts.", component: Photosynthesis },
+  { id: "circulatory-system", category: "Biology", title: "Human Circulatory System",     description: "Flow of oxygenated and deoxygenated blood through the heart.", component: CirculatorySystem },
+  { id: "nitrogen-cycle",     category: "Biology", title: "The Nitrogen Cycle",           description: "How nitrogen moves through the biosphere and atmosphere.", component: NitrogenCycle },
+  { id: "protein-folding",    category: "Biology", title: "Protein Folding",              description: "How amino acid chains form complex 3D structures.", component: ProteinFolding },
+  { id: "action-potential",   category: "Biology", title: "Action Potential",             description: "Electrical signal travelling down a neuron's axon.", component: ActionPotential },
+  { id: "synaptic-transmission", category: "Biology", title: "Synaptic Transmission",    description: "Neurotransmitters crossing the synaptic cleft.", component: SynapticTransmission },
+  { id: "homeostasis",        category: "Biology", title: "Homeostasis",                  description: "Feedback loops — insulin/glucagon regulation.", component: Homeostasis },
+  { id: "phylogenetic-trees", category: "Biology", title: "Phylogenetic Trees",           description: "Mapping common ancestry across evolutionary time.", component: PhylogeneticTrees },
+  { id: "cell-membrane",      category: "Biology", title: "Cell Membrane Fluid Mosaic",  description: "Phospholipid bilayer and embedded membrane proteins.", component: CellMembrane },
+  { id: "carbon-cycle",       category: "Biology", title: "The Carbon Cycle",             description: "Carbon exchange between oceans, land, and atmosphere.", component: CarbonCycle },
+  { id: "osmosis-diffusion",  category: "Biology", title: "Osmosis & Diffusion",          description: "Movement of molecules across semi-permeable membranes.", component: OsmosisDiffusion },
+  { id: "enzyme-substrate",   category: "Biology", title: "Enzyme-Substrate Lock & Key", description: "The mechanics of biological catalysis.", component: EnzymeSubstrate },
+  { id: "gas-exchange",       category: "Biology", title: "Respiratory Gas Exchange",     description: "Alveoli function in the lungs.", component: GasExchange },
+  { id: "water-cycle",        category: "Biology", title: "The Water Cycle",              description: "Evaporation, condensation, and precipitation.", component: WaterCycle },
+  { id: "immune-response",    category: "Biology", title: "Immune Response",              description: "Pathogen recognition by T-cells and B-cells.", component: ImmuneResponse },
+  { id: "food-webs",          category: "Biology", title: "Food Webs",                    description: "Energy transfer across trophic levels.", component: FoodWebs },
+  { id: "pollination",        category: "Biology", title: "Pollination Cycles",           description: "Reproductive mechanics of flowering plants.", component: Pollination },
+  { id: "skeletal-biomechanics", category: "Biology", title: "Skeletal Biomechanics",    description: "Pivot, hinge, and ball-and-socket joints.", component: SkeletalBiomechanics },
+  { id: "binary-fission",     category: "Biology", title: "Bacterial Binary Fission",    description: "Asexual reproduction in prokaryotes.", component: BinaryFission },
+  { id: "viral-replication",  category: "Biology", title: "Viral Replication",            description: "The lytic and lysogenic cycles.", component: ViralReplication },
+  { id: "crispr",             category: "Biology", title: "CRISPR-Cas9",                  description: "Mechanism of targeted gene editing.", component: CRISPRCas9 },
+  { id: "carbon-sequestration", category: "Biology", title: "Carbon Sequestration",      description: "How plants and soil store atmospheric carbon.", component: CarbonSequestration },
+  { id: "biome-distribution", category: "Biology", title: "Biome Distribution",          description: "Global mapping of climates and ecosystems.", component: BiomeDistribution },
 ];
 
 // ── Page component ────────────────────────────────────────────────────────────
@@ -275,7 +275,7 @@ export default function Interact() {
   return (
     <PageTransition>
       <Helmet>
-        <title>Interact — Interactive STEM Models | Gogodeep</title>
+        <title>Interact</title>
         <meta name="description" content="Explore 100+ interactive STEM diagrams and models. Drag, adjust, and animate concepts across biology, physics, chemistry, and mathematics." />
       </Helmet>
 
@@ -285,7 +285,7 @@ export default function Interact() {
           <div className="container py-8">
             <div className="flex flex-col gap-1">
               <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">Interactive</p>
-              <h1 className="text-3xl font-bold tracking-tight text-foreground">STEM Models</h1>
+              <h1 className="text-3xl font-bold tracking-tight text-foreground">Interactive Models</h1>
               <p className="mt-1 text-sm text-muted-foreground">
                 Click any concept to explore an interactive diagram or simulation.
               </p>
@@ -379,7 +379,8 @@ export default function Interact() {
         <DialogContent className="border border-border bg-card p-0 sm:max-w-5xl" style={{ height: "min(85vh, 600px)" }}>
           {openModel && (
             <>
-              <DialogHeader className="flex-shrink-0 border-b border-border px-5 py-3.5">
+              {/* pr-10 leaves room for the absolute-positioned DialogContent X button */}
+              <DialogHeader className="flex-shrink-0 border-b border-border px-5 pr-10 py-3.5">
                 <div className="flex items-center gap-3">
                   <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${CATEGORY_COLORS[openModel.category].badge}`}>
                     {openModel.category}

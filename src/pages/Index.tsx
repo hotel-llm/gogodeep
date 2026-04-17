@@ -1,7 +1,8 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
-import { Camera, Microscope, Route, ArrowRight, ScanLine, BookOpen, Upload, Loader2, Flame, ChevronRight, BrainCircuit, Lock, Settings2, Lightbulb, RefreshCw } from "lucide-react";
+import { Camera, Microscope, Route, ArrowRight, ScanLine, BookOpen, Upload, Loader2, Flame, ChevronRight, BrainCircuit, Lock, Settings2, Lightbulb, RefreshCw, Layers } from "lucide-react";
+import { Momentum } from "@/components/interact/PhysicsModels";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -58,9 +59,8 @@ const QUOTES = [
 ];
 
 const steps = [
-  { icon: Camera, step: "01", title: "Capture", desc: "Snap a photo of notebook, worksheet, or board work." },
-  { icon: Microscope, step: "02", title: "Diagnose", desc: "Gogodeep finds the issue and reveals the underlying concept." },
-  { icon: Route, step: "03", title: "Repair", desc: "Students complete targeted practice to repair their gap." },
+  { icon: Camera, step: "01", title: "Screenshot", desc: "Take a screenshot of a difficult problem." },
+  { icon: Route, step: "02", title: "Repair", desc: "Gogodeep breaks the question down, and you'll understand it within minutes." },
 ];
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
@@ -313,7 +313,7 @@ const Dashboard = ({ user }: { user: User }) => {
   return (
     <PageTransition>
       <Helmet>
-        <title>Gogodeep — Fix the Thinking, Not Just the Answer</title>
+        <title>Gogodeep</title>
         <meta name="description" content="Trace any difficult question down to its roots with AI. Gogodeep finds the exact error in your STEM working, explains the underlying concept, and builds targeted practice to fix the gap. Free for IB, AP, and A-Level students." />
       </Helmet>
       <div className="relative z-10 min-h-screen pt-14">
@@ -862,7 +862,7 @@ const DEMO_PRACTICE = [
   },
 ];
 
-type DemoTab = "steps" | "concept" | "practice";
+type DemoTab = "steps" | "concept" | "practice" | "model";
 
 const ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp", "image/heic", "image/heif"];
 
@@ -875,11 +875,11 @@ const DemoPanel = () => {
   const [demoDragging, setDemoDragging] = useState(false);
 
   useEffect(() => {
-    const durations = [2000, 2200, 1800, 8000, 2200, 1800, 16000];
+    const durations = [2000, 2200, 1800, 18000];
     const t = setTimeout(() => {
-      const next = (phase + 1) % 7;
+      const next = (phase + 1) % 4;
       setPhase(next);
-      if (next === 0 || next === 3 || next === 6) {
+      if (next === 0 || next === 3) {
         setTab("steps");
         setRevealedSteps(1);
         setRevealedAnswers(new Set());
@@ -979,23 +979,29 @@ const DemoPanel = () => {
         {phase === 3 && (
           <div className="animate-fade-up flex h-full flex-col p-4">
             {(() => {
-              const demoTabs: DemoTab[] = ["steps", "concept", "practice"];
-              const demoTabIdx = demoTabs.indexOf(tab);
+              const demoTabs: { value: DemoTab; label: string }[] = [
+                { value: "steps", label: "Step by Step" },
+                { value: "concept", label: "Concept" },
+                { value: "practice", label: "Practice" },
+                { value: "model", label: "Model" },
+              ];
+              const demoTabIdx = demoTabs.findIndex((t) => t.value === tab);
               return (
                 <div className="relative mb-3 flex gap-1 rounded-lg border border-border bg-secondary p-1">
                   <div
                     className="absolute bottom-1 top-1 rounded-md bg-card shadow-sm transition-transform duration-200 ease-out"
-                    style={{ width: "calc((100% - 8px) / 3)", transform: `translateX(calc(${demoTabIdx} * 100%))` }}
+                    style={{ width: "calc((100% - 8px) / 4)", transform: `translateX(calc(${demoTabIdx} * 100%))` }}
                   />
-                  {demoTabs.map((t) => (
+                  {demoTabs.map(({ value, label }) => (
                     <button
-                      key={t}
-                      onClick={() => setTab(t)}
-                      className={`relative z-10 flex-1 rounded-md py-1.5 text-[11px] font-semibold transition-colors duration-200 ${
-                        tab === t ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+                      key={value}
+                      onClick={() => setTab(value)}
+                      className={`relative z-10 flex flex-1 items-center justify-center gap-1 rounded-md py-1.5 text-[10px] font-semibold transition-colors duration-200 ${
+                        tab === value ? "text-foreground" : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
-                      {t === "steps" ? "Step by Step" : t === "concept" ? "Concept" : "Practice"}
+                      {value === "model" && <Layers className="h-2.5 w-2.5 shrink-0" />}
+                      <span className="truncate">{label}</span>
                     </button>
                   ))}
                 </div>
@@ -1086,165 +1092,17 @@ const DemoPanel = () => {
                 ))}
               </div>
             )}
-          </div>
-        )}
 
-        {/* Phase 4: calculus image slides in */}
-        {phase === 4 && (
-          <div className="flex h-full flex-col items-center justify-center gap-3 p-8">
-            <div className="animate-slide-in-paper w-64 rounded-xl bg-amber-50 p-5 shadow-xl">
-              <p className="mb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wide">Question 3</p>
-              <div className="mb-2 h-2.5 w-4/5 rounded bg-gray-600" />
-              <div className="space-y-2">
-                <div className="h-2 w-full rounded bg-gray-300" />
-                <div className="h-2 w-5/6 rounded bg-gray-300" />
-                <div className="mt-3 flex items-center justify-center rounded bg-gray-100 py-2">
-                  <span className="font-mono text-sm text-gray-700">∫ x eˣ dx</span>
-                </div>
-                <div className="h-2 w-3/4 rounded bg-gray-300" />
-                <div className="h-2 w-full rounded bg-gray-200" />
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5 rounded-md border border-border bg-secondary/60 px-3 py-1.5">
-              <Camera className="h-3 w-3 text-muted-foreground" />
-              <span className="text-[11px] text-muted-foreground">Mock Test 2.jpg</span>
-            </div>
-          </div>
-        )}
-
-        {/* Phase 5: calculus scanning */}
-        {phase === 5 && (
-          <div className="relative flex h-full flex-col items-center justify-center gap-3 p-8">
-            <div className="w-64 rounded-xl bg-amber-50 p-5 opacity-50 shadow-xl">
-              <p className="mb-2 text-[10px] font-bold text-gray-400 uppercase tracking-wide">Question 3</p>
-              <div className="mb-2 h-2.5 w-4/5 rounded bg-gray-300" />
-              <div className="space-y-2">
-                <div className="h-2 w-full rounded bg-gray-200" />
-                <div className="h-2 w-5/6 rounded bg-gray-200" />
-                <div className="mt-3 flex items-center justify-center rounded bg-gray-100 py-2">
-                  <span className="font-mono text-sm text-gray-400">∫ x eˣ dx</span>
-                </div>
-                <div className="h-2 w-3/4 rounded bg-gray-200" />
-              </div>
-            </div>
-            <div className="animate-scan-sweep absolute inset-x-6 h-px" style={{ background: "hsl(var(--primary))", boxShadow: "0 0 10px 2px hsl(var(--primary) / 0.5)" }} />
-            <div className="absolute bottom-4 left-4 right-4 flex items-center gap-2 rounded-lg border border-border bg-card/90 px-3 py-2 backdrop-blur-sm">
-              <Loader2 className="h-3 w-3 animate-spin text-primary" />
-              <span className="text-xs text-muted-foreground">Mapping the solution path…</span>
-            </div>
-          </div>
-        )}
-
-        {/* Phase 6: calculus tabbed results */}
-        {phase === 6 && (
-          <div className="animate-fade-up flex h-full flex-col p-4">
-            {/* Tab bar */}
-            {(() => {
-              const demoTabs: DemoTab[] = ["steps", "concept", "practice"];
-              const demoTabIdx = demoTabs.indexOf(tab);
-              return (
-                <div className="relative mb-3 flex gap-1 rounded-lg border border-border bg-secondary p-1">
-                  <div
-                    className="absolute bottom-1 top-1 rounded-md bg-card shadow-sm transition-transform duration-200 ease-out"
-                    style={{ width: "calc((100% - 8px) / 3)", transform: `translateX(calc(${demoTabIdx} * 100%))` }}
-                  />
-                  {demoTabs.map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => setTab(t)}
-                      className={`relative z-10 flex-1 rounded-md py-1.5 text-[11px] font-semibold transition-colors duration-200 ${
-                        tab === t ? "text-foreground" : "text-muted-foreground hover:text-foreground"
-                      }`}
-                    >
-                      {t === "steps" ? "Step by Step" : t === "concept" ? "Concept" : "Practice"}
-                    </button>
-                  ))}
-                </div>
-              );
-            })()}
-
-            {tab === "steps" && (
-              <div className="flex-1 space-y-2 overflow-y-auto pr-0.5">
-                <div className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-primary"><RichText text="Evaluate $\int x\,e^x\,dx$" /></div>
-                {DEMO_STEPS.slice(0, revealedSteps).map((step, i) => (
-                  <div key={i} className="flex items-start gap-2.5 rounded-lg border border-primary/20 bg-primary/5 p-3">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">{i + 1}</span>
-                    <div className="text-xs leading-relaxed text-foreground"><RichText text={step} /></div>
+            {tab === "model" && (
+              /* Clip the ModelWrap controls sidebar so only the canvas fills the demo panel */
+              <div className="flex-1 overflow-hidden rounded-lg border border-border bg-[#080e1c]" style={{ minHeight: 0 }}>
+                <p className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Interactive — Momentum & Impulse</p>
+                {/* Override ModelWrap's w-52 controls column: hide it, let canvas fill width */}
+                <div className="overflow-hidden" style={{ height: "calc(100% - 28px)" }}>
+                  <div className="[&>div]:!gap-0 [&_.w-52]:hidden" style={{ height: "100%" }}>
+                    <Momentum />
                   </div>
-                ))}
-                {revealedSteps < DEMO_STEPS.length && (
-                  <button
-                    onClick={() => setRevealedSteps((v) => v + 1)}
-                    className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-lg border border-border py-2 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
-                  >
-                    Next step <ChevronRight className="h-3 w-3" />
-                  </button>
-                )}
-                {revealedSteps >= DEMO_STEPS.length && (
-                  <p className="pt-1 text-center text-[10px] text-muted-foreground/50">All steps revealed.</p>
-                )}
-              </div>
-            )}
-
-            {tab === "concept" && (
-              <div className="flex-1 space-y-2 overflow-y-auto">
-                <div className="rounded-lg border border-border bg-secondary/40 p-3">
-                  <div className="mb-1.5 flex items-center gap-1.5">
-                    <Microscope className="h-3 w-3 text-primary" />
-                    <p className="text-[10px] font-semibold uppercase tracking-widest text-primary">In this problem</p>
-                  </div>
-                  <div className="text-xs leading-relaxed text-muted-foreground"><RichText text={DEMO_WHAT_HAPPENED} /></div>
                 </div>
-                <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
-                  <div className="mb-1.5 flex items-center gap-1.5">
-                    <Lightbulb className="h-3 w-3 text-primary" />
-                    <p className="text-[10px] font-semibold uppercase tracking-widest text-primary">The concept</p>
-                  </div>
-                  <div className="text-xs leading-relaxed text-muted-foreground"><RichText text={DEMO_CORE_CONCEPT} /></div>
-                </div>
-                <div className="rounded-lg border border-border bg-secondary/60 p-3">
-                  <div className="mb-1.5 flex items-center gap-1.5">
-                    <ArrowRight className="h-3 w-3 text-primary" />
-                    <p className="text-[10px] font-semibold uppercase tracking-widest text-primary">When you see this</p>
-                  </div>
-                  <div className="text-xs leading-relaxed text-muted-foreground"><RichText text={DEMO_RECOGNITION_CUE} /></div>
-                </div>
-              </div>
-            )}
-
-            {tab === "practice" && (
-              <div className="flex-1 space-y-2 overflow-y-auto">
-                <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-primary">Practice Questions</p>
-                {DEMO_PRACTICE.map((item, i) => (
-                  <div key={i} className="rounded-lg border border-primary/20 bg-primary/5 p-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-start gap-2">
-                        <span className="mt-0.5 shrink-0 text-xs font-bold text-primary">{i + 1}.</span>
-                        <div className="text-xs leading-relaxed text-foreground"><RichText text={item.q} /></div>
-                      </div>
-                      <button
-                        onClick={() => setRevealedAnswers((prev) => {
-                          const next = new Set(prev);
-                          next.has(i) ? next.delete(i) : next.add(i);
-                          return next;
-                        })}
-                        className="shrink-0 text-[10px] font-semibold text-primary underline underline-offset-2 hover:text-primary/80"
-                      >
-                        {revealedAnswers.has(i) ? "Hide" : "Answer"}
-                      </button>
-                    </div>
-                    {revealedAnswers.has(i) && (
-                      <div className="mt-2 space-y-1">
-                        {item.steps.map((step, si) => (
-                          <div key={si} className="flex items-start gap-2 rounded border border-primary/20 bg-card px-2.5 py-1.5">
-                            <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-primary-foreground">{si + 1}</span>
-                            <div className="text-[11px] leading-relaxed text-foreground"><RichText text={step} /></div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
               </div>
             )}
           </div>
@@ -1309,7 +1167,7 @@ const Landing = () => {
   return (
     <PageTransition>
       <Helmet>
-        <title>Gogodeep — Fix the Thinking, Not Just the Answer</title>
+        <title>Gogodeep</title>
         <meta name="description" content="Trace any difficult question down to its roots with AI. Gogodeep finds the exact error in your STEM working, explains the underlying concept, and builds targeted practice to fix the gap. Free for IB, AP, and A-Level students." />
       </Helmet>
       <div className="relative z-10 min-h-screen pt-14">
@@ -1374,7 +1232,6 @@ const Landing = () => {
                   </div>
                 </div>
 
-                <p className="mt-0 text-xs font-semibold uppercase tracking-[0.2em] text-primary">Diagnostic Teaching</p>
                 <h1 className="mt-4 text-5xl font-extrabold tracking-tight text-foreground md:text-6xl">
                   Fix the thinking,<br />not just the answer.
                 </h1>
@@ -1382,10 +1239,12 @@ const Landing = () => {
                   Trace any difficult question down to its roots so it never bothers you again.
                 </p>
                 <div className="mt-8">
-                  <Link to="/signup">
-                    <Button className="h-12 px-8 text-base font-semibold bg-primary hover:bg-primary/90">
-                      Get Started Free
-                      <ArrowRight className="ml-2 h-4 w-4" />
+                  <Link to="/workspace" className="group relative inline-block">
+                    {/* glow layer */}
+                    <span className="absolute inset-0 rounded-md bg-primary opacity-0 blur-xl transition-all duration-500 group-hover:opacity-70 group-hover:scale-110 pointer-events-none" />
+                    <Button className="relative h-12 px-8 text-base font-semibold bg-primary transition-all duration-300 group-hover:bg-primary group-hover:shadow-[0_0_32px_6px_rgba(91,127,239,0.55)] group-hover:scale-105">
+                      Go!
+                      <ArrowRight className="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
                     </Button>
                   </Link>
                 </div>
@@ -1401,7 +1260,7 @@ const Landing = () => {
         <section className="container pb-24">
           <div className="mx-auto max-w-5xl">
             <h2 className="mb-10 text-center text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">How it works</h2>
-            <div className="grid gap-6 md:grid-cols-3">
+            <div className="grid gap-6 md:grid-cols-2">
               {steps.map(({ icon: Icon, step, title, desc }) => (
                 <Card key={step} className="border border-border bg-card p-8 transition-colors hover:bg-accent/50">
                   <div className="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-lg border border-border bg-secondary text-primary">

@@ -134,7 +134,7 @@ const Pricing = () => {
   return (
     <PageTransition>
       <Helmet>
-        <title>Pricing — Start Free | Gogodeep AI Study Tool</title>
+        <title>Pricing</title>
         <meta name="description" content="Start free with 3 AI scans a day. Upgrade for unlimited scans, targeted practice questions, and daily recap quizzes. AI analysis breakdowns for IB, AP, and A-Level STEM subjects." />
       </Helmet>
       <div className="relative z-10 min-h-screen pt-14">

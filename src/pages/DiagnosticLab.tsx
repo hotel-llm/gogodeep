@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const SESSION_REPORT_KEY = "gogodeep_pending_report";
+const GUEST_SCAN_KEY = "gogodeep_guest_scan_used";
 
 function WhaleScanLoader({ complete }: { complete: boolean }) {
   return (
@@ -56,6 +57,15 @@ const DiagnosticLab = () => {
 
   const analyzeImage = useCallback(
     async (file: File) => {
+      // Check if guest already used their free scan
+      const {
+        data: { user: preCheckUser },
+      } = await supabase.auth.getUser();
+      if (!preCheckUser?.id && localStorage.getItem(GUEST_SCAN_KEY)) {
+        setShowLoginGate(true);
+        return;
+      }
+
       setIsAnalyzing(true);
 
       try {
@@ -124,9 +134,14 @@ const DiagnosticLab = () => {
         const topic = (data as any)?.concept_label ?? (data as any)?.question_summary ?? null;
 
         if (!user?.id) {
-          pendingNavRef.current = { imageUrl: url, diagnosis: data };
-          setIsAnalyzing(false);
-          setShowLoginGate(true);
+          // Guest gets 1 free scan — navigate directly to report, no DB insert
+          localStorage.setItem(GUEST_SCAN_KEY, "1");
+          try {
+            sessionStorage.setItem(SESSION_REPORT_KEY, JSON.stringify({ diagnosis: data, mode: "guide", guest: true }));
+          } catch { /* ignore */ }
+          setScanComplete(true);
+          await new Promise((r) => setTimeout(r, 580));
+          navigate("/report", { state: { imageUrl: url, diagnosis: data, mode: "guide", guest: true } });
           return;
         }
 
@@ -180,6 +195,15 @@ const DiagnosticLab = () => {
     const trimmed = textInput.trim();
     if (!trimmed) return;
 
+    // Check if guest already used their free scan
+    const {
+      data: { user: preCheckUser },
+    } = await supabase.auth.getUser();
+    if (!preCheckUser?.id && localStorage.getItem(GUEST_SCAN_KEY)) {
+      setShowLoginGate(true);
+      return;
+    }
+
     setIsAnalyzing(true);
 
     try {
@@ -214,9 +238,14 @@ const DiagnosticLab = () => {
       const topic = (data as any)?.concept_label ?? (data as any)?.question_summary ?? null;
 
       if (!user?.id) {
-        pendingNavRef.current = { imageUrl: "", diagnosis: data };
-        setIsAnalyzing(false);
-        setShowLoginGate(true);
+        // Guest gets 1 free scan — navigate directly to report, no DB insert
+        localStorage.setItem(GUEST_SCAN_KEY, "1");
+        try {
+          sessionStorage.setItem(SESSION_REPORT_KEY, JSON.stringify({ diagnosis: data, mode: "guide", guest: true, inputText: trimmed }));
+        } catch { /* ignore */ }
+        setScanComplete(true);
+        await new Promise((r) => setTimeout(r, 580));
+        navigate("/report", { state: { imageUrl: null, inputText: trimmed, diagnosis: data, mode: "guide", guest: true } });
         return;
       }
 
@@ -292,9 +321,9 @@ const DiagnosticLab = () => {
   }, [analyzeImage]);
 
   return (
-    <EducatorLayout title="Workspace" subtitle="Upload a question and we'll guide you through it step by step.">
+    <EducatorLayout title="Workspace" subtitle="Upload a question and you will understand it within minutes.">
       <Helmet>
-        <title>Workspace — AI Scanner for Hard STEM Questions | Gogodeep</title>
+        <title>Workspace</title>
         <meta name="description" content="Upload a photo of your exam working or handwritten notes. Gogodeep analyses hard STEM questions, finds your error, and guides you step by step. Supports Physics HL, Math HL AA, AP Calculus BC, and AP Statistics." />
       </Helmet>
       <div className="mx-auto max-w-2xl mt-12" data-feature="ai-scanner-for-hard-stem-questions" data-input-type="handwritten-notes,photo-upload,exam-working">
@@ -384,9 +413,9 @@ const DiagnosticLab = () => {
       <Dialog open={showLoginGate} onOpenChange={setShowLoginGate}>
         <DialogContent className="border border-border bg-card sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-foreground">Sign up to save your results</DialogTitle>
+            <DialogTitle className="text-foreground">Create a free account to continue</DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              Create a free account to save your scan and track your progress over time.
+              You've used your free guest scan. Sign up to unlock unlimited scans and save your progress.
             </DialogDescription>
           </DialogHeader>
           <div className="mt-2 flex flex-col gap-2">

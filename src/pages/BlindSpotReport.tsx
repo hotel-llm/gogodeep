@@ -3,8 +3,14 @@ import { Helmet } from "react-helmet-async";
 import { useLocation, Link, useNavigate } from "react-router-dom";
 import {
   BookOpen, ArrowLeft, TriangleAlert, Lightbulb, ClipboardList,
-  ChevronRight, ArrowRight, FileSearch, Lock, Loader2, Microscope, CheckCircle2,
+  ChevronRight, ArrowRight, FileSearch, Lock, Loader2, Microscope, CheckCircle2, Layers,
 } from "lucide-react";
+import { UnitCircle, LawOfSinesCosines, TrigIdentities, PythagoreanTheorem, QuadraticEquations, TheDerivative, DefiniteIntegrals, LimitsAndContinuity, TaylorSeries, DifferentialEquations, LinearRegression, BinomialDistribution, Vectors2D, ComplexNumbers, Logarithms, ConicSections, MatrixTransformations, SequencesSeries, Optimization, SimilarTriangles, Inequalities } from "@/components/interact/MathModels2";
+import { NormalDistribution } from "@/components/interact/MathCSModels";
+import { SHM, EMInduction, CentripetalForce, Optics, WaveInterference, ElectricCircuits, DopplerEffect, Momentum, HeatTransfer, KineticTheory, RotationalInertia } from "@/components/interact/PhysicsModels";
+import { BohrModel, TitrationCurves, ReactionKinetics, IdealGasLaw, PHScale, RadioactiveDecay, GalvanicCells, LeChatelier } from "@/components/interact/ChemistryModels";
+import { MitosisMeiosis, DNADoubleHelix, Photosynthesis, CirculatorySystem, OsmosisDiffusion, EnzymeSubstrate, CellMembrane, ActionPotential } from "@/components/interact/BiologyModels";
+import { KeplerLaws, StellarLifecycle, GreenhouseEffect, AtmosphereLayers } from "@/components/interact/EarthSpaceModels";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -92,9 +98,85 @@ type NavState = {
   inputText?: string;
   diagnosis?: Diagnosis;
   mode?: "guide" | "identify";
+  guest?: boolean;
 };
 
-type ReportTab = "steps" | "error" | "concept" | "practice";
+type ReportTab = "steps" | "error" | "concept" | "practice" | "model";
+
+// ── Model matching ────────────────────────────────────────────────────────────
+
+interface ModelEntry { title: string; Component: React.ComponentType }
+
+// Ordered list of keyword → model mappings. First match wins.
+const MODEL_MAP: { keywords: string[]; model: ModelEntry }[] = [
+  { keywords: ["unit circle","sin","cos","tan","sine","cosine","tangent","radian","trig ratio"], model: { title: "Unit Circle", Component: UnitCircle } },
+  { keywords: ["law of sine","law of cosine","sine rule","cosine rule","non-right triangle","oblique"], model: { title: "Law of Sines & Cosines", Component: LawOfSinesCosines } },
+  { keywords: ["trig identit","pythagorean identit","double angle","sum to product","compound angle"], model: { title: "Trig Identities", Component: TrigIdentities } },
+  { keywords: ["pythagorean theorem","right triangle","hypotenuse","a² + b²"], model: { title: "Pythagorean Theorem", Component: PythagoreanTheorem } },
+  { keywords: ["similar triangle","scale factor","proportional sides"], model: { title: "Similar Triangles", Component: SimilarTriangles } },
+  { keywords: ["quadratic","parabola","discriminant","vertex","roots of","factori"], model: { title: "Quadratic Equations", Component: QuadraticEquations } },
+  { keywords: ["conic","ellipse","hyperbola","parabola equation","eccentricity"], model: { title: "Conic Sections", Component: ConicSections } },
+  { keywords: ["derivative","differentiat","chain rule","product rule","quotient rule","slope of","rate of change","gradient"], model: { title: "The Derivative", Component: TheDerivative } },
+  { keywords: ["integral","integrat","area under","antiderivative","fundamental theorem"], model: { title: "Definite Integrals", Component: DefiniteIntegrals } },
+  { keywords: ["limit","continuity","approaching","l'hôpital","l'hopital"], model: { title: "Limits & Continuity", Component: LimitsAndContinuity } },
+  { keywords: ["taylor","maclaurin","power series expansion"], model: { title: "Taylor Series", Component: TaylorSeries } },
+  { keywords: ["differential equation","ode","separation of variable","first order","second order"], model: { title: "Differential Equations", Component: DifferentialEquations } },
+  { keywords: ["logarithm","log base","ln ","natural log","exponential equation"], model: { title: "Logarithms", Component: Logarithms } },
+  { keywords: ["sequence","series","arithmetic","geometric sequence","geometric series","convergence","divergence","sigma"], model: { title: "Sequences & Series", Component: SequencesSeries } },
+  { keywords: ["complex number","argand","modulus argument","imaginary","real part"], model: { title: "Complex Numbers", Component: ComplexNumbers } },
+  { keywords: ["vector","dot product","cross product","magnitude direction"], model: { title: "Vectors 2D", Component: Vectors2D } },
+  { keywords: ["matrix","transformation","eigenvalue","determinant","linear map"], model: { title: "Matrix Transformations", Component: MatrixTransformations } },
+  { keywords: ["optimis","optimiz","maxima","minima","critical point","second derivative test"], model: { title: "Optimisation", Component: Optimization } },
+  { keywords: ["linear regression","correlation","line of best fit","least squares"], model: { title: "Linear Regression", Component: LinearRegression } },
+  { keywords: ["binomial distribution","binomial probability","n choose r","combination"], model: { title: "Binomial Distribution", Component: BinomialDistribution } },
+  { keywords: ["normal distribution","bell curve","z-score","standard deviation","gaussian"], model: { title: "Normal Distribution", Component: NormalDistribution } },
+  { keywords: ["inequality","inequalit","number line","absolute value"], model: { title: "Inequalities", Component: Inequalities } },
+  { keywords: ["simple harmonic","oscillat","spring","pendulum","shm"], model: { title: "Simple Harmonic Motion", Component: SHM } },
+  { keywords: ["wave interference","diffraction","superposition","double slit","young"], model: { title: "Wave Interference", Component: WaveInterference } },
+  { keywords: ["optic","refract","reflect","snell","lens","mirror","focal"], model: { title: "Optics", Component: Optics } },
+  { keywords: ["circuit","resistor","capacitor","ohm","kirchhoff","voltage","current","emf"], model: { title: "Electric Circuits", Component: ElectricCircuits } },
+  { keywords: ["electromagnetic induction","faraday","lenz","flux","induced emf"], model: { title: "EM Induction", Component: EMInduction } },
+  { keywords: ["centripetal","circular motion","angular velocity","centrifug"], model: { title: "Centripetal Force", Component: CentripetalForce } },
+  { keywords: ["momentum","impulse","conservation of momentum","collision","elastic","inelastic"], model: { title: "Momentum & Impulse", Component: Momentum } },
+  { keywords: ["heat transfer","conduction","convection","radiation","thermal"], model: { title: "Heat Transfer", Component: HeatTransfer } },
+  { keywords: ["kinetic theory","ideal gas","boltzmann","rms speed","pressure of gas"], model: { title: "Kinetic Theory", Component: KineticTheory } },
+  { keywords: ["rotational","moment of inertia","torque","angular momentum"], model: { title: "Rotational Inertia", Component: RotationalInertia } },
+  { keywords: ["doppler","frequency shift","moving source"], model: { title: "Doppler Effect", Component: DopplerEffect } },
+  { keywords: ["bohr model","atomic orbital","energy level","hydrogen atom","emission spectrum"], model: { title: "Bohr Model", Component: BohrModel } },
+  { keywords: ["titration","acid base","buffer","equivalence point","neutralis"], model: { title: "Titration Curves", Component: TitrationCurves } },
+  { keywords: ["reaction kinetics","rate constant","activation energy","arrhenius","rate law"], model: { title: "Reaction Kinetics", Component: ReactionKinetics } },
+  { keywords: ["ideal gas law","pv=nrt","boyle","charles","avogadro"], model: { title: "Ideal Gas Law", Component: IdealGasLaw } },
+  { keywords: ["ph scale","acid","base","hydroxide","hydrogen ion","logarithmic scale"], model: { title: "pH Scale", Component: PHScale } },
+  { keywords: ["radioactive decay","half-life","nuclear","alpha","beta","gamma decay"], model: { title: "Radioactive Decay", Component: RadioactiveDecay } },
+  { keywords: ["galvanic cell","electrochemical","oxidation","reduction","redox","electrode potential"], model: { title: "Galvanic Cells", Component: GalvanicCells } },
+  { keywords: ["le chatelier","equilibrium","equilibrium constant","kc","kp","shift in equilibrium"], model: { title: "Le Chatelier's Principle", Component: LeChatelier } },
+  { keywords: ["mitosis","meiosis","cell division","chromosome"], model: { title: "Mitosis & Meiosis", Component: MitosisMeiosis } },
+  { keywords: ["dna","double helix","base pair","nucleotide","transcription","replication"], model: { title: "DNA Double Helix", Component: DNADoubleHelix } },
+  { keywords: ["photosynthesis","chloroplast","light reaction","calvin cycle","glucose"], model: { title: "Photosynthesis", Component: Photosynthesis } },
+  { keywords: ["osmosis","diffusion","concentration gradient","semipermeable"], model: { title: "Osmosis & Diffusion", Component: OsmosisDiffusion } },
+  { keywords: ["enzyme","substrate","active site","inhibitor","km","vmax"], model: { title: "Enzyme–Substrate", Component: EnzymeSubstrate } },
+  { keywords: ["action potential","neuron","depolarisation","repolarisation","sodium pump"], model: { title: "Action Potential", Component: ActionPotential } },
+  { keywords: ["kepler","orbital","elliptical orbit","planet","eccentricity of orbit"], model: { title: "Kepler's Laws", Component: KeplerLaws } },
+  { keywords: ["stellar","main sequence","star","hertzsprung","red giant","white dwarf"], model: { title: "Stellar Lifecycle", Component: StellarLifecycle } },
+  { keywords: ["greenhouse","global warming","climate","co2","carbon dioxide effect"], model: { title: "Greenhouse Effect", Component: GreenhouseEffect } },
+];
+
+function findRelatedModel(diagnosis: Diagnosis | undefined): ModelEntry | null {
+  if (!diagnosis) return null;
+  const text = [
+    (diagnosis as any)?.concept_label,
+    (diagnosis as any)?.question_summary,
+    (diagnosis as any)?.error_tag,
+    (diagnosis as any)?.core_concept,
+    (diagnosis as any)?.what_happened,
+    (diagnosis as any)?.underlying_concept,
+  ].filter(Boolean).join(" ").toLowerCase();
+
+  for (const { keywords, model } of MODEL_MAP) {
+    if (keywords.some((kw) => text.includes(kw))) return model;
+  }
+  return null;
+}
 
 function resolveImageSrc(state: NavState): string | null {
   if (state.imageUrl) return state.imageUrl;
@@ -419,19 +501,29 @@ function IdentifyErrorTab({ diagnosis }: { diagnosis: IdentifyDiagnosis }) {
 
 // ── Steps tab ─────────────────────────────────────────────────────────────────
 
-function StepsTab({ diagnosis, revealed, setRevealed, plan }: {
+function StepsTab({ diagnosis, steps, revealed, setRevealed, plan, isLoading }: {
   diagnosis: GuideDiagnosis;
+  steps: string[];
   revealed: number;
   setRevealed: React.Dispatch<React.SetStateAction<number>>;
   plan: string;
+  isLoading?: boolean;
 }) {
-  const steps = Array.isArray(diagnosis.steps) ? diagnosis.steps : [];
   const isPaid = FREE_FOR_ALL || plan === "intermediate" || plan === "deep";
 
   function askWhale(stepNum: number, stepText: string) {
     window.dispatchEvent(new CustomEvent("whale-context", {
       detail: { stepNum, stepText, questionSummary: diagnosis.question_summary },
     }));
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center gap-3 py-8 text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        <span className="text-sm">Generating steps…</span>
+      </div>
+    );
   }
 
   return (
@@ -441,37 +533,113 @@ function StepsTab({ diagnosis, revealed, setRevealed, plan }: {
           <RichText text={diagnosis.question_summary} />
         </p>
       )}
-      <div className="space-y-2">
-        {steps.slice(0, revealed).map((step, i) => (
-          <div key={i} className="rounded-lg border border-primary/20 bg-primary/5 p-4 animate-in fade-in slide-in-from-top-1 duration-200">
-            <div className="flex items-start gap-3">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">
-                {i + 1}
-              </span>
-              <p className="text-sm text-foreground leading-relaxed"><RichText text={step} /></p>
-            </div>
-            {isPaid && (
-              <div className="mt-3 border-t border-primary/10 pt-3">
-                <button
-                  onClick={() => askWhale(i + 1, step)}
-                  className="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-primary"
-                >
-                  <img src="/whale-e.png" alt="" className="whale-img h-3.5 w-3.5 rounded-full object-cover" />
-                  Ask Whal-E about this step
-                </button>
+      {steps.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No steps available for this scan.</p>
+      ) : (
+        <>
+          <div className="space-y-2">
+            {steps.slice(0, revealed).map((step, i) => (
+              <div key={i} className="rounded-lg border border-primary/20 bg-primary/5 p-4 animate-in fade-in slide-in-from-top-1 duration-200">
+                <div className="flex items-start gap-3">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">
+                    {i + 1}
+                  </span>
+                  <p className="text-sm text-foreground leading-relaxed"><RichText text={step} /></p>
+                </div>
+                {isPaid && (
+                  <div className="mt-3 border-t border-primary/10 pt-3">
+                    <button
+                      onClick={() => askWhale(i + 1, step)}
+                      className="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-primary"
+                    >
+                      <img src="/whale-e.png" alt="" className="whale-img h-3.5 w-3.5 rounded-full object-cover" />
+                      Ask Whal-E about this step
+                    </button>
+                  </div>
+                )}
               </div>
-            )}
+            ))}
           </div>
-        ))}
+          {revealed < steps.length ? (
+            <Button variant="outline" className="w-full border-border" onClick={() => setRevealed((v) => v + 1)}>
+              Show next step
+              <ChevronRight className="ml-2 h-4 w-4" />
+            </Button>
+          ) : (
+            <p className="text-center text-xs text-muted-foreground">All steps revealed.</p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── Guest Whal-E nudge ────────────────────────────────────────────────────────
+
+const NUDGE_MESSAGES = [
+  "Sign up to save your results!",
+  "Don't lose this scan — it takes 10 seconds.",
+  "Create a free account to keep your progress.",
+  "Want to come back to this later? Sign up free.",
+  "Save your scan so you can review it anytime.",
+];
+
+function WhaleNudge() {
+  const navigate = useNavigate();
+  const [msgIdx, setMsgIdx] = useState(0);
+  const [visible, setVisible] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+
+  useEffect(() => {
+    // Appear after a short delay
+    const t = setTimeout(() => setVisible(true), 1800);
+    return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    if (dismissed) return;
+    const interval = setInterval(() => {
+      setMsgIdx((i) => (i + 1) % NUDGE_MESSAGES.length);
+    }, 4500);
+    return () => clearInterval(interval);
+  }, [dismissed]);
+
+  if (dismissed) return null;
+
+  return (
+    <div
+      className={cn(
+        "fixed bottom-6 right-6 z-50 flex items-end gap-3 transition-all duration-500",
+        visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6 pointer-events-none"
+      )}
+    >
+      {/* Speech bubble */}
+      <div className="relative max-w-[220px] rounded-xl border border-border bg-card px-4 py-3 shadow-lg">
+        <button
+          onClick={() => setDismissed(true)}
+          className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-muted text-[10px] text-muted-foreground hover:bg-border"
+          aria-label="Dismiss"
+        >
+          ×
+        </button>
+        <p className="text-xs font-medium text-foreground leading-snug">{NUDGE_MESSAGES[msgIdx]}</p>
+        <button
+          onClick={() => navigate("/signup")}
+          className="mt-2 text-xs font-semibold text-primary underline underline-offset-2 hover:text-primary/80"
+        >
+          Sign up free →
+        </button>
+        {/* Tail pointing right toward whale */}
+        <span className="absolute -right-2 bottom-4 h-0 w-0 border-y-4 border-l-8 border-y-transparent border-l-card" />
+        <span className="absolute -right-[9px] bottom-4 h-0 w-0 border-y-4 border-l-8 border-y-transparent border-l-border" />
       </div>
-      {revealed < steps.length ? (
-        <Button variant="outline" className="w-full border-border" onClick={() => setRevealed((v) => v + 1)}>
-          Show next step
-          <ChevronRight className="ml-2 h-4 w-4" />
-        </Button>
-      ) : steps.length > 0 ? (
-        <p className="text-center text-xs text-muted-foreground">All steps revealed.</p>
-      ) : null}
+      {/* Whale avatar */}
+      <img
+        src="/whale-e.png"
+        alt="Whal-E"
+        className="h-14 w-14 object-contain"
+        style={{ animation: "float 4s ease-in-out infinite" }}
+      />
     </div>
   );
 }
@@ -488,6 +656,7 @@ const BlindSpotReport = () => {
   const imageSrc = resolveImageSrc(state);
   const inputText = state.inputText ?? null;
   const scanId = (state as any).scanId as string | undefined;
+  const isGuest = !!(state as any).guest;
 
   const [displaySrc, setDisplaySrc] = useState<string | null>(imageSrc);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -499,8 +668,10 @@ const BlindSpotReport = () => {
   const [isGeneratingMore, setIsGeneratingMore] = useState(false);
   const [lazyConceptData, setLazyConceptData] = useState<{ core_concept?: string; recognition_cue?: string } | null>(null);
   const [lazyPractice, setLazyPractice] = useState<PracticeItem[] | null>(null);
+  const [lazySteps, setLazySteps] = useState<string[] | null>(null);
   const [loadingConcept, setLoadingConcept] = useState(false);
   const [loadingPractice, setLoadingPractice] = useState(false);
+  const [loadingSteps, setLoadingSteps] = useState(false);
 
   // Keep displaySrc in sync when navigation brings a new image
   useEffect(() => {
@@ -520,6 +691,40 @@ const BlindSpotReport = () => {
     });
     return () => { mounted = false; };
   }, []);
+
+  // Lazy load steps if they are missing from the diagnosis (always fetch — credit-independent)
+  useEffect(() => {
+    if (mode !== "guide") return;
+    const existingSteps = Array.isArray((diagnosis as any)?.steps) ? (diagnosis as any).steps as string[] : [];
+    if (existingSteps.length > 0) return;   // already have steps
+    if (lazySteps !== null) return;         // already fetched
+    if (loadingSteps) return;
+    const topic = (diagnosis as any)?.concept_label ?? (diagnosis as any)?.question_summary ?? "STEM";
+    const questionSummary = (diagnosis as any)?.question_summary ?? "";
+    setLoadingSteps(true);
+    supabase.functions.invoke("diagnose-image", {
+      body: { text: questionSummary || topic, mode: "guide_steps" },
+    }).then(({ data, error }) => {
+      setLoadingSteps(false);
+      if (error || (data as any)?.error) return; // silent — don't toast, steps pane handles empty state
+      const steps: string[] = Array.isArray((data as any)?.steps) ? (data as any).steps : [];
+      if (steps.length) {
+        setLazySteps(steps);
+        setRevealedSteps(1);
+        if (scanId) {
+          try {
+            const key = SCAN_CACHE_KEY(scanId);
+            const cached = localStorage.getItem(key);
+            if (cached) {
+              const parsed = JSON.parse(cached);
+              parsed.diagnosis = { ...parsed.diagnosis, steps };
+              localStorage.setItem(key, JSON.stringify(parsed));
+            }
+          } catch { /* ignore */ }
+        }
+      }
+    });
+  }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Lazy load concept when Concept tab is first clicked
   useEffect(() => {
@@ -649,15 +854,17 @@ const BlindSpotReport = () => {
     );
   }
 
+  const effectiveSteps = lazySteps ?? (Array.isArray((diagnosis as any).steps) ? (diagnosis as any).steps as string[] : []);
   const basePractice = lazyPractice ?? (Array.isArray(diagnosis.practice_problems) ? diagnosis.practice_problems : []);
   const practice = [...basePractice, ...extraProblems];
   const effectiveConcept = lazyConceptData?.core_concept ?? (diagnosis as any)?.core_concept;
   const effectiveRecognitionCue = lazyConceptData?.recognition_cue ?? (diagnosis as any)?.recognition_cue;
+  const relatedModel = findRelatedModel(diagnosis);
 
   return (
     <EducatorLayout>
       <Helmet>
-        <title>Your AI Analysis Breakdown | Gogodeep</title>
+        <title>Report</title>
         <meta name="description" content="See the root cause of your mistake, the underlying concept explained, and targeted practice to close the gap. AI working analysis for IB, AP, and A-Level STEM subjects." />
       </Helmet>
       <div className={cn("grid gap-6", (displaySrc || inputText) ? "lg:grid-cols-5" : "lg:grid-cols-1")}>
@@ -696,7 +903,7 @@ const BlindSpotReport = () => {
         {/* Tabs panel */}
         <div className={(imageSrc || inputText) ? "lg:col-span-3" : "lg:col-span-1"}>
           {(() => {
-            const tabList = mode === "guide"
+            const baseTabList = mode === "guide"
               ? [
                   { value: "steps" as ReportTab, label: "Step by Step", Icon: ArrowRight },
                   { value: "concept" as ReportTab, label: "Concept", Icon: Lightbulb },
@@ -707,29 +914,33 @@ const BlindSpotReport = () => {
                   { value: "concept" as ReportTab, label: "Concept", Icon: Lightbulb },
                   { value: "practice" as ReportTab, label: "Practice", Icon: ClipboardList },
                 ];
+            const tabList = relatedModel
+              ? [...baseTabList, { value: "model" as ReportTab, label: relatedModel.title, Icon: Layers }]
+              : baseTabList;
             const activeIdx = tabList.findIndex((t) => t.value === activeTab);
+            const tabCount = tabList.length;
             return (
               <>
                 <div className="relative mb-4 flex w-full rounded-md border border-border bg-secondary p-1">
                   <div
                     className="absolute bottom-1 top-1 rounded-sm bg-card shadow-sm transition-transform duration-200 ease-out"
-                    style={{ width: `calc((100% - 8px) / 3)`, transform: `translateX(calc(${activeIdx} * 100%))` }}
+                    style={{ width: `calc((100% - 8px) / ${tabCount})`, transform: `translateX(calc(${activeIdx} * 100%))` }}
                   />
                   {tabList.map(({ value, label, Icon }) => (
                     <button
                       key={value}
                       onClick={() => setActiveTab(value)}
-                      className={`relative z-10 flex flex-1 items-center justify-center gap-1.5 rounded-sm py-1.5 text-sm font-medium transition-colors duration-200 ${
+                      className={`relative z-10 flex flex-1 items-center justify-center gap-1.5 rounded-sm py-1.5 text-xs sm:text-sm font-medium transition-colors duration-200 ${
                         activeTab === value ? "text-foreground" : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
-                      <Icon className="h-3.5 w-3.5" />
-                      {label}
+                      <Icon className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
+                      <span className="truncate">{label}</span>
                     </button>
                   ))}
                 </div>
                 <div className="animate-in fade-in duration-200">
-                  {activeTab === "steps" && <StepsTab diagnosis={diagnosis as GuideDiagnosis} revealed={revealedSteps} setRevealed={setRevealedSteps} plan={plan} />}
+                  {activeTab === "steps" && <StepsTab diagnosis={diagnosis as GuideDiagnosis} steps={effectiveSteps} revealed={revealedSteps} setRevealed={setRevealedSteps} plan={plan} isLoading={loadingSteps} />}
                   {activeTab === "error" && <IdentifyErrorTab diagnosis={diagnosis as IdentifyDiagnosis} />}
                   {activeTab === "concept" && <ConceptTab
                     whatHappened={diagnosis.what_happened}
@@ -741,6 +952,15 @@ const BlindSpotReport = () => {
                     isLoadingConcept={loadingConcept}
                   />}
                   {activeTab === "practice" && <PracticeTab problems={practice} plan={plan} onScanQuestion={scanPracticeQuestion} onGenerateMore={generateMoreProblems} isGeneratingMore={isGeneratingMore} isLoadingPractice={loadingPractice} />}
+                  {activeTab === "model" && relatedModel && (
+                    <div className="rounded-xl border border-border bg-card overflow-hidden">
+                      <div className="px-4 pt-4 pb-2">
+                        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Interactive Model</p>
+                        <p className="mt-0.5 text-sm font-semibold text-foreground">{relatedModel.title}</p>
+                      </div>
+                      <relatedModel.Component />
+                    </div>
+                  )}
                 </div>
               </>
             );
@@ -748,6 +968,9 @@ const BlindSpotReport = () => {
         </div>
 
       </div>
+
+      {/* Guest Whal-E nudge */}
+      {isGuest && <WhaleNudge />}
 
       {/* Lightbox */}
       {lightboxOpen && displaySrc && (

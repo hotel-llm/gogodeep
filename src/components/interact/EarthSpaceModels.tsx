@@ -219,12 +219,30 @@ export function BlackHole() {
 }
 
 // ── 4. Kepler's Laws ─────────────────────────────────────────────────────────
+
+/** Solve Kepler's equation M = E - e·sin(E) via Newton iteration → return true anomaly ν */
+function keplerTrueAnomaly(M: number, e: number): number {
+  let E = M;
+  for (let i = 0; i < 50; i++) {
+    const dE = (M - E + e * Math.sin(E)) / (1 - e * Math.cos(E));
+    E += dE;
+    if (Math.abs(dE) < 1e-10) break;
+  }
+  const nu = 2 * Math.atan2(Math.sqrt(1 + e) * Math.sin(E / 2), Math.sqrt(1 - e) * Math.cos(E / 2));
+  return nu;
+}
+
 export function KeplerLaws() {
-  const [law, setLaw] = useState(0);
-  const [ecc, setEcc] = useState(0.4);
+  const [law, setLaw] = useState(0); // 0 = 2nd law, 1 = 3rd law
+  const [ecc, setEcc] = useState(0.55);
+  const [speed, setSpeed] = useState(0.35); // overall orbit speed for 2nd law
+  // 3rd law interactive planet
+  const [law3A, setLaw3A] = useState(90);
+  const law3T = Math.pow(law3A, 1.5) / 100;
+  const setLaw3T = (newT: number) => { setLaw3A(Math.round(Math.pow(newT * 100, 2 / 3))); };
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const laws = ["1st Law — Elliptical Orbits", "2nd Law — Equal Areas", "3rd Law — T² ∝ a³"];
-  const tRef = useRef(0);
+  const laws = ["2nd Law — Equal Areas", "3rd Law — T² ∝ a³"];
+
   useRaf((t) => {
     const cv = canvasRef.current; if (!cv) return;
     const ctx = cv.getContext("2d")!;
@@ -232,50 +250,103 @@ export function KeplerLaws() {
     ctx.fillStyle = C_BG; ctx.fillRect(0, 0, W, H);
     const a = 130, b = a * Math.sqrt(1 - ecc * ecc);
     const foci = a * ecc;
-    if (law === 0 || law === 1) {
+
+    if (law === 0) {
+      // Ellipse — center offset so sun is at one focus
       ctx.beginPath(); ctx.ellipse(cx - foci, cy, a, b, 0, 0, TAU);
-      ctx.strokeStyle = C_DIM; ctx.lineWidth = 1; ctx.stroke();
-      // sun at focus
-      ctx.beginPath(); ctx.arc(cx, cy, 12, 0, TAU); ctx.fillStyle = C_AMBER; ctx.fill();
-      // planet position — parametric on ellipse (center at cx-foci, cy)
-      const angle = (t * 0.4) % TAU;
-      const px = (cx - foci) + a * Math.cos(angle);
-      const py = cy + b * Math.sin(angle);
-      if (law === 1) {
-        // swept area sector — draw from sun (focus at cx,cy) to parametric ellipse points
-        const a1 = angle - 0.4, a2 = angle;
-        ctx.beginPath(); ctx.moveTo(cx, cy);
-        for (let aa = a1; aa <= a2; aa += 0.01) {
-          ctx.lineTo((cx - foci) + a * Math.cos(aa), cy + b * Math.sin(aa));
-        }
-        ctx.closePath(); ctx.fillStyle = C_PRIMARY + "44"; ctx.fill();
+      ctx.strokeStyle = C_DIM; ctx.lineWidth = 1.5; ctx.stroke();
+
+      // Sun at occupied focus
+      ctx.beginPath(); ctx.arc(cx, cy, 11, 0, TAU);
+      const sg = ctx.createRadialGradient(cx, cy, 0, cx, cy, 11);
+      sg.addColorStop(0, "#fff8c0"); sg.addColorStop(0.5, C_AMBER); sg.addColorStop(1, C_AMBER + "88");
+      ctx.fillStyle = sg; ctx.fill();
+
+      // True anomaly from Kepler's equation (correct speed variation)
+      const M = (t * speed) % TAU;
+      const nu = keplerTrueAnomaly(M, ecc);
+      const r = a * (1 - ecc * ecc) / (1 + ecc * Math.cos(nu));
+      const px = cx + r * Math.cos(nu);
+      const py = cy - r * Math.sin(nu);
+
+      // Swept area sector over a fixed Δt
+      const dM = speed * 0.9; // fixed time window
+      const M0 = ((M - dM) + TAU * 4) % TAU;
+      const nu0 = keplerTrueAnomaly(M0, ecc);
+      ctx.beginPath(); ctx.moveTo(cx, cy);
+      for (let i = 0; i <= 50; i++) {
+        const nuI = nu0 + ((nu - nu0 + TAU * 2) % TAU) * (i / 50);
+        const ri = a * (1 - ecc * ecc) / (1 + ecc * Math.cos(nuI));
+        ctx.lineTo(cx + ri * Math.cos(nuI), cy - ri * Math.sin(nuI));
       }
+      ctx.closePath(); ctx.fillStyle = C_PRIMARY + "55"; ctx.fill();
+      ctx.strokeStyle = C_PRIMARY + "99"; ctx.lineWidth = 1; ctx.stroke();
+
+      // Speed label
+      const isNearSun = r < a * 0.75;
+      ctx.fillStyle = isNearSun ? C_GREEN : C_RED;
+      ctx.font = "bold 10px Inter,sans-serif"; ctx.textAlign = "center";
+      ctx.fillText(isNearSun ? "▲ faster" : "▼ slower", px, py - 16);
+
       ctx.beginPath(); ctx.arc(px, py, 8, 0, TAU); ctx.fillStyle = C_CYAN; ctx.fill();
+      ctx.strokeStyle = "#ffffff22"; ctx.lineWidth = 1; ctx.stroke();
+
+      // Perihelion / aphelion labels
+      ctx.fillStyle = C_DIM; ctx.font = "9px Inter,sans-serif"; ctx.textAlign = "center";
+      ctx.fillText("perihelion", cx + a * (1 - ecc), cy + 20);
+      ctx.fillText("aphelion", cx - a * (1 + ecc) - foci * 0, cy + 20);
     } else {
-      // 3rd law: multiple planets
+      // 3rd law: three planets
+      const K = 100;
       const planets = [
-        { a: 50, T: Math.sqrt(50 ** 3 / 10000), color: C_PRIMARY },
-        { a: 90, T: Math.sqrt(90 ** 3 / 10000), color: C_GREEN },
-        { a: 130, T: Math.sqrt(130 ** 3 / 10000), color: C_AMBER },
+        { a: 50,    color: C_PRIMARY, label: "a=50" },
+        { a: law3A, color: C_GREEN,   label: `a=${law3A}` },
+        { a: 160,   color: C_AMBER,   label: "a=160" },
       ];
-      ctx.beginPath(); ctx.arc(cx, cy, 12, 0, TAU); ctx.fillStyle = C_AMBER; ctx.fill();
+      ctx.beginPath(); ctx.arc(cx, cy, 12, 0, TAU);
+      const sg2 = ctx.createRadialGradient(cx, cy, 0, cx, cy, 12);
+      sg2.addColorStop(0, "#fff8c0"); sg2.addColorStop(0.5, C_AMBER); sg2.addColorStop(1, C_AMBER + "88");
+      ctx.fillStyle = sg2; ctx.fill();
+
       planets.forEach(p => {
-        ctx.beginPath(); ctx.arc(cx, cy, p.a, 0, TAU); ctx.strokeStyle = C_GRID; ctx.lineWidth = 1; ctx.stroke();
-        const angle2 = (t * 0.3 / p.T) % TAU;
-        ctx.beginPath(); ctx.arc(cx + p.a * Math.cos(angle2), cy + p.a * Math.sin(angle2), 7, 0, TAU);
+        const T = Math.pow(p.a, 1.5) / K;
+        ctx.beginPath(); ctx.arc(cx, cy, p.a, 0, TAU);
+        ctx.strokeStyle = C_GRID; ctx.lineWidth = 1; ctx.stroke();
+        const angle = (t * 0.4 / T) % TAU;
+        ctx.beginPath(); ctx.arc(cx + p.a * Math.cos(angle), cy + p.a * Math.sin(angle), 7, 0, TAU);
         ctx.fillStyle = p.color; ctx.fill();
-        ctx.fillStyle = C_DIM; ctx.font = "9px Inter,sans-serif"; ctx.textAlign = "left";
-        ctx.fillText(`a=${p.a}`, cx + p.a + 4, cy - 4);
+        ctx.fillStyle = p.color; ctx.font = "9px Inter,sans-serif"; ctx.textAlign = "left";
+        ctx.fillText(p.label, cx + p.a + 4, cy - 4);
+        ctx.fillStyle = C_DIM;
+        ctx.fillText(`T=${T.toFixed(1)}`, cx + p.a + 4, cy + 8);
       });
+
       ctx.fillStyle = C_FG; ctx.font = "10px Inter,sans-serif"; ctx.textAlign = "center";
-      ctx.fillText("T² ∝ a³ — outer planets orbit slower", cx, H - 20);
+      ctx.fillText("T² ∝ a³  —  outer planets orbit slower", cx, H - 14);
     }
   }, true);
+
+  const law3Tval = parseFloat(law3T.toFixed(2));
+
   return (
     <ModelWrap viz={<canvas ref={canvasRef} width={580} height={340} className="w-full h-full" />} controls={
       <>
         <StepNav steps={laws} current={law} onChange={setLaw} />
-        {(law === 0 || law === 1) && <Slider label="Eccentricity" value={ecc} min={0} max={0.8} step={0.05} onChange={setEcc} />}
+        {law === 0 && (
+          <>
+            <Slider label="Eccentricity" value={ecc} min={0.1} max={0.85} step={0.05} onChange={setEcc} />
+            <Slider label="Orbital speed" value={speed} min={0.05} max={1.0} step={0.05} onChange={setSpeed} />
+          </>
+        )}
+        {law === 1 && (
+          <>
+            <Slider label="Semi-major axis (a)" value={law3A} min={55} max={145} step={5} onChange={setLaw3A} unit=" au" />
+            <Slider label="Orbital period (T)" value={law3Tval} min={parseFloat((Math.pow(55,1.5)/100).toFixed(2))} max={parseFloat((Math.pow(145,1.5)/100).toFixed(2))} step={0.05} onChange={(v) => setLaw3T(v)} unit=" yr" />
+            <Stat label="a³" value={(law3A ** 3).toLocaleString()} />
+            <Stat label="T²" value={(law3Tval ** 2).toFixed(2)} />
+            <Stat label="T² / a³" value={((law3Tval ** 2) / (law3A ** 3) * 1e4).toFixed(3) + " ×10⁻⁴"} />
+          </>
+        )}
       </>
     } />
   );
