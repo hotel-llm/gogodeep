@@ -16,6 +16,7 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import NotFound from "./pages/NotFound";
 import ResetPassword from "./pages/ResetPassword";
+import Interact from "./pages/Interact";
 
 const queryClient = new QueryClient();
 
@@ -43,6 +44,7 @@ function AnimatedRoutes() {
             </ErrorBoundary>
           }
         />
+        <Route path="/interact" element={<Interact />} />
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/reset-password" element={<ResetPassword />} />

@@ -118,7 +118,11 @@ const Pricing = () => {
       const { data, error } = await supabase.functions.invoke("billing-portal", {
         body: { userId: user.id },
       });
-      const errMsg = data?.error ?? (error as any)?.message ?? String(error);
+      let errMsg = data?.error ?? (error as any)?.message ?? String(error);
+      try {
+        const ctx = (error as any)?.context;
+        if (ctx) { const j = await ctx.json(); errMsg = j?.error ?? errMsg; }
+      } catch {}
       if (!data?.url) throw new Error(errMsg);
       window.location.href = data.url;
     } catch (err) {

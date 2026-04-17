@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Microscope, LogOut, UserCircle2, CircleDollarSign, Mail, Pencil } from "lucide-react";
+import { LayoutDashboard, Microscope, LogOut, UserCircle2, CircleDollarSign, Mail, Pencil, Atom } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,7 @@ import gogodeepLogo from "@/assets/gogodeep-logo.png";
 import { whaleToast } from "@/lib/whaleToast";
 import { cn } from "@/lib/utils";
 import { applyTheme, getStoredTheme, THEMES, THEME_COLORS, THEME_LABELS, type Theme } from "@/lib/theme";
+import { FREE_FOR_ALL } from "@/lib/featureFlags";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,7 +28,8 @@ import {
 const navItems = [
   { path: "/", label: "Home", icon: LayoutDashboard },
   { path: "/workspace", label: "Workspace", icon: Microscope },
-  { path: "/pricing", label: "Pricing", icon: CircleDollarSign },
+  { path: "/interact", label: "Interact", icon: Atom },
+  ...(!FREE_FOR_ALL ? [{ path: "/pricing", label: "Pricing", icon: CircleDollarSign }] : []),
   { path: "/contact", label: "Contact", icon: Mail },
 ];
 

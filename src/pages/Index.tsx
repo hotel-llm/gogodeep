@@ -10,6 +10,7 @@ import { RichText } from "@/components/RichText";
 import gogodeepLogo from "@/assets/gogodeep-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import { SCAN_LIMITS, SCAN_CACHE_KEY } from "@/lib/supabase";
+import { FREE_FOR_ALL } from "@/lib/featureFlags";
 import { pendingFileStore } from "@/lib/pendingFile";
 import { whaleToast } from "@/lib/whaleToast";
 import type { User } from "@supabase/supabase-js";
@@ -45,6 +46,15 @@ const QUOTES = [
   { text: "One hour of deliberate review beats five hours of passive re-reading.", author: "Anonymous" },
   { text: "Every concept you master today is one less thing that can surprise you on exam day.", author: "Anonymous" },
   { text: "Comfort and high grades do not live at the same address.", author: "Anonymous" },
+  { text: "The mind is not a vessel to be filled, but a fire to be kindled.", author: "Plutarch" },
+  { text: "Knowing yourself is the beginning of all wisdom.", author: "Aristotle" },
+  { text: "The more that you read, the more things you will know.", author: "Dr. Seuss" },
+  { text: "An unexamined answer is not worth submitting.", author: "Anonymous" },
+  { text: "Frustration is just excitement without direction.", author: "Anonymous" },
+  { text: "Repetition is the mother of skill.", author: "Tony Robbins" },
+  { text: "The difference between ordinary and extraordinary is that little extra.", author: "Jimmy Johnson" },
+  { text: "What we learn with pleasure, we never forget.", author: "Alfred Mercier" },
+  { text: "A mistake is evidence that someone tried.", author: "Anonymous" },
 ];
 
 const steps = [
@@ -275,10 +285,10 @@ const Dashboard = ({ user }: { user: User }) => {
 
   const startQuiz = () => {
     if (!data) return;
-    if (data.plan === "free") return;
+    if (!FREE_FOR_ALL && data.plan === "free") return;
     if (data.recentScans.length < 5) return;
     // Intermediate: 1 recap quiz per day
-    if (data.plan === "intermediate" && getQuizzesToday() >= 1) {
+    if (!FREE_FOR_ALL && data.plan === "intermediate" && getQuizzesToday() >= 1) {
       whaleToast.error("You've used your daily recap quiz. Upgrade to Deep for unlimited quizzes.");
       return;
     }
@@ -337,7 +347,7 @@ const Dashboard = ({ user }: { user: User }) => {
           </div>
 
           {/* Stat row */}
-          <div className="mb-6 grid gap-4 sm:grid-cols-3">
+          <div className="mb-6 grid gap-4 sm:grid-cols-2">
 
             {/* Total scans */}
             <Card className="border-border bg-card p-6">
@@ -349,39 +359,6 @@ const Dashboard = ({ user }: { user: User }) => {
                 {loading ? "—" : data?.totalScans ?? 0}
               </p>
               <p className="mt-1.5 text-xs text-muted-foreground">All-time diagnoses</p>
-            </Card>
-
-            {/* Credits left */}
-            <Card className="border-border bg-card p-6">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <ScanLine className="h-4 w-4 text-primary" />
-                  <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Credits Left</p>
-                </div>
-                {!loading && data?.plan !== "deep" ? (
-                  <Link to="/pricing" className="shrink-0 text-[10px] font-semibold text-primary hover:underline">Upgrade →</Link>
-                ) : !loading ? (
-                  <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary capitalize">{data?.plan}</span>
-                ) : null}
-              </div>
-              <p className="mt-4 text-5xl font-extrabold tracking-tight text-foreground">
-                {loading ? "—" : data?.creditsLeft === null ? "∞" : data?.creditsLeft}
-              </p>
-              {data?.plan !== "deep" && (
-                <>
-                  <p className="mt-1.5 text-xs text-muted-foreground">
-                    {`of ${SCAN_LIMITS[data?.plan ?? "free"] ?? SCAN_LIMITS.free} daily · resets in ${resetCountdown}`}
-                  </p>
-                  {data && SCAN_LIMITS[data.plan] != null && (
-                    <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
-                      <div
-                        className="h-full rounded-full bg-primary transition-all duration-700"
-                        style={{ width: `${Math.min(Math.round(((SCAN_LIMITS[data.plan] ?? SCAN_LIMITS.free ?? 0) - (data.creditsLeft ?? 0) + data.bonusScans) / (SCAN_LIMITS[data.plan] ?? SCAN_LIMITS.free ?? 1) * 100), 100)}%` }}
-                      />
-                    </div>
-                  )}
-                </>
-              )}
             </Card>
 
             {/* Login streak */}
@@ -518,7 +495,7 @@ const Dashboard = ({ user }: { user: User }) => {
 
               {!quiz ? (
                 <div className="pb-5">
-                  {data?.plan === "free" ? (
+                  {(!FREE_FOR_ALL && data?.plan === "free") ? (
                     <div className="flex flex-col items-center gap-3 py-5 text-center">
                       <BrainCircuit className="h-7 w-7 text-muted-foreground/30" />
                       <p className="text-sm text-muted-foreground">Available on Intermediate and Deep plans.</p>
@@ -1279,14 +1256,14 @@ const DemoPanel = () => {
 };
 
 const WHALE_BUBBLES = [
-  "Upload a photo of any STEM question.",
-  "I'll walk you through it step by step.",
-  "No more staring at the same problem.",
-  "Works with handwritten notes too!",
+  "Upload a screenshot of any STEM question.",
+  "Perfect for anyone motivated to ace their next test.",
+  "Complete breakdown of any difficult question.",
   "Used by IB, AP & A-Level students.",
-  "Every hard question makes you stronger.",
+  "The method to actually reach a 1600 in SAT.",
   "Targeted practice, not passive re-reading.",
-  "Your exam self will thank you.",
+  "Fully understand any difficult concept in 3 minutes.",
+  "Your post exam self will thank you.",
 ];
 
 const Landing = () => {

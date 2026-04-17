@@ -12,6 +12,7 @@ import EducatorLayout from "@/components/EducatorLayout";
 import { RichText } from "@/components/RichText";
 import { supabase } from "@/integrations/supabase/client";
 import { checkScanCredits, SCAN_CACHE_KEY } from "@/lib/supabase";
+import { FREE_FOR_ALL } from "@/lib/featureFlags";
 import { scanImageStore } from "@/lib/pendingFile";
 import { whaleToast } from "@/lib/whaleToast";
 import { cn } from "@/lib/utils";
@@ -143,7 +144,7 @@ function PracticeTab({ problems, plan, onScanQuestion, onGenerateMore, isGenerat
   isGeneratingMore: boolean;
   isLoadingPractice: boolean;
 }) {
-  const isPaid = plan === "intermediate" || plan === "deep";
+  const isPaid = FREE_FOR_ALL || plan === "intermediate" || plan === "deep";
   const [revealed, setRevealed] = useState<Set<number>>(new Set());
   const [upgradeType, setUpgradeType] = useState<"paid" | null>(null);
   const [scanningId, setScanningId] = useState<number | null>(null);
@@ -244,7 +245,7 @@ function ConceptTab({
   whatHappened?: string; coreConcept?: string; recognitionCue?: string;
   legacyConcept?: string; plan: string; onMasterClick: () => void; isLoadingConcept?: boolean;
 }) {
-  const isPaid = plan === "intermediate" || plan === "deep";
+  const isPaid = FREE_FOR_ALL || plan === "intermediate" || plan === "deep";
   const [showUpgrade, setShowUpgrade] = useState(false);
 
   // Legacy fallback for old cached scans
@@ -425,7 +426,7 @@ function StepsTab({ diagnosis, revealed, setRevealed, plan }: {
   plan: string;
 }) {
   const steps = Array.isArray(diagnosis.steps) ? diagnosis.steps : [];
-  const isPaid = plan === "intermediate" || plan === "deep";
+  const isPaid = FREE_FOR_ALL || plan === "intermediate" || plan === "deep";
 
   function askWhale(stepNum: number, stepText: string) {
     window.dispatchEvent(new CustomEvent("whale-context", {
@@ -555,7 +556,7 @@ const BlindSpotReport = () => {
     if (loadingPractice || lazyPractice !== null) return;
     if (Array.isArray((diagnosis as any)?.practice_problems) && (diagnosis as any).practice_problems.length > 0) return;
     const topic = (diagnosis as any)?.concept_label ?? (diagnosis as any)?.question_summary ?? "STEM";
-    const practice_count = plan === "free" ? 1 : 3;
+    const practice_count = (!FREE_FOR_ALL && plan === "free") ? 1 : 3;
     setLoadingPractice(true);
     supabase.functions.invoke("diagnose-image", {
       body: { mode: "more_practice", topic, practice_count, start_id: 1 },

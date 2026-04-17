@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { FREE_FOR_ALL } from "@/lib/featureFlags";
 
 export const SCAN_CACHE_KEY = (id: string) => `gogodeep_scan_${id}`;
 
@@ -16,6 +17,8 @@ export type ScanCreditState = {
 
 
 export async function checkScanCredits(): Promise<ScanCreditState> {
+  if (FREE_FOR_ALL) return { allowed: true, credits: null, plan: "deep" };
+
   const {
     data: { user },
   } = await supabase.auth.getUser();
