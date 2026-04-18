@@ -46,6 +46,8 @@ const EXPANDED_H = 640;
 export default function WhaleAssistant() {
   const navigate = useNavigate();
   const [plan, setPlan] = useState<string | null>(null);
+  const [isGuest, setIsGuest] = useState(false);
+  const [hasDoneScan, setHasDoneScan] = useState(() => !!localStorage.getItem("gogodeep_guest_scan_used"));
   const [open, setOpen] = useState(false);
   const [justClosed, setJustClosed] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
@@ -58,6 +60,8 @@ export default function WhaleAssistant() {
   const [bubbleFading, setBubbleFading] = useState(false);
   const bubbleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bubbleFadeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const bubbleQueue = useRef<Array<{ message: string; type: "success" | "error" }>>([]);
+  const bubbleBusy = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -65,7 +69,8 @@ export default function WhaleAssistant() {
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) { setPlan("free"); return; }
+      if (!user) { setPlan("free"); setIsGuest(true); return; }
+      setIsGuest(false);
       const { data } = await (supabase as any)
         .from("profiles")
         .select("plan")
@@ -73,30 +78,47 @@ export default function WhaleAssistant() {
         .single();
       setPlan(data?.plan ?? "free");
     });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsGuest(!session?.user);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const processQueue = useCallback(() => {
+    if (bubbleBusy.current || bubbleQueue.current.length === 0) return;
+    bubbleBusy.current = true;
+    const next = bubbleQueue.current.shift()!;
+    setBubbleFading(false);
+    setBubble(next);
+    // Show for 3700ms, then fade 300ms, then 500ms gap before next
+    bubbleTimer.current = setTimeout(() => {
+      setBubbleFading(true);
+      bubbleFadeTimer.current = setTimeout(() => {
+        setBubble(null);
+        setBubbleFading(false);
+        bubbleBusy.current = false;
+        // 500ms gap before showing next message
+        bubbleTimer.current = setTimeout(processQueue, 500);
+      }, 300);
+    }, 3700);
   }, []);
 
   useEffect(() => {
     function handler(e: Event) {
       const { message, type } = (e as CustomEvent).detail;
-      if (bubbleTimer.current) clearTimeout(bubbleTimer.current);
-      if (bubbleFadeTimer.current) clearTimeout(bubbleFadeTimer.current);
-      setBubbleFading(false);
-      setBubble({ message, type });
-      bubbleTimer.current = setTimeout(() => {
-        setBubbleFading(true);
-        bubbleFadeTimer.current = setTimeout(() => {
-          setBubble(null);
-          setBubbleFading(false);
-        }, 300);
-      }, 3700);
+      bubbleQueue.current.push({ message, type });
+      processQueue();
     }
+    function scanDoneHandler() { setHasDoneScan(true); }
     window.addEventListener("whale-notify", handler);
+    window.addEventListener("whale-scan-done", scanDoneHandler);
     return () => {
       window.removeEventListener("whale-notify", handler);
+      window.removeEventListener("whale-scan-done", scanDoneHandler);
       if (bubbleTimer.current) clearTimeout(bubbleTimer.current);
       if (bubbleFadeTimer.current) clearTimeout(bubbleFadeTimer.current);
     };
-  }, []);
+  }, [processQueue]);
 
   // Welcome message on sign-in (once per session per user)
   useEffect(() => {
@@ -273,15 +295,35 @@ export default function WhaleAssistant() {
         </div>
       )}
 
+      {/* Guest persistent bubble — only after they've done a scan */}
+      {isGuest && hasDoneScan && !bubble && (
+        <div className="fixed bottom-24 right-6 z-50 animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <div className="max-w-[300px] rounded-2xl rounded-br-sm border border-border bg-card px-4 py-2.5 text-sm shadow-lg text-foreground">
+            Don't lose your scans. It takes 10 seconds to{" "}
+            <a href="/signup" className="font-semibold text-primary underline underline-offset-2 hover:text-primary/80">
+              sign up
+            </a>
+            .
+          </div>
+          <div className="ml-auto mr-3 h-2 w-2 rotate-45 translate-y-[-1px] bg-card border-r border-b border-border" style={{ width: 8, height: 8 }} />
+        </div>
+      )}
+
       {/* Floating button */}
       <button
         onClick={handleOpen}
         title={open ? "Close" : "Ask Whal-E"}
         className={cn(
           "group fixed bottom-6 right-6 z-50 flex h-14 items-center overflow-hidden rounded-full border border-border bg-card shadow-xl transition-all duration-300 ease-out",
-          !open && !justClosed && "hover:pr-5"
+          !open && !justClosed && "hover:pl-5"
         )}
       >
+        <span className={cn(
+          "max-w-0 overflow-hidden whitespace-nowrap text-sm font-semibold text-foreground transition-all duration-300 ease-out",
+          !open && !justClosed && "group-hover:max-w-[100px] group-hover:pr-1"
+        )}>
+          Ask Whal-E
+        </span>
         <div className="relative h-14 w-14 shrink-0">
           <WhaleAvatar className="h-14 w-14 p-1" />
           <div className={cn(
@@ -293,12 +335,6 @@ export default function WhaleAssistant() {
             </div>
           </div>
         </div>
-        <span className={cn(
-          "max-w-0 overflow-hidden whitespace-nowrap text-sm font-semibold text-foreground transition-all duration-300 ease-out",
-          !open && !justClosed && "group-hover:max-w-[100px] group-hover:pl-1"
-        )}>
-          Ask Whal-E
-        </span>
       </button>
 
       {/* Upgrade dialog */}

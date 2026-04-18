@@ -127,7 +127,7 @@ const AppNav = () => {
             {/* Color mode toggle */}
             <button
               onClick={cycleColorMode}
-              title={`Mode: ${COLOR_MODE_LABELS[colorMode]} — click to cycle`}
+              title={COLOR_MODE_LABELS[colorMode]}
               className="flex items-center gap-1.5 rounded-md px-2.5 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
               {COLOR_MODE_ICONS[colorMode]}

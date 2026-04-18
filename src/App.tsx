@@ -60,8 +60,7 @@ function GlobalDropZone() {
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-background/90 backdrop-blur-sm pointer-events-none">
       <div className="flex flex-col items-center gap-4 rounded-2xl border-2 border-dashed border-primary bg-card/80 px-16 py-12 text-center shadow-2xl">
         <Upload className="h-14 w-14 text-primary" />
-        <p className="text-2xl font-bold text-foreground">Drop your screenshot here</p>
-        <p className="text-sm text-muted-foreground">PNG or JPG · any STEM subject</p>
+        <p className="text-2xl font-bold text-foreground">Drop it like it's hot</p>
       </div>
     </div>
   );

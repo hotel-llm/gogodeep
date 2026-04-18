@@ -915,7 +915,7 @@ export function UnitCircle() {
             { label: "θ",     value: `${theta}°`,                              color: C_AMBER   },
             { label: "cos θ", value: cosVal.toFixed(2),                        color: C_PRIMARY },
             { label: "sin θ", value: sinVal.toFixed(2),                        color: C_GREEN   },
-            { label: "tan θ", value: isFinite(tanVal) ? tanVal.toFixed(2) : "∞", color: C_CYAN  },
+            { label: "tan θ", value: isFinite(tanVal) ? (Math.abs(tanVal) > 99 ? "—" : tanVal.toFixed(2)) : "∞", color: C_CYAN  },
           ].map(({ label, value, color }) => (
             <div key={label} className="w-20 rounded-xl border border-white/[0.07] bg-[#0d1528] py-3 text-center">
               <p className="text-[10px] text-muted-foreground mb-1">{label}</p>

@@ -1,10 +1,12 @@
 import * as React from "react";
-import { Plus } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Upload } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 import HistorySidebar from "@/components/HistorySidebar";
-import { Button } from "@/components/ui/button";
+import { pendingFileStore } from "@/lib/pendingFile";
 import { cn } from "@/lib/utils";
+
+const ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp", "image/heic", "image/heif"];
 
 export default function EducatorLayout({
   title,
@@ -17,6 +19,20 @@ export default function EducatorLayout({
   children: React.ReactNode;
   className?: string;
 }) {
+  const navigate = useNavigate();
+  const [dropHover, setDropHover] = React.useState(false);
+  const dragCounter = React.useRef(0);
+
+  function onDragEnter(e: React.DragEvent) { e.preventDefault(); dragCounter.current++; setDropHover(true); }
+  function onDragLeave() { dragCounter.current--; if (dragCounter.current === 0) setDropHover(false); }
+  function onDragOver(e: React.DragEvent) { e.preventDefault(); }
+  function onDrop(e: React.DragEvent) {
+    e.preventDefault(); dragCounter.current = 0; setDropHover(false);
+    const file = e.dataTransfer.files[0];
+    if (file && ALLOWED_TYPES.includes(file.type)) { pendingFileStore.set(file); }
+    navigate("/workspace");
+  }
+
   return (
     <div className="relative z-10 mt-14 flex h-[calc(100vh-3.5rem)] overflow-hidden">
 
@@ -29,14 +45,27 @@ export default function EducatorLayout({
           </span>
         </div>
 
-        {/* New Scan button */}
+        {/* Drop zone — click or drag a screenshot */}
         <div className="p-3">
-          <Link to="/workspace">
-            <Button className="w-full gap-2 bg-primary text-sm font-semibold hover:bg-primary/90">
-              <Plus className="h-4 w-4" />
-              New Scan
-            </Button>
-          </Link>
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => navigate("/workspace")}
+            onKeyDown={(e) => e.key === "Enter" && navigate("/workspace")}
+            onDragEnter={onDragEnter}
+            onDragLeave={onDragLeave}
+            onDragOver={onDragOver}
+            onDrop={onDrop}
+            className={cn(
+              "flex w-full cursor-pointer select-none items-center gap-2 rounded-xl border-2 border-dashed px-3 py-2.5 text-xs font-semibold transition-all duration-200",
+              dropHover
+                ? "border-primary bg-primary/10 text-primary shadow-[0_0_12px_hsl(var(--primary)/0.2)] scale-[1.02]"
+                : "border-primary/40 bg-primary/5 text-primary/70 hover:border-primary hover:bg-primary/10 hover:text-primary"
+            )}
+          >
+            <Upload className="h-3.5 w-3.5 shrink-0" />
+            <span>Drop a screenshot or scan</span>
+          </div>
         </div>
 
         <div className="border-t border-border" />

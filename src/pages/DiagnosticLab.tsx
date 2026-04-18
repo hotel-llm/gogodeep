@@ -136,6 +136,7 @@ const DiagnosticLab = () => {
         if (!user?.id) {
           // Guest gets 1 free scan — navigate directly to report, no DB insert
           localStorage.setItem(GUEST_SCAN_KEY, "1");
+          window.dispatchEvent(new CustomEvent("whale-scan-done"));
           try {
             sessionStorage.setItem(SESSION_REPORT_KEY, JSON.stringify({ diagnosis: data, mode: "guide", guest: true }));
           } catch { /* ignore */ }
@@ -240,6 +241,7 @@ const DiagnosticLab = () => {
       if (!user?.id) {
         // Guest gets 1 free scan — navigate directly to report, no DB insert
         localStorage.setItem(GUEST_SCAN_KEY, "1");
+        window.dispatchEvent(new CustomEvent("whale-scan-done"));
         try {
           sessionStorage.setItem(SESSION_REPORT_KEY, JSON.stringify({ diagnosis: data, mode: "guide", guest: true, inputText: trimmed }));
         } catch { /* ignore */ }
@@ -385,7 +387,6 @@ const DiagnosticLab = () => {
                 {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : "Analyse"}
               </Button>
             </div>
-
           </div>
         </div>
       </div>
@@ -413,9 +414,9 @@ const DiagnosticLab = () => {
       <Dialog open={showLoginGate} onOpenChange={setShowLoginGate}>
         <DialogContent className="border border-border bg-card sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-foreground">Create a free account to continue</DialogTitle>
+            <DialogTitle className="text-foreground">Sign up to keep going</DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              You've used your free guest scan. Sign up to unlock unlimited scans and save your progress.
+              It only takes 10 seconds. Sign up free to save this scan and keep going.
             </DialogDescription>
           </DialogHeader>
           <div className="mt-2 flex flex-col gap-2">

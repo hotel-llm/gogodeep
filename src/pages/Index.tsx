@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { Camera, Microscope, Route, ArrowRight, ScanLine, BookOpen, Upload, Loader2, Flame, ChevronRight, ChevronDown, BrainCircuit, Lock, Settings2, Lightbulb, RefreshCw } from "lucide-react";
 import { UnitCircle } from "@/components/interact/MathModels2";
@@ -1038,6 +1038,11 @@ const DemoPanel = () => {
                       }`}
                     >
                       <span className="truncate">{label}</span>
+                      {value === "model" && (
+                        <span className="absolute -right-1 -top-2 rounded-sm bg-blue-500 px-1 py-px text-[8px] font-bold uppercase leading-none text-white">
+                          beta
+                        </span>
+                      )}
                     </button>
                   ))}
                 </div>
@@ -1177,6 +1182,15 @@ const Landing = () => {
   const [bubbleVisible, setBubbleVisible] = useState(true);
   const [highlightedStep, setHighlightedStep] = useState<0 | 1 | 2>(0);
   const [chevronVisible, setChevronVisible] = useState(true);
+  const highlightFired = useRef(false);
+
+  const runHighlight = useCallback(() => {
+    if (highlightFired.current) return;
+    highlightFired.current = true;
+    setTimeout(() => setHighlightedStep(1), 200);
+    setTimeout(() => setHighlightedStep(2), 900);
+    setTimeout(() => setHighlightedStep(0), 2100);
+  }, []);
 
   useEffect(() => {
     const onScroll = () => setChevronVisible(window.scrollY < 80);
@@ -1184,12 +1198,22 @@ const Landing = () => {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  // Trigger highlight when "How it works" section scrolls into view
+  useEffect(() => {
+    const el = howItWorksRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) runHighlight(); },
+      { threshold: 0.25 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [runHighlight]);
+
   function scrollToHowItWorks() {
     setChevronVisible(false);
     howItWorksRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    setTimeout(() => setHighlightedStep(1), 700);
-    setTimeout(() => setHighlightedStep(2), 1400);
-    setTimeout(() => setHighlightedStep(0), 2600);
+    runHighlight();
   }
 
   useEffect(() => {

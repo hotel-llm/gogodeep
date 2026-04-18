@@ -887,6 +887,11 @@ const BlindSpotReport = () => {
                     >
                       <Icon className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
                       <span className="truncate">{label}</span>
+                      {value === "model" && (
+                        <span className="absolute -right-1 -top-2 rounded-sm bg-blue-500 px-1 py-px text-[8px] font-bold uppercase leading-none text-white">
+                          beta
+                        </span>
+                      )}
                     </button>
                   ))}
                 </div>
