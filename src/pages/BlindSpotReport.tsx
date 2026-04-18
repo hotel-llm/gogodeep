@@ -556,76 +556,6 @@ function StepsTab({ diagnosis, steps, revealed, setRevealed, plan, isLoading }: 
   );
 }
 
-// ── Guest Whal-E nudge ────────────────────────────────────────────────────────
-
-const NUDGE_MESSAGES = [
-  "Sign up to save your results!",
-  "Don't lose this scan — it takes 10 seconds.",
-  "Create a free account to keep your progress.",
-  "Want to come back to this later? Sign up free.",
-  "Save your scan so you can review it anytime.",
-];
-
-function WhaleNudge() {
-  const navigate = useNavigate();
-  const [msgIdx, setMsgIdx] = useState(0);
-  const [visible, setVisible] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
-
-  useEffect(() => {
-    // Appear after a short delay
-    const t = setTimeout(() => setVisible(true), 1800);
-    return () => clearTimeout(t);
-  }, []);
-
-  useEffect(() => {
-    if (dismissed) return;
-    const interval = setInterval(() => {
-      setMsgIdx((i) => (i + 1) % NUDGE_MESSAGES.length);
-    }, 4500);
-    return () => clearInterval(interval);
-  }, [dismissed]);
-
-  if (dismissed) return null;
-
-  return (
-    <div
-      className={cn(
-        "fixed bottom-6 right-6 z-50 flex items-end gap-3 transition-all duration-500",
-        visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6 pointer-events-none"
-      )}
-    >
-      {/* Speech bubble */}
-      <div className="relative max-w-[220px] rounded-xl border border-border bg-card px-4 py-3 shadow-lg">
-        <button
-          onClick={() => setDismissed(true)}
-          className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-muted text-[10px] text-muted-foreground hover:bg-border"
-          aria-label="Dismiss"
-        >
-          ×
-        </button>
-        <p className="text-xs font-medium text-foreground leading-snug">{NUDGE_MESSAGES[msgIdx]}</p>
-        <button
-          onClick={() => navigate("/signup")}
-          className="mt-2 text-xs font-semibold text-primary underline underline-offset-2 hover:text-primary/80"
-        >
-          Sign up free →
-        </button>
-        {/* Tail pointing right toward whale */}
-        <span className="absolute -right-2 bottom-4 h-0 w-0 border-y-4 border-l-8 border-y-transparent border-l-card" />
-        <span className="absolute -right-[9px] bottom-4 h-0 w-0 border-y-4 border-l-8 border-y-transparent border-l-border" />
-      </div>
-      {/* Whale avatar */}
-      <img
-        src="/whale-e.png"
-        alt="Whal-E"
-        className="h-14 w-14 object-contain"
-        style={{ animation: "float 4s ease-in-out infinite" }}
-      />
-    </div>
-  );
-}
-
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 const BlindSpotReport = () => {
@@ -925,8 +855,6 @@ const BlindSpotReport = () => {
 
       </div>
 
-      {/* Guest Whal-E nudge */}
-      {isGuest && <WhaleNudge />}
 
       {/* Lightbox */}
       {lightboxOpen && displaySrc && (
