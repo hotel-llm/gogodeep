@@ -617,12 +617,12 @@ const Dashboard = ({ user }: { user: User }) => {
                       <>
                         <div>
                           <p className="text-[10px] font-semibold uppercase tracking-widest text-primary mb-1">{currentQ.topic}</p>
-                          <p className="text-sm font-medium text-foreground">{currentQ.question}</p>
+                          <p className="text-sm font-medium text-foreground"><RichText text={currentQ.question} /></p>
                         </div>
                         {isCurrentTF && !quiz.revealed && (
                           <div className="rounded-lg border border-border bg-secondary/40 px-3 py-2.5 text-sm text-foreground">
                             <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground block mb-1">Is this statement true or false?</span>
-                            {currentQ.tfStatement}
+                            <RichText text={currentQ.tfStatement} />
                           </div>
                         )}
                         {quiz.revealed ? (
@@ -634,7 +634,7 @@ const Dashboard = ({ user }: { user: User }) => {
                                 </div>
                                 <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5 text-sm text-foreground">
                                   <span className="text-[10px] font-semibold uppercase tracking-widest text-primary block mb-1">Answer</span>
-                                  {currentQ.answer}
+                                  <RichText text={currentQ.answer} />
                                 </div>
                                 <div className="flex justify-end">
                                   <Button size="sm" className="bg-primary hover:bg-primary/90" onClick={advanceTF}>
@@ -652,7 +652,7 @@ const Dashboard = ({ user }: { user: User }) => {
                                 )}
                                 <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5 text-sm text-foreground">
                                   <span className="text-[10px] font-semibold uppercase tracking-widest text-primary block mb-1">Correct answer</span>
-                                  {currentQ.answer}
+                                  <RichText text={currentQ.answer} />
                                 </div>
                                 <div className="flex gap-2">
                                   <Button size="sm" variant="outline" className="flex-1 border-green-500/40 text-green-400 hover:bg-green-500/10"
@@ -1172,6 +1172,55 @@ const WHALE_BUBBLES = [
   "Your post exam self will thank you.",
 ];
 
+const FAQ_ITEMS = [
+  {
+    q: "What is Gogodeep?",
+    a: "Gogodeep is a free AI tool that breaks down any difficult question, step by step. Upload a screenshot of a hard problem and get a full explanation, the underlying concept, and practice questions to make it stick. For STEM topics, Gogodeep also pairs your question with an interactive model you can play with to build real intuition.",
+  },
+  {
+    q: "Which exams and subjects does it support?",
+    a: "Gogodeep mainly supports STEM subjects across IB (SL & HL), AP, SAT, and A-Level, including Maths, Physics, Chemistry, Biology, and Earth & Space Science. It works for other subjects too.",
+  },
+  {
+    q: "Is it really free?",
+    a: "Yes, Gogodeep is completely free.",
+  },
+  {
+    q: "Do I need to create an account?",
+    a: "You can try a scan without signing up. Creating a free account unlocks your scan history, personalized recap quizzes, and a learning dashboard.",
+  },
+  {
+    q: "Can I upload handwritten working?",
+    a: "Yes. Take a photo of handwritten notes, a worksheet, or a past paper question and Gogodeep will read and break it down.",
+  },
+  {
+    q: "How is this different from asking ChatGPT?",
+    a: "Gogodeep is built specifically for exam-style questions, presented in an easily digestible way so anyone can follow along. It doesn't just give you an answer. It identifies the exact concept you're missing, explains it clearly, and generates targeted practice so the understanding actually sticks.",
+  },
+];
+
+function FaqSection() {
+  const [open, setOpen] = useState<number | null>(null);
+  return (
+    <div className="divide-y divide-border rounded-xl border border-border bg-card overflow-hidden">
+      {FAQ_ITEMS.map((item, i) => (
+        <div key={i}>
+          <button
+            className="flex w-full items-center justify-between px-5 py-4 text-left text-sm font-medium text-foreground hover:bg-accent/40 transition-colors"
+            onClick={() => setOpen(open === i ? null : i)}
+          >
+            {item.q}
+            <ChevronDown className={`ml-3 h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 ${open === i ? "rotate-180" : ""}`} />
+          </button>
+          {open === i && (
+            <div className="px-5 pt-1 pb-5 text-sm leading-relaxed text-muted-foreground">{item.a}</div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 const Landing = () => {
   const logoRef = useRef<HTMLDivElement>(null);
   const howItWorksRef = useRef<HTMLElement>(null);
@@ -1212,8 +1261,13 @@ const Landing = () => {
 
   function scrollToHowItWorks() {
     setChevronVisible(false);
-    howItWorksRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    runHighlight();
+    const el = howItWorksRef.current;
+    if (el) {
+      const top = el.getBoundingClientRect().top + window.scrollY - 72;
+      window.scrollTo({ top, behavior: "smooth" });
+    }
+    highlightFired.current = false;
+    setTimeout(runHighlight, 600);
   }
 
   useEffect(() => {
@@ -1390,6 +1444,14 @@ const Landing = () => {
                 );
               })}
             </div>
+          </div>
+        </section>
+
+        {/* ── FAQ ── */}
+        <section className="container pb-12">
+          <div className="mx-auto max-w-2xl">
+            <h2 className="mb-6 text-center text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">FAQ</h2>
+            <FaqSection />
           </div>
         </section>
 

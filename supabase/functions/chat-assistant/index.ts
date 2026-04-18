@@ -10,7 +10,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { messages } = await req.json();
+    const { messages, stepContext } = await req.json();
 
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
     if (!ANTHROPIC_API_KEY) {
@@ -37,7 +37,7 @@ Deno.serve(async (req: Request) => {
 
 Gogodeep: Diagnostic Lab (upload question, choose Guide me or Find my error), Report page (Step by Step, Concept, Practice tabs), scan history sidebar, dashboard with daily credits and login streak. Plans: Free 3 scans/day, Intermediate 10/day, Deep unlimited.
 
-Answer academic questions (maths, physics, chemistry, biology, etc.), help with Gogodeep navigation, redirect off-topic messages back to studying.`,
+Answer academic questions (maths, physics, chemistry, biology, etc.), help with Gogodeep navigation, redirect off-topic messages back to studying.${stepContext ? `\n\nThe student is asking about a specific step from their scan. Use this as your primary context for the conversation:\n${stepContext}` : ""}`,
         messages,
       }),
     });

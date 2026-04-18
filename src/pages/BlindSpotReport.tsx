@@ -107,7 +107,7 @@ type ReportTab = "steps" | "error" | "concept" | "practice" | "model";
 
 interface ModelEntry { title: string; Component: React.ComponentType }
 
-// Ordered list of keyword → model mappings. First match wins.
+// Ordered list of keyword → model mappings. All matches are returned.
 const MODEL_MAP: { keywords: string[]; model: ModelEntry }[] = [
   { keywords: ["unit circle","sin","cos","tan","sine","cosine","tangent","radian","trig ratio"], model: { title: "Unit Circle", Component: UnitCircle } },
   { keywords: ["law of sine","law of cosine","sine rule","cosine rule","non-right triangle","oblique"], model: { title: "Law of Sines & Cosines", Component: LawOfSinesCosines } },
@@ -161,8 +161,8 @@ const MODEL_MAP: { keywords: string[]; model: ModelEntry }[] = [
   { keywords: ["greenhouse","global warming","climate","co2","carbon dioxide effect"], model: { title: "Greenhouse Effect", Component: GreenhouseEffect } },
 ];
 
-function findRelatedModel(diagnosis: Diagnosis | undefined): ModelEntry | null {
-  if (!diagnosis) return null;
+function findRelatedModels(diagnosis: Diagnosis | undefined): ModelEntry[] {
+  if (!diagnosis) return [];
   const text = [
     (diagnosis as any)?.concept_label,
     (diagnosis as any)?.question_summary,
@@ -172,10 +172,7 @@ function findRelatedModel(diagnosis: Diagnosis | undefined): ModelEntry | null {
     (diagnosis as any)?.underlying_concept,
   ].filter(Boolean).join(" ").toLowerCase();
 
-  for (const { keywords, model } of MODEL_MAP) {
-    if (keywords.some((kw) => text.includes(kw))) return model;
-  }
-  return null;
+  return MODEL_MAP.filter(({ keywords }) => keywords.some((kw) => text.includes(kw))).map(({ model }) => model);
 }
 
 function resolveImageSrc(state: NavState): string | null {
@@ -740,7 +737,7 @@ const BlindSpotReport = () => {
   const practice = [...basePractice, ...extraProblems];
   const effectiveConcept = lazyConceptData?.core_concept ?? (diagnosis as any)?.core_concept;
   const effectiveRecognitionCue = lazyConceptData?.recognition_cue ?? (diagnosis as any)?.recognition_cue;
-  const relatedModel = findRelatedModel(diagnosis);
+  const relatedModels = findRelatedModels(diagnosis);
 
   return (
     <EducatorLayout>
@@ -795,8 +792,8 @@ const BlindSpotReport = () => {
                   { value: "concept" as ReportTab, label: "Concept", Icon: Lightbulb },
                   { value: "practice" as ReportTab, label: "Practice", Icon: ClipboardList },
                 ];
-            const tabList = relatedModel
-              ? [...baseTabList, { value: "model" as ReportTab, label: relatedModel.title, Icon: Layers }]
+            const tabList = relatedModels.length > 0
+              ? [...baseTabList, { value: "model" as ReportTab, label: "Model", Icon: Layers }]
               : baseTabList;
             const activeIdx = tabList.findIndex((t) => t.value === activeTab);
             const tabCount = tabList.length;
@@ -838,13 +835,18 @@ const BlindSpotReport = () => {
                     isLoadingConcept={loadingConcept}
                   />}
                   {activeTab === "practice" && <PracticeTab problems={practice} plan={plan} onGenerateMore={generateMoreProblems} isGeneratingMore={isGeneratingMore} isLoadingPractice={loadingPractice} />}
-                  {activeTab === "model" && relatedModel && (
-                    <div className="rounded-xl border border-border bg-card overflow-hidden">
-                      <div className="px-4 pt-4 pb-2">
-                        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Interactive Model</p>
-                        <p className="mt-0.5 text-sm font-semibold text-foreground">{relatedModel.title}</p>
-                      </div>
-                      <relatedModel.Component />
+                  {activeTab === "model" && relatedModels.length > 0 && (
+                    <div className="space-y-3">
+                      <p className="text-xs text-muted-foreground italic">These models are matched to your topic and may not be a perfect fit.</p>
+                      {relatedModels.map((m) => (
+                        <div key={m.title} className="rounded-xl border border-border bg-card overflow-hidden">
+                          <div className="px-4 pt-4 pb-2">
+                            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Interactive Model</p>
+                            <p className="mt-0.5 text-sm font-semibold text-foreground">{m.title}</p>
+                          </div>
+                          <m.Component />
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>

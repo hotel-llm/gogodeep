@@ -27,6 +27,7 @@ const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/gif"
 // Listens for file drops anywhere on the page and navigates to workspace
 function GlobalDropZone() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [dragging, setDragging] = useState(false);
   const dragCounterRef = useRef(0);
 
@@ -38,6 +39,8 @@ function GlobalDropZone() {
       e.preventDefault();
       dragCounterRef.current = 0;
       setDragging(false);
+      // Let DiagnosticLab handle drops when already on /workspace
+      if (location.pathname === "/workspace") return;
       const file = e.dataTransfer?.files[0];
       if (!file || !ALLOWED_IMAGE_TYPES.includes(file.type)) return;
       pendingFileStore.set(file);
@@ -55,7 +58,7 @@ function GlobalDropZone() {
     };
   }, [navigate]);
 
-  if (!dragging) return null;
+  if (!dragging || location.pathname === "/workspace") return null;
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-background/90 backdrop-blur-sm pointer-events-none">
       <div className="flex flex-col items-center gap-4 rounded-2xl border-2 border-dashed border-primary bg-card/80 px-16 py-12 text-center shadow-2xl">

@@ -52,6 +52,7 @@ export default function WhaleAssistant() {
   const [justClosed, setJustClosed] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [stepContext, setStepContext] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -157,13 +158,17 @@ export default function WhaleAssistant() {
   useEffect(() => {
     function handler(e: Event) {
       const { stepNum, stepText, questionSummary } = (e as CustomEvent).detail;
+      const ctx = questionSummary
+        ? `Question: ${questionSummary}\nStep ${stepNum}: ${stepText}`
+        : `Step ${stepNum}: ${stepText}`;
+      setStepContext(ctx);
       setOpen(true);
       setMessages((prev) => {
         const base = prev.length === 0 ? [{ role: "assistant" as const, content: GREETING }] : prev;
-        const context = questionSummary
-          ? `📌 **Step ${stepNum}** (from: *${questionSummary}*)\n\n${stepText}\n\nWhat would you like to know about this step?`
-          : `📌 **Step ${stepNum}**\n\n${stepText}\n\nWhat would you like to know about this step?`;
-        return [...base, { role: "assistant" as const, content: context }];
+        const display = questionSummary
+          ? `Step ${stepNum} (from: ${questionSummary})\n\n${stepText}\n\nWhat would you like to know about this step?`
+          : `Step ${stepNum}\n\n${stepText}\n\nWhat would you like to know about this step?`;
+        return [...base, { role: "assistant" as const, content: display }];
       });
       setTimeout(() => {
         bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -258,7 +263,7 @@ export default function WhaleAssistant() {
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("chat-assistant", {
-        body: { messages: next.map((m) => ({ role: m.role, content: m.content })) },
+        body: { messages: next.map((m) => ({ role: m.role, content: m.content })), stepContext },
       });
       if (error || (data as any)?.error) throw new Error((error as any)?.message ?? (data as any)?.error);
       setMessages((prev) => [...prev, { role: "assistant", content: (data as any).reply }]);

@@ -298,6 +298,28 @@ const DiagnosticLab = () => {
     }
   }, [analyzeImage]);
 
+  // Accept drops anywhere on the page
+  useEffect(() => {
+    const TYPES = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp", "image/heic", "image/heif"];
+    const onOver = (e: DragEvent) => e.preventDefault();
+    const onDrop = (e: DragEvent) => {
+      e.preventDefault();
+      setIsDragging(false);
+      if (isAnalyzing) return;
+      const file = e.dataTransfer?.files[0];
+      if (!file) return;
+      if (!TYPES.includes(file.type)) { whaleToast.error("Unsupported format. Please use JPG, PNG, WebP, or HEIC."); return; }
+      setSelectedFile(file);
+      analyzeImage(file);
+    };
+    document.addEventListener("dragover", onOver);
+    document.addEventListener("drop", onDrop);
+    return () => {
+      document.removeEventListener("dragover", onOver);
+      document.removeEventListener("drop", onDrop);
+    };
+  }, [isAnalyzing, analyzeImage]);
+
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
