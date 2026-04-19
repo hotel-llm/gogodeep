@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Microscope, LogOut, UserCircle2, CircleDollarSign, Mail, Pencil, Atom, Moon, Sun, SunMoon } from "lucide-react";
+import { LayoutDashboard, Waves, LogOut, UserCircle2, CircleDollarSign, Mail, Pencil, Atom, Moon, Sun, SunMoon } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +26,7 @@ import {
 
 const navItems = [
   { path: "/", label: "Home", icon: LayoutDashboard },
-  { path: "/workspace", label: "Workspace", icon: Microscope },
+  { path: "/workspace", label: "Workspace", icon: Waves },
   { path: "/interact", label: "Interact", icon: Atom },
   ...(!FREE_FOR_ALL ? [{ path: "/pricing", label: "Pricing", icon: CircleDollarSign }] : []),
   { path: "/contact", label: "Contact", icon: Mail },

@@ -3,7 +3,7 @@ import { Helmet } from "react-helmet-async";
 import { useLocation, Link, useNavigate } from "react-router-dom";
 import {
   BookOpen, ArrowLeft, TriangleAlert, Lightbulb, ClipboardList,
-  ChevronRight, ArrowRight, FileSearch, Lock, Loader2, Microscope, CheckCircle2, Layers,
+  ChevronRight, ArrowRight, FileSearch, Lock, Loader2, Waves, CheckCircle2, Layers,
 } from "lucide-react";
 import { UnitCircle, LawOfSinesCosines, TrigIdentities, PythagoreanTheorem, QuadraticEquations, TheDerivative, DefiniteIntegrals, LimitsAndContinuity, TaylorSeries, DifferentialEquations, LinearRegression, BinomialDistribution, Vectors2D, ComplexNumbers, Logarithms, ConicSections, MatrixTransformations, SequencesSeries, Optimization, SimilarTriangles, Inequalities } from "@/components/interact/MathModels2";
 import { NormalDistribution } from "@/components/interact/MathCSModels";
@@ -353,7 +353,7 @@ function ConceptTab({
     {
       id: "happened",
       label: "In this problem",
-      Icon: Microscope,
+      Icon: Waves,
       content: whatHappened,
       locked: false,
       cardClass: "border-border bg-secondary/40",

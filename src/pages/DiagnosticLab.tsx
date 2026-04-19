@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import { useNavigate, Link } from "react-router-dom";
-import { Upload, Loader2, Microscope, ArrowRight, Lock } from "lucide-react";
+import { Upload, Loader2, Waves, ArrowRight, Lock } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { whaleToast } from "@/lib/whaleToast";
@@ -370,7 +370,7 @@ const DiagnosticLab = () => {
               ) : (
                 <div className="flex flex-col items-center gap-4 px-6 text-center">
                   {isDragging ? (
-                    <Microscope className="h-9 w-9 text-primary" />
+                    <Waves className="h-9 w-9 text-primary" />
                   ) : (
                     <Upload className="h-9 w-9 text-muted-foreground transition-colors group-hover:text-primary" />
                   )}

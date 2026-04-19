@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
-import { Camera, Microscope, Route, ArrowRight, ScanLine, BookOpen, Upload, Loader2, Flame, ChevronRight, ChevronDown, BrainCircuit, Lock, Settings2, Lightbulb, RefreshCw } from "lucide-react";
+import { Aperture, Camera, Microscope, Compass, ArrowRight, Zap, ScanLine, BookOpen, Upload, Loader2, Flame, ChevronRight, ChevronDown, BrainCircuit, Lock, Settings2, Lightbulb, RefreshCw } from "lucide-react";
 import { UnitCircle } from "@/components/interact/MathModels2";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -57,9 +57,34 @@ const QUOTES = [
   { text: "A mistake is evidence that someone tried.", author: "Anonymous" },
 ];
 
+const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent);
+const isWindows = typeof navigator !== "undefined" && /Win/i.test(navigator.platform || navigator.userAgent);
+
+function Key({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center justify-center rounded border border-primary/40 bg-primary/10 w-9 h-9 text-base font-bold text-primary leading-none">
+      {children}
+    </span>
+  );
+}
+
+function ScreenshotKeys() {
+  if (isMac) return (
+    <span className="flex items-center gap-1">
+      <Key>⌘</Key><Key>⇧</Key><Key>4</Key>
+    </span>
+  );
+  if (isWindows) return (
+    <span className="flex items-center gap-1">
+      <Key>⊞</Key><Key>⇧</Key><Key>S</Key>
+    </span>
+  );
+  return <Key>PrtSc</Key>;
+}
+
 const steps = [
-  { icon: Camera, step: "01", title: "Screenshot", desc: "Drop a screenshot of a difficult problem." },
-  { icon: Route, step: "02", title: "Repair", desc: "Gogodeep breaks the question down, and you'll understand it within minutes." },
+  { renderIcon: () => <ScreenshotKeys />, step: "01", title: "Screenshot", desc: "Drop a screenshot of a difficult problem." },
+  { renderIcon: () => <span className="text-2xl font-black text-primary leading-none">!</span>, step: "02", title: "Repair", desc: "Gogodeep breaks the question down, and you'll understand it within minutes." },
 ];
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
@@ -1161,16 +1186,6 @@ const DemoPanel = () => {
   );
 };
 
-const WHALE_BUBBLES = [
-  "Upload a screenshot of any STEM question.",
-  "Perfect for anyone motivated to ace their next test.",
-  "Complete breakdown of any difficult question.",
-  "Used by IB, AP & A-Level students.",
-  "The method to actually reach a 1600 in SAT.",
-  "Targeted practice, not passive re-reading.",
-  "Fully understand any difficult concept in 3 minutes.",
-  "Your post exam self will thank you.",
-];
 
 const FAQ_ITEMS = [
   {
@@ -1221,14 +1236,36 @@ function FaqSection() {
   );
 }
 
+const EXAM_LABELS = [
+  "IB", "GCSE", "AP", "MYP", "SAT", "ACT", "A-Level", "PSAT", "IGCSE",
+];
+
+function ExamMarquee() {
+  const items = [...EXAM_LABELS, ...EXAM_LABELS];
+  return (
+    <div className="overflow-hidden" style={{ width: 280, maskImage: "linear-gradient(to right, transparent, black 15%, black 85%, transparent)" }}>
+      <div
+        className="flex gap-0 whitespace-nowrap"
+        style={{ animation: "marquee 18s linear infinite" }}
+      >
+        {items.map((label, i) => (
+          <span key={i} className="text-sm font-medium text-muted-foreground">
+            {label}
+            <span className="mx-1.5 opacity-30">·</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const Landing = () => {
   const logoRef = useRef<HTMLDivElement>(null);
   const howItWorksRef = useRef<HTMLElement>(null);
   const [eyeOffset, setEyeOffset] = useState({ x: 0, y: 0 });
   const [isHovered, setIsHovered] = useState(false);
   const [landingQuoteOffset, setLandingQuoteOffset] = useState(0);
-  const [bubbleIdx, setBubbleIdx] = useState(0);
-  const [bubbleVisible, setBubbleVisible] = useState(true);
+
   const [highlightedStep, setHighlightedStep] = useState<0 | 1 | 2>(0);
   const [chevronVisible, setChevronVisible] = useState(true);
   const highlightFired = useRef(false);
@@ -1290,17 +1327,6 @@ const Landing = () => {
     return () => window.removeEventListener("mousemove", handleMouseMove);
   }, []);
 
-  // Cycle whale speech bubbles
-  useEffect(() => {
-    const id = setInterval(() => {
-      setBubbleVisible(false);
-      setTimeout(() => {
-        setBubbleIdx((i) => (i + 1) % WHALE_BUBBLES.length);
-        setBubbleVisible(true);
-      }, 350);
-    }, 5000);
-    return () => clearInterval(id);
-  }, []);
 
   return (
     <PageTransition>
@@ -1354,24 +1380,11 @@ const Landing = () => {
                     </div>
                   </Link>
 
-                  {/* Speech bubble */}
-                  <div
-                    style={{
-                      opacity: bubbleVisible ? 1 : 0,
-                      transform: bubbleVisible ? "translateX(0)" : "translateX(-4px)",
-                      transition: "opacity 0.35s ease, transform 0.35s ease",
-                    }}
-                  >
-                    <div className="relative rounded-2xl rounded-tl-sm border border-border bg-card px-4 py-2.5 shadow-sm">
-                      <p className="text-sm text-foreground">{WHALE_BUBBLES[bubbleIdx]}</p>
-                      {/* Tail pointing left toward whale */}
-                      <div className="absolute -left-1.5 top-3 h-3 w-3 rotate-45 border-b border-l border-border bg-card" />
-                    </div>
-                  </div>
+                  <ExamMarquee />
                 </div>
 
                 <h1 className="mt-4 text-5xl font-extrabold tracking-tight text-foreground md:text-6xl">
-                  Fix the thinking,<br />not just the answer.
+                  Go deeper<br />than the answer.
                 </h1>
                 <p className="mt-6 max-w-md text-lg leading-relaxed text-muted-foreground">
                   Drop a screenshot of any hard problem right here, right now, and start learning efficiently.
@@ -1382,7 +1395,7 @@ const Landing = () => {
                     <span className="absolute inset-0 rounded-md bg-primary opacity-0 blur-xl transition-all duration-500 group-hover:opacity-70 group-hover:scale-110 pointer-events-none" />
                     <Button className="relative h-12 px-8 text-base font-semibold bg-primary transition-all duration-300 group-hover:bg-primary group-hover:shadow-[0_0_32px_6px_rgba(91,127,239,0.55)] group-hover:scale-105">
                       Go!
-                      <ArrowRight className="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+                      <Zap className="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
                     </Button>
                   </Link>
                 </div>
@@ -1414,7 +1427,7 @@ const Landing = () => {
           <div className="mx-auto max-w-5xl">
             <h2 className="mb-10 text-center text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">How it works</h2>
             <div className="grid gap-6 md:grid-cols-2">
-              {steps.map(({ icon: Icon, step, title, desc }) => {
+              {steps.map(({ renderIcon, step, title, desc }) => {
                 const isHighlighted = (highlightedStep === 1 && step === "01") || (highlightedStep === 2 && step === "02");
                 const sweepStyle = (opacity: number, delay = 0): React.CSSProperties => ({
                   background: `linear-gradient(to right, hsl(var(--primary) / ${opacity}) 50%, transparent 50%)`,
@@ -1430,8 +1443,8 @@ const Landing = () => {
                 });
                 return (
                   <Card key={step} className="border-border bg-card p-8 transition-colors hover:bg-accent/50">
-                    <div className="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-lg border border-border bg-secondary text-primary">
-                      <Icon className="h-5 w-5" />
+                    <div className="mb-6 inline-flex min-h-12 min-w-12 items-center justify-center rounded-lg border border-border bg-secondary text-primary px-2 py-2">
+                      {renderIcon()}
                     </div>
                     <p className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground">{step}</p>
                     <h3 className="mt-2 text-xl font-bold tracking-tight text-foreground">
@@ -1500,7 +1513,7 @@ const Home = () => {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  if (user === undefined) return null; // brief auth check
+  if (user === undefined) return <Landing />;
 
   return user ? <Dashboard user={user} /> : <Landing />;
 };
