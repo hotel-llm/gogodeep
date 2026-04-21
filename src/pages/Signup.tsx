@@ -77,7 +77,7 @@ const Signup = () => {
   if (success) {
     return (
       <PageTransition>
-        <div className="relative z-10 min-h-screen pt-14">
+        <div className="relative z-10 min-h-screen pt-20">
           <div className="container flex min-h-[calc(100vh-3.5rem)] items-center justify-center py-12">
             <Card className="w-full max-w-md border border-border bg-card p-10 text-center">
               <img src={gogodeepLogo} alt="Gogodeep — AI exam mistake helper for IB, AP, and A-Level STEM students" className="mx-auto h-14 w-14 object-contain" />
@@ -97,7 +97,7 @@ const Signup = () => {
 
   return (
     <PageTransition>
-      <div className="relative z-10 min-h-screen pt-14">
+      <div className="relative z-10 min-h-screen pt-20">
         <div className="container flex min-h-[calc(100vh-3.5rem)] items-center justify-center py-12">
           <Card className="w-full max-w-md border border-border bg-card p-8">
             <div className="mb-6 flex flex-col items-center text-center">

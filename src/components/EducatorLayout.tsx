@@ -34,7 +34,7 @@ export default function EducatorLayout({
   }
 
   return (
-    <div className="relative z-10 mt-14 flex h-[calc(100vh-3.5rem)] overflow-hidden">
+    <div className="relative z-10 flex h-screen overflow-hidden">
 
       {/* ── Sidebar — always visible, never collapsible ───────────────────────── */}
       <aside className="flex h-full w-60 flex-shrink-0 flex-col overflow-hidden border-r border-border bg-card">

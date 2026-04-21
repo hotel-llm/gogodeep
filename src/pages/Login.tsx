@@ -56,7 +56,7 @@ const Login = () => {
 
   return (
     <PageTransition>
-      <div className="relative z-10 min-h-screen pt-14">
+      <div className="relative z-10 min-h-screen pt-20">
         <div className="container flex min-h-[calc(100vh-3.5rem)] items-center justify-center py-12">
           <Card className="w-full max-w-md border border-border bg-card p-8">
 

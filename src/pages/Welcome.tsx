@@ -29,7 +29,7 @@ const Welcome = () => {
   }, [navigate]);
 
   return (
-    <div className="relative z-10 flex min-h-screen items-center justify-center pt-14">
+    <div className="relative z-10 flex min-h-screen items-center justify-center pt-20">
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Loader2 className="h-4 w-4 animate-spin text-primary" />
         Completing sign-in…

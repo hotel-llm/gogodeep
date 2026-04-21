@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Fraunces:ital,opsz,wght@0,9..144,700;0,9..144,900;1,9..144,700;1,9..144,900&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -6,33 +6,33 @@
 
 @layer base {
   :root {
-    --background: 190 35% 3%;
-    --foreground: 180 30% 97%;
+    --background: 222 47% 3%;
+    --foreground: 210 40% 98%;
 
-    --card: 190 28% 6%;
-    --card-foreground: 180 30% 97%;
+    --card: 217 33% 7%;
+    --card-foreground: 210 40% 98%;
 
-    --popover: 190 28% 6%;
-    --popover-foreground: 180 30% 97%;
+    --popover: 217 33% 7%;
+    --popover-foreground: 210 40% 98%;
 
-    --primary: 185 80% 46%;
-    --primary-foreground: 180 30% 97%;
+    --primary: 225 75% 55%;
+    --primary-foreground: 210 40% 98%;
 
-    --secondary: 190 25% 10%;
-    --secondary-foreground: 180 30% 97%;
+    --secondary: 217 33% 12%;
+    --secondary-foreground: 210 40% 98%;
 
-    --muted: 190 25% 10%;
-    --muted-foreground: 185 15% 52%;
+    --muted: 217 33% 12%;
+    --muted-foreground: 215 20% 55%;
 
-    --accent: 190 25% 13%;
-    --accent-foreground: 180 30% 97%;
+    --accent: 217 33% 14%;
+    --accent-foreground: 210 40% 98%;
 
     --destructive: 0 72% 51%;
-    --destructive-foreground: 180 30% 97%;
+    --destructive-foreground: 210 40% 98%;
 
-    --border: 190 25% 13%;
-    --input: 190 25% 13%;
-    --ring: 185 80% 46%;
+    --border: 217 33% 14%;
+    --input: 217 33% 14%;
+    --ring: 225 75% 55%;
 
     --radius: 0.75rem;
 
@@ -40,33 +40,33 @@
     --signal-yellow: 45 100% 51%;
     --signal-green: 142 72% 45%;
 
-    --sidebar-background: 190 30% 4%;
-    --sidebar-foreground: 180 30% 97%;
-    --sidebar-primary: 185 80% 46%;
-    --sidebar-primary-foreground: 180 30% 97%;
-    --sidebar-accent: 190 25% 10%;
-    --sidebar-accent-foreground: 180 30% 97%;
-    --sidebar-border: 190 25% 13%;
-    --sidebar-ring: 185 80% 46%;
+    --sidebar-background: 217 33% 5%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 225 75% 55%;
+    --sidebar-primary-foreground: 210 40% 98%;
+    --sidebar-accent: 217 33% 12%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217 33% 14%;
+    --sidebar-ring: 225 75% 55%;
 
     /* liquid orb colours — overridden per theme */
-    --liquid-orb-1: 185 80% 46%;
-    --liquid-orb-2: 195 75% 35%;
+    --liquid-orb-1: 225 75% 55%;
+    --liquid-orb-2: 215 80% 45%;
 
     /* whale image tint — hue-rotate from the whale's native blue (~225°) */
     --whale-filter: none;
   }
 
-  /* ── Teal (default) ───────────────────────────────────────────────────── */
+  /* ── Blue (default) ───────────────────────────────────────────────────── */
   [data-theme="blue"] {
-    --primary: 185 80% 46%;
-    --primary-foreground: 190 40% 5%;
-    --ring: 185 80% 46%;
-    --sidebar-primary: 185 80% 46%;
-    --sidebar-primary-foreground: 180 30% 97%;
-    --sidebar-ring: 185 80% 46%;
-    --liquid-orb-1: 185 80% 46%;
-    --liquid-orb-2: 195 75% 35%;
+    --primary: 225 75% 55%;
+    --primary-foreground: 210 40% 98%;
+    --ring: 225 75% 55%;
+    --sidebar-primary: 225 75% 55%;
+    --sidebar-primary-foreground: 210 40% 98%;
+    --sidebar-ring: 225 75% 55%;
+    --liquid-orb-1: 225 75% 55%;
+    --liquid-orb-2: 215 80% 45%;
     --whale-filter: none;
   }
 
@@ -207,9 +207,24 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
-.animate-slide-in-paper { animation: slide-in-paper 0.65s cubic-bezier(0.34, 1.4, 0.64, 1) forwards; }
+.animate-slide-in-paper  { animation: slide-in-paper 0.65s cubic-bezier(0.34, 1.4, 0.64, 1) forwards; }
 .animate-scan-sweep      { animation: scan-sweep 1.2s ease-in-out forwards; }
 .animate-fade-up         { animation: fade-up 0.45s ease-out forwards; }
+.animate-slide-in-corner { animation: slide-in-corner 0.55s cubic-bezier(0.34, 1.3, 0.64, 1) forwards; }
+.animate-loading-fill    { animation: loading-fill 1.7s cubic-bezier(0.4, 0, 0.6, 1) forwards; }
+
+@keyframes slide-in-corner {
+  from { transform: translateY(36px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+@keyframes loading-fill {
+  0%   { width: 0%; }
+  20%  { width: 28%; }
+  50%  { width: 62%; }
+  80%  { width: 85%; }
+  100% { width: 96%; }
+}
 
 /* Whale image — tints to match the active colour theme */
 .whale-img { filter: var(--whale-filter); transition: filter 0.4s ease; }

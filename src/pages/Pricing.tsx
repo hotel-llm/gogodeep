@@ -137,7 +137,7 @@ const Pricing = () => {
         <title>Pricing</title>
         <meta name="description" content="Start free with 3 AI scans a day. Upgrade for unlimited scans, targeted practice questions, and daily recap quizzes. AI analysis breakdowns for IB, AP, and A-Level STEM subjects." />
       </Helmet>
-      <div className="relative z-10 min-h-screen pt-14">
+      <div className="relative z-10 min-h-screen pt-20">
         <div className="container py-20">
           {isPaid && (
             <div className="flex justify-end mb-4">

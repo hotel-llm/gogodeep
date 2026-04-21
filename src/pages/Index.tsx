@@ -1,7 +1,8 @@
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { BarChart, Bar, XAxis, ResponsiveContainer, Cell } from "recharts";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
-import { Aperture, Camera, Microscope, Compass, ArrowRight, Zap, ScanLine, BookOpen, Upload, Loader2, Flame, ChevronRight, ChevronDown, BrainCircuit, Lock, Settings2, Lightbulb, RefreshCw } from "lucide-react";
+import { Aperture, Microscope, Compass, ArrowRight, Zap, ScanLine, BookOpen, Upload, Loader2, Flame, ChevronRight, ChevronDown, BrainCircuit, Lock, Settings2, Lightbulb, RefreshCw } from "lucide-react";
 import { UnitCircle } from "@/components/interact/MathModels2";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -108,6 +109,7 @@ type DashboardData = {
   recentScans: { id: string; label: string; created_at: string | null }[];
   loginStreak: number;
   bonusScans: number;
+  weeklyScans: { day: string; count: number }[];
 };
 
 function useUtcResetCountdown() {
@@ -232,7 +234,14 @@ const Dashboard = ({ user }: { user: User }) => {
         created_at: l.created_at,
       }));
 
-      setData({ totalScans: logs.length, creditsLeft, plan, conceptualCount, conceptsLearned, topTags, recentTopics, recentScans, loginStreak, bonusScans });
+      const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+      const weeklyScans = Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(Date.now() - (6 - i) * 86400000);
+        const dateStr = d.toISOString().split("T")[0];
+        return { day: DAY_LABELS[d.getDay()], count: logs.filter((l) => l.created_at?.startsWith(dateStr)).length };
+      });
+
+      setData({ totalScans: logs.length, creditsLeft, plan, conceptualCount, conceptsLearned, topTags, recentTopics, recentScans, loginStreak, bonusScans, weeklyScans });
       setLoading(false);
     };
     load();
@@ -341,8 +350,8 @@ const Dashboard = ({ user }: { user: User }) => {
         <title>Gogodeep</title>
         <meta name="description" content="Trace any difficult question down to its roots with AI. Gogodeep finds the exact error in your STEM working, explains the underlying concept, and builds targeted practice to fix the gap. Free for IB, AP, and A-Level students." />
       </Helmet>
-      <div className="relative z-10 min-h-screen pt-14">
-        <div className="container max-w-5xl py-12">
+      <div className="relative z-10 min-h-screen pt-8">
+        <div className="container max-w-5xl py-8">
 
           {/* Header */}
           <div className="mb-10 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
@@ -391,7 +400,7 @@ const Dashboard = ({ user }: { user: User }) => {
           </div>
 
           {/* Stat row */}
-          <div className="mb-6 grid gap-4 sm:grid-cols-2">
+          <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 
             {/* Total scans */}
             <Card className="border-border bg-card p-6">
@@ -464,6 +473,32 @@ const Dashboard = ({ user }: { user: User }) => {
                   </div>
                 </>
               )}
+            </Card>
+
+            {/* Weekly scan chart */}
+            <Card className="border-border bg-card p-6">
+              <div className="flex items-center gap-2">
+                <ScanLine className="h-4 w-4 text-primary" />
+                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">This Week</p>
+              </div>
+              <p className="mt-4 text-5xl font-extrabold tracking-tight text-foreground">
+                {loading ? "—" : (data?.weeklyScans ?? []).reduce((s, d) => s + d.count, 0)}
+              </p>
+              <p className="mt-1.5 text-xs text-muted-foreground">Scans in the last 7 days</p>
+              <div className="mt-4 h-16">
+                {!loading && data && (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={data.weeklyScans} barSize={12} margin={{ top: 0, right: 0, left: -28, bottom: 0 }}>
+                      <XAxis dataKey="day" tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+                      <Bar dataKey="count" radius={[3, 3, 0, 0]}>
+                        {data.weeklyScans.map((entry, i) => (
+                          <Cell key={i} fill={entry.count > 0 ? "hsl(var(--primary))" : "hsl(var(--secondary))"} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
             </Card>
           </div>
 
@@ -740,7 +775,7 @@ const Dashboard = ({ user }: { user: User }) => {
                 <div className="flex items-start justify-between gap-4">
                   <div className="text-center flex-1">
                     <p className="text-sm italic text-muted-foreground">"{q.text}"</p>
-                    {q.author && <p className="mt-2 text-xs font-semibold text-muted-foreground/60">— {q.author}</p>}
+                    {q.author && q.author !== "Anonymous" && <p className="mt-2 text-xs font-semibold text-muted-foreground/60">— {q.author}</p>}
                   </div>
                   <button
                     onClick={() => setQuoteOffset((v) => (v + 1) % QUOTES.length)}
@@ -908,22 +943,47 @@ type DemoTab = "steps" | "concept" | "practice" | "model";
 
 const ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp", "image/heic", "image/heif"];
 
+const ScreenshotCard = ({ dimmed = false }: { dimmed?: boolean }) => (
+  <div className={`w-52 rounded-xl bg-blue-50 p-3.5 shadow-xl border border-blue-100 ${dimmed ? "opacity-40" : ""}`}>
+    <p className="mb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wide">Question 7</p>
+    <div className="mb-2 h-2 w-3/5 rounded bg-gray-400" />
+    <div className="space-y-1.5">
+      <div className="h-1.5 w-full rounded bg-gray-300" />
+      <div className="mt-2 flex items-center justify-center rounded bg-gray-100 py-2">
+        <svg viewBox="0 0 170 115" className="w-32 h-20">
+          <polygon points="25,98 125,98 125,28" fill="none" stroke="#374151" strokeWidth="1.5" />
+          <rect x="114" y="87" width="11" height="11" fill="none" stroke="#374151" strokeWidth="1.2" />
+          <path d="M 43,98 A 18,18 0 0,0 39.7,87.7" fill="none" stroke="#2563eb" strokeWidth="1.3" />
+          <text x="50" y="91" fontSize="9" fill="#2563eb" fontWeight="600">35°</text>
+          <text x="75" y="52" fontSize="9" fill="#6b7280" textAnchor="middle" transform="rotate(-35,75,52)">hyp = 10 cm</text>
+          <text x="133" y="66" fontSize="9" fill="#16a34a" fontWeight="600">x = ?</text>
+        </svg>
+      </div>
+      <div className="h-1.5 w-3/4 rounded bg-gray-300" />
+    </div>
+  </div>
+);
+
 const DemoPanel = () => {
-  const navigate = useNavigate();
   const [phase, setPhase] = useState(0);
   const [tab, setTab] = useState<DemoTab>("steps");
   const [revealedSteps, setRevealedSteps] = useState(1);
   const [revealedAnswers, setRevealedAnswers] = useState<Set<number>>(new Set());
-  const [demoDragging, setDemoDragging] = useState(false);
   const lastInteractionRef = useRef<number>(Date.now());
 
   useEffect(() => {
-    if (phase < 3) {
-      const durations = [2000, 2200, 1800];
-      const t = setTimeout(() => setPhase(phase + 1), durations[phase]);
+    if (phase === 0) {
+      const t = setTimeout(() => setPhase(1), 1200);
       return () => clearTimeout(t);
     }
-    // Phase 3: only reset after 30 s of idle (no tab/step/answer interaction)
+    if (phase === 1) {
+      const t = setTimeout(() => setPhase(2), 1800);
+      return () => clearTimeout(t);
+    }
+    if (phase === 2) {
+      const t = setTimeout(() => setPhase(3), 1900);
+      return () => clearTimeout(t);
+    }
     const t = setInterval(() => {
       if (Date.now() - lastInteractionRef.current > 30000) {
         setPhase(0);
@@ -936,108 +996,45 @@ const DemoPanel = () => {
   }, [phase]);
 
   return (
-    <div className="relative h-[500px] overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
-      {/* Window chrome */}
-      <div className="flex items-center gap-1.5 border-b border-border bg-secondary/50 px-4 py-3">
-        <div className="h-2.5 w-2.5 rounded-full bg-destructive/50" />
-        <div className="h-2.5 w-2.5 rounded-full" style={{ background: "hsl(var(--signal-yellow) / 0.5)" }} />
-        <div className="h-2.5 w-2.5 rounded-full" style={{ background: "hsl(var(--signal-green) / 0.5)" }} />
-        <span className="ml-3 text-xs text-muted-foreground">Gogodeep · Live Demo</span>
-      </div>
+    <div className="relative h-[440px] overflow-hidden rounded-2xl border border-primary/30 bg-card shadow-[0_0_40px_hsl(225,75%,55%,0.18),0_0_80px_hsl(225,75%,55%,0.08)] scale-[0.93] origin-top">
+      <div className="relative h-full">
 
-      <div className="relative h-[calc(100%-41px)]">
-
-        {/* Phase 0: idle drop zone — real drag/drop to /workspace */}
+        {/* Phase 0: empty state */}
         {phase === 0 && (
-          <label
-            className="flex h-full cursor-pointer items-center justify-center p-8"
-            onDragOver={(e) => { e.preventDefault(); setDemoDragging(true); }}
-            onDragLeave={() => setDemoDragging(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setDemoDragging(false);
-              const file = e.dataTransfer.files[0];
-              if (!file || !ALLOWED_TYPES.includes(file.type)) return;
-              pendingFileStore.set(file);
-              navigate("/workspace");
-            }}
-          >
-            <input type="file" accept="image/*" className="hidden" onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (!file || !ALLOWED_TYPES.includes(file.type)) return;
-              pendingFileStore.set(file);
-              navigate("/workspace");
-            }} />
-            <div className={`flex w-full flex-col items-center gap-3 rounded-xl border-2 border-dashed py-16 text-center transition-colors ${demoDragging ? "border-primary bg-primary/5" : "border-border/50"}`}>
-              <Upload className={`h-8 w-8 transition-colors ${demoDragging ? "text-primary" : "text-muted-foreground/40"}`} />
-              <p className="text-sm font-medium text-muted-foreground">Drop your question or working here</p>
-              <p className="text-xs text-muted-foreground/50">PNG or JPG · any subject</p>
+          <div className="flex h-full items-center justify-center">
+            <div className="flex flex-col items-center gap-2.5 opacity-20 select-none">
+              <Upload className="h-9 w-9 text-muted-foreground" />
+              <p className="text-xs text-muted-foreground">Drop your question here</p>
             </div>
-          </label>
+          </div>
         )}
 
-        {/* Phase 1: physics image slides in */}
+        {/* Phase 1: screenshot drops into center */}
         {phase === 1 && (
-          <div className="flex h-full flex-col items-center justify-center gap-3 p-8">
-            <div className="animate-slide-in-paper w-64 rounded-xl bg-blue-50 p-5 shadow-xl">
-              <p className="mb-2 text-[10px] font-bold text-gray-500 uppercase tracking-wide">Question 7</p>
-              <div className="mb-2 h-2.5 w-3/5 rounded bg-gray-600" />
-              <div className="space-y-2">
-                <div className="h-2 w-full rounded bg-gray-300" />
-                <div className="mt-3 flex items-center justify-center rounded bg-gray-100 py-3">
-                  <svg viewBox="0 0 170 115" className="w-36 h-24">
-                    <polygon points="25,98 125,98 125,28" fill="none" stroke="#374151" strokeWidth="1.5" />
-                    <rect x="114" y="87" width="11" height="11" fill="none" stroke="#374151" strokeWidth="1.2" />
-                    <path d="M 43,98 A 18,18 0 0,0 39.7,87.7" fill="none" stroke="#2563eb" strokeWidth="1.3" />
-                    <text x="50" y="91" fontSize="9" fill="#2563eb" fontWeight="600">35°</text>
-                    <text x="75" y="52" fontSize="9" fill="#6b7280" textAnchor="middle" transform="rotate(-35,75,52)">hyp = 10 cm</text>
-                    <text x="133" y="66" fontSize="9" fill="#16a34a" fontWeight="600">x = ?</text>
-                    <text x="75" y="111" fontSize="9" fill="#9ca3af" textAnchor="middle">adj</text>
-                  </svg>
-                </div>
-                <div className="h-2 w-3/4 rounded bg-gray-300" />
-                <div className="h-2 w-full rounded bg-gray-200" />
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5 rounded-md border border-border bg-secondary/60 px-3 py-1.5">
-              <Camera className="h-3 w-3 text-muted-foreground" />
-              <span className="text-[11px] text-muted-foreground">Physics HW 1.jpg</span>
+          <div className="flex h-full items-center justify-center">
+            <div className="animate-slide-in-paper">
+              <ScreenshotCard />
             </div>
           </div>
         )}
 
-        {/* Phase 2: physics scanning */}
+        {/* Phase 2: loading */}
         {phase === 2 && (
-          <div className="relative flex h-full flex-col items-center justify-center gap-3 p-8">
-            <div className="w-64 rounded-xl bg-blue-50 p-5 opacity-50 shadow-xl">
-              <p className="mb-2 text-[10px] font-bold text-gray-400 uppercase tracking-wide">Question 7</p>
-              <div className="mb-2 h-2.5 w-3/5 rounded bg-gray-300" />
-              <div className="space-y-2">
-                <div className="h-2 w-full rounded bg-gray-200" />
-                <div className="h-2 w-4/5 rounded bg-gray-200" />
-                <div className="mt-3 flex items-center justify-center rounded bg-gray-100 py-3">
-                  <svg viewBox="0 0 170 115" className="w-36 h-24 opacity-40">
-                    <polygon points="25,98 125,98 125,28" fill="none" stroke="#374151" strokeWidth="1.5" />
-                    <rect x="114" y="87" width="11" height="11" fill="none" stroke="#374151" strokeWidth="1.2" />
-                    <path d="M 43,98 A 18,18 0 0,0 39.7,87.7" fill="none" stroke="#2563eb" strokeWidth="1.3" />
-                    <text x="50" y="91" fontSize="9" fill="#2563eb" fontWeight="600">35°</text>
-                    <text x="75" y="52" fontSize="9" fill="#6b7280" textAnchor="middle" transform="rotate(-35,75,52)">hyp = 10 cm</text>
-                    <text x="133" y="66" fontSize="9" fill="#16a34a" fontWeight="600">x = ?</text>
-                    <text x="75" y="111" fontSize="9" fill="#9ca3af" textAnchor="middle">adj</text>
-                  </svg>
-                </div>
-                <div className="h-2 w-3/4 rounded bg-gray-200" />
+          <div className="flex h-full flex-col items-center justify-center gap-5 p-8">
+            <ScreenshotCard dimmed />
+            <div className="w-56">
+              <div className="mb-2 flex items-center gap-2">
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                <span className="text-xs text-muted-foreground">Mapping the solution path…</span>
               </div>
-            </div>
-            <div className="animate-scan-sweep absolute inset-x-6 h-px" style={{ background: "hsl(var(--primary))", boxShadow: "0 0 10px 2px hsl(var(--primary) / 0.5)" }} />
-            <div className="absolute bottom-4 left-4 right-4 flex items-center gap-2 rounded-lg border border-border bg-card/90 px-3 py-2 backdrop-blur-sm">
-              <Loader2 className="h-3 w-3 animate-spin text-primary" />
-              <span className="text-xs text-muted-foreground">Mapping the solution path…</span>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+                <div className="h-full rounded-full bg-primary animate-loading-fill" />
+              </div>
             </div>
           </div>
         )}
 
-        {/* Phase 3: physics tabbed results */}
+        {/* Phase 3: results */}
         {phase === 3 && (
           <div className="animate-fade-up flex h-full flex-col p-4">
             {(() => {
@@ -1201,8 +1198,8 @@ const FAQ_ITEMS = [
     a: "Yes, Gogodeep is completely free.",
   },
   {
-    q: "Do I need to create an account?",
-    a: "You can try a scan without signing up. Creating a free account unlocks your scan history, personalized recap quizzes, and a learning dashboard.",
+    q: "Will it just give me the answer?",
+    a: "No. Gogodeep is built to make you understand, not just copy. It breaks down the exact concept you missed, explains the reasoning step by step, and generates targeted practice so the knowledge actually sticks. You walk away knowing how to solve the next one, not just this one.",
   },
   {
     q: "Can I upload handwritten working?",
@@ -1236,28 +1233,6 @@ function FaqSection() {
   );
 }
 
-const EXAM_LABELS = [
-  "IB", "GCSE", "AP", "MYP", "SAT", "ACT", "A-Level", "PSAT", "IGCSE",
-];
-
-function ExamMarquee() {
-  const items = [...EXAM_LABELS, ...EXAM_LABELS];
-  return (
-    <div className="overflow-hidden" style={{ width: 280, maskImage: "linear-gradient(to right, transparent, black 15%, black 85%, transparent)" }}>
-      <div
-        className="flex gap-0 whitespace-nowrap"
-        style={{ animation: "marquee 18s linear infinite" }}
-      >
-        {items.map((label, i) => (
-          <span key={i} className="text-sm font-medium text-muted-foreground">
-            {label}
-            <span className="mx-1.5 opacity-30">·</span>
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 const Landing = () => {
   const logoRef = useRef<HTMLDivElement>(null);
@@ -1265,7 +1240,6 @@ const Landing = () => {
   const [eyeOffset, setEyeOffset] = useState({ x: 0, y: 0 });
   const [isHovered, setIsHovered] = useState(false);
   const [landingQuoteOffset, setLandingQuoteOffset] = useState(0);
-
   const [highlightedStep, setHighlightedStep] = useState<0 | 1 | 2>(0);
   const [chevronVisible, setChevronVisible] = useState(true);
   const highlightFired = useRef(false);
@@ -1334,7 +1308,7 @@ const Landing = () => {
         <title>Gogodeep</title>
         <meta name="description" content="Trace any difficult question down to its roots with AI. Gogodeep finds the exact error in your STEM working, explains the underlying concept, and builds targeted practice to fix the gap. Free for IB, AP, and A-Level students." />
       </Helmet>
-      <div className="relative z-10 min-h-screen pt-14">
+      <div className="relative z-10 min-h-screen pt-28">
 
         {/* ── Hero ── */}
         <section className="container py-14 md:py-20" data-topic="ai-exam-mistake-helper" data-subjects="physics-hl,math-hl-aa,ap-calculus-bc,ap-statistics">
@@ -1342,60 +1316,43 @@ const Landing = () => {
             <div className="grid items-center gap-12 lg:grid-cols-2">
 
               {/* Left */}
-              <div className="flex flex-col items-start">
-                {/* Whale + speech bubble bob together */}
-                <div className="mb-10 flex items-center gap-5" style={{ animation: "float 4s ease-in-out infinite" }}>
-                  <Link to="/workspace" className="relative inline-block flex-shrink-0">
-                    <div
-                      ref={logoRef}
-                      onMouseEnter={() => setIsHovered(true)}
-                      onMouseLeave={() => setIsHovered(false)}
-                      className="relative cursor-pointer"
-                      style={{ width: 100, height: 100, transform: isHovered ? "scale(1.12)" : "scale(1)", transition: "transform 0.3s ease" }}
-                    >
-                      <div
-                        className="absolute inset-0 rounded-full transition-all duration-500"
-                        style={{
-                          background: isHovered
-                            ? "radial-gradient(circle, hsl(225 75% 55% / 0.5) 0%, transparent 70%)"
-                            : "radial-gradient(circle, hsl(225 75% 55% / 0.15) 0%, transparent 70%)",
-                          transform: isHovered ? "scale(1.6)" : "scale(1.2)",
-                          filter: isHovered ? "blur(20px)" : "blur(12px)",
-                        }}
-                      />
-                      <img
-                        src={gogodeepLogo}
-                        alt="Gogodeep — AI exam mistake helper for IB, AP, and A-Level STEM students"
-                        className="whale-img relative z-10 h-full w-full object-contain"
-                        style={{ transform: `translate(${eyeOffset.x * 0.3}px, ${eyeOffset.y * 0.3}px)` }}
-                      />
-                      <div
-                        className="absolute -bottom-8 left-1/2 -translate-x-1/2 transition-all duration-300"
-                        style={{ opacity: isHovered ? 1 : 0, transform: `translateX(-50%) translateY(${isHovered ? "0px" : "4px"})` }}
-                      >
-                        <span className="whitespace-nowrap rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">
-                          Try now
-                        </span>
-                      </div>
-                    </div>
-                  </Link>
-
-                  <ExamMarquee />
+              <div className="relative flex flex-col items-start -mt-6">
+                {/* Light streaks from far off-screen top-left */}
+                <div className="pointer-events-none absolute overflow-visible" style={{ top: -420, left: -380 }} aria-hidden>
+                  {([
+                    { angle: 28, length: 1100, width: 18,  opacity: 0.18, blur: 8  },
+                    { angle: 32, length: 1050, width: 10,  opacity: 0.22, blur: 5  },
+                    { angle: 35, length: 1000, width: 30,  opacity: 0.12, blur: 14 },
+                    { angle: 26, length:  950, width: 8,   opacity: 0.2,  blur: 4  },
+                    { angle: 38, length:  900, width: 45,  opacity: 0.08, blur: 20 },
+                    { angle: 24, length:  850, width: 6,   opacity: 0.15, blur: 3  },
+                    { angle: 41, length:  780, width: 60,  opacity: 0.06, blur: 28 },
+                  ] as { angle: number; length: number; width: number; opacity: number; blur: number }[]).map((s, i) => (
+                    <div key={i} style={{
+                      position: "absolute", top: 0, left: 0,
+                      width: s.length, height: s.width,
+                      background: `linear-gradient(to right, transparent 0%, hsl(210 100% 85% / ${s.opacity}) 25%, hsl(215 85% 72% / ${s.opacity * 0.6}) 60%, transparent 100%)`,
+                      transform: `rotate(${s.angle}deg)`,
+                      transformOrigin: "0 50%",
+                      filter: `blur(${s.blur}px)`,
+                    }} />
+                  ))}
                 </div>
-
-                <h1 className="mt-4 text-5xl font-extrabold tracking-tight text-foreground md:text-6xl">
-                  Go deeper<br />than the answer.
+                <h1 className="relative text-6xl font-extrabold tracking-tight text-foreground md:text-7xl lg:text-[5.25rem] whitespace-nowrap">
+                  Go <span style={{ fontFamily: "'Fraunces', serif", fontStyle: "italic", fontOpticalSizing: "auto", paddingRight: "0.08em", backgroundImage: "linear-gradient(to bottom, hsl(225 90% 70%), hsl(225 75% 50%) 70%, hsl(225 60% 25%))", WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent", color: "transparent" } as React.CSSProperties}>deeper</span>
                 </h1>
-                <p className="mt-6 max-w-md text-lg leading-relaxed text-muted-foreground">
+                <h1 className="relative text-4xl font-extrabold tracking-tight text-foreground md:text-5xl lg:text-[3.75rem] whitespace-nowrap">
+                  than the answer.
+                </h1>
+                <p className="mt-8 max-w-md text-xl leading-relaxed text-muted-foreground">
                   Drop a screenshot of any hard problem right here, right now, and start learning efficiently.
                 </p>
-                <div className="mt-8">
+                <div className="mt-10">
                   <Link to="/workspace" className="group relative inline-block">
-                    {/* glow layer */}
-                    <span className="absolute inset-0 rounded-md bg-primary opacity-0 blur-xl transition-all duration-500 group-hover:opacity-70 group-hover:scale-110 pointer-events-none" />
-                    <Button className="relative h-12 px-8 text-base font-semibold bg-primary transition-all duration-300 group-hover:bg-primary group-hover:shadow-[0_0_32px_6px_rgba(91,127,239,0.55)] group-hover:scale-105">
-                      Go!
-                      <Zap className="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+                    <span className="absolute inset-0 rounded-2xl bg-primary opacity-0 blur-xl transition-all duration-500 group-hover:opacity-70 group-hover:scale-110 pointer-events-none" />
+                    <Button className="relative h-16 px-12 text-lg font-semibold rounded-2xl bg-primary transition-all duration-300 group-hover:shadow-[0_0_40px_8px_rgba(91,127,239,0.55)] group-hover:scale-105">
+                      Get Started — It's Free
+                      <ArrowRight className="ml-2 h-5 w-5 transition-transform duration-300 group-hover:translate-x-1" />
                     </Button>
                   </Link>
                 </div>
@@ -1479,7 +1436,7 @@ const Landing = () => {
                   <div className="flex items-start justify-between gap-4">
                     <div className="text-center flex-1">
                       <p className="text-sm italic text-muted-foreground">"{q.text}"</p>
-                      {q.author && <p className="mt-2 text-xs font-semibold text-muted-foreground/60">— {q.author}</p>}
+                      {q.author && q.author !== "Anonymous" && <p className="mt-2 text-xs font-semibold text-muted-foreground/60">— {q.author}</p>}
                     </div>
                     <button
                       onClick={() => setLandingQuoteOffset((v) => (v + 1) % QUOTES.length)}
@@ -1502,7 +1459,7 @@ const Landing = () => {
 
 // ─── Root ─────────────────────────────────────────────────────────────────────
 
-const Home = () => {
+export function DashboardRoute() {
   const [user, setUser] = useState<User | null | undefined>(undefined);
 
   useEffect(() => {
@@ -1513,9 +1470,11 @@ const Home = () => {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  if (user === undefined) return <Landing />;
+  if (user === undefined) return null;
+  if (!user) return <Navigate to="/" replace />;
+  return <Dashboard user={user} />;
+}
 
-  return user ? <Dashboard user={user} /> : <Landing />;
-};
+const Home = () => <Landing />;
 
 export default Home;

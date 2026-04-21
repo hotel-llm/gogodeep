@@ -49,7 +49,7 @@ const Contact = () => {
         <title>Contact</title>
         <meta name="description" content="Get in touch with the Gogodeep team. Questions about the AI study tool for STEM students, school and team plans, or partnerships." />
       </Helmet>
-      <div className="relative z-10 min-h-screen pt-14">
+      <div className="relative z-10 min-h-screen pt-20">
         <div className="container py-20">
           <div className="mx-auto max-w-xl">
 

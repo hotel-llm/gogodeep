@@ -4,12 +4,16 @@ import { AnimatePresence } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Upload } from "lucide-react";
+import type { User } from "@supabase/supabase-js";
 import { pendingFileStore } from "@/lib/pendingFile";
+import { supabase } from "@/integrations/supabase/client";
 import AppNav from "@/components/AppNav";
+import AppSidebar from "@/components/AppSidebar";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import WhaleAssistant from "@/components/WhaleAssistant";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import Index from "./pages/Index";
+import { DashboardRoute } from "./pages/Index";
 import DiagnosticLab from "./pages/DiagnosticLab";
 import BlindSpotReport from "./pages/BlindSpotReport";
 import Pricing from "./pages/Pricing";
@@ -19,12 +23,15 @@ import Signup from "./pages/Signup";
 import NotFound from "./pages/NotFound";
 import ResetPassword from "./pages/ResetPassword";
 import Interact from "./pages/Interact";
+import Settings from "./pages/Settings";
 
 const queryClient = new QueryClient();
 
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp", "image/heic", "image/heif"];
 
-// Listens for file drops anywhere on the page and navigates to workspace
+// Routes that use the sidebar layout (authenticated app shell)
+const SIDEBAR_ROUTES = ["/dashboard", "/workspace", "/report", "/interact", "/settings"];
+
 function GlobalDropZone() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -39,7 +46,6 @@ function GlobalDropZone() {
       e.preventDefault();
       dragCounterRef.current = 0;
       setDragging(false);
-      // Let DiagnosticLab handle drops when already on /workspace
       if (location.pathname === "/workspace") return;
       const file = e.dataTransfer?.files[0];
       if (!file || !ALLOWED_IMAGE_TYPES.includes(file.type)) return;
@@ -75,6 +81,7 @@ function AnimatedRoutes() {
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
         <Route path="/" element={<Index />} />
+        <Route path="/dashboard" element={<DashboardRoute />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route
@@ -96,6 +103,7 @@ function AnimatedRoutes() {
         <Route path="/interact" element={<Interact />} />
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/contact" element={<Contact />} />
+        <Route path="/settings" element={<Settings />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
@@ -112,6 +120,36 @@ function HashCleaner() {
   return null;
 }
 
+// Auth-aware layout: sidebar for app routes, floating top nav for public pages
+function AppLayout() {
+  const location = useLocation();
+  const [user, setUser] = useState<User | null | undefined>(undefined);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUser(data.user ?? null));
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  const showSidebar = user != null && SIDEBAR_ROUTES.some((r) => location.pathname.startsWith(r));
+
+  return (
+    <>
+      {showSidebar ? (
+        <AppSidebar user={user} onUserUpdate={setUser} />
+      ) : (
+        <AppNav user={user ?? null} />
+      )}
+      <div className={showSidebar ? "ml-56" : ""}>
+        <AnimatedRoutes />
+      </div>
+      <WhaleAssistant />
+    </>
+  );
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -119,9 +157,7 @@ const App = () => (
         <HashCleaner />
         <GlobalDropZone />
         <div className="liquid-glass-bg" aria-hidden />
-        <AppNav />
-        <AnimatedRoutes />
-        <WhaleAssistant />
+        <AppLayout />
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

@@ -290,7 +290,7 @@ export default function Interact() {
         <meta name="description" content="Explore 100+ interactive STEM diagrams and models. Drag, adjust, and animate concepts across biology, physics, chemistry, and mathematics." />
       </Helmet>
 
-      <div className="relative z-10 min-h-screen pt-14">
+      <div className="relative z-10 min-h-screen pt-8">
         {/* ── Header ──────────────────────────────────────────────────────── */}
         <div className="border-b border-border bg-card/60 backdrop-blur-sm">
           <div className="container py-8">
