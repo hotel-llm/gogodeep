@@ -603,13 +603,12 @@ const BlindSpotReport = () => {
 
   // Lazy load steps if they are missing from the diagnosis (always fetch — credit-independent)
   useEffect(() => {
-    if (mode !== "guide") return;
     const existingSteps = Array.isArray((diagnosis as any)?.steps) ? (diagnosis as any).steps as string[] : [];
     if (existingSteps.length > 0) return;   // already have steps
     if (lazySteps !== null) return;         // already fetched
     if (loadingSteps) return;
-    const topic = (diagnosis as any)?.concept_label ?? (diagnosis as any)?.question_summary ?? "STEM";
-    const questionSummary = (diagnosis as any)?.question_summary ?? "";
+    const topic = (diagnosis as any)?.concept_label ?? (diagnosis as any)?.underlying_concept ?? (diagnosis as any)?.error_tag ?? (diagnosis as any)?.question_summary ?? "STEM";
+    const questionSummary = (diagnosis as any)?.question_summary ?? (diagnosis as any)?.what_happened ?? "";
     setLoadingSteps(true);
     supabase.functions.invoke("diagnose-image", {
       body: { text: questionSummary || topic, mode: "guide_steps" },

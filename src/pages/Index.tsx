@@ -964,11 +964,19 @@ const ScreenshotCard = ({ dimmed = false }: { dimmed?: boolean }) => (
   </div>
 );
 
+const LOADING_MSGS = [
+  "Reading the question…",
+  "Identifying the concept…",
+  "Detailing the steps…",
+  "Building practice questions…",
+];
+
 const DemoPanel = () => {
   const [phase, setPhase] = useState(0);
   const [tab, setTab] = useState<DemoTab>("steps");
   const [revealedSteps, setRevealedSteps] = useState(1);
   const [revealedAnswers, setRevealedAnswers] = useState<Set<number>>(new Set());
+  const [loadingMsgIdx, setLoadingMsgIdx] = useState(0);
   const lastInteractionRef = useRef<number>(Date.now());
 
   useEffect(() => {
@@ -981,8 +989,10 @@ const DemoPanel = () => {
       return () => clearTimeout(t);
     }
     if (phase === 2) {
-      const t = setTimeout(() => setPhase(3), 1900);
-      return () => clearTimeout(t);
+      setLoadingMsgIdx(0);
+      const cycle = setInterval(() => setLoadingMsgIdx((i) => Math.min(i + 1, LOADING_MSGS.length - 1)), 500);
+      const t = setTimeout(() => { clearInterval(cycle); setPhase(3); }, 1900);
+      return () => { clearTimeout(t); clearInterval(cycle); };
     }
     const t = setInterval(() => {
       if (Date.now() - lastInteractionRef.current > 30000) {
@@ -1025,7 +1035,7 @@ const DemoPanel = () => {
             <div className="w-56">
               <div className="mb-2 flex items-center gap-2">
                 <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
-                <span className="text-xs text-muted-foreground">Mapping the solution path…</span>
+                <span className="text-xs text-muted-foreground transition-all duration-300">{LOADING_MSGS[loadingMsgIdx]}</span>
               </div>
               <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
                 <div className="h-full rounded-full bg-primary animate-loading-fill" />
@@ -1235,6 +1245,16 @@ function FaqSection() {
 
 
 const Landing = () => {
+  // Always show the landing page in dark mode regardless of the user's theme preference
+  useEffect(() => {
+    const prev = document.documentElement.getAttribute("data-theme");
+    document.documentElement.setAttribute("data-theme", "blue");
+    return () => {
+      if (prev) document.documentElement.setAttribute("data-theme", prev);
+      else document.documentElement.removeAttribute("data-theme");
+    };
+  }, []);
+
   const logoRef = useRef<HTMLDivElement>(null);
   const howItWorksRef = useRef<HTMLElement>(null);
   const [eyeOffset, setEyeOffset] = useState({ x: 0, y: 0 });
