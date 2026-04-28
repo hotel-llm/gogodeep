@@ -9,7 +9,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { userId, email, planId } = await req.json();
+    const { userId, email, planId, billing = "monthly" } = await req.json();
 
     if (!userId || !email) {
       return new Response(JSON.stringify({ error: "Missing userId or email" }), {
@@ -27,11 +27,14 @@ Deno.serve(async (req: Request) => {
     }
 
     const PRICE_IDS: Record<string, string | undefined> = {
-      intermediate: Deno.env.get("STRIPE_INTERMEDIATE_PRICE_ID") ?? Deno.env.get("STRIPE_PRO_PRICE_ID"),
-      deep: Deno.env.get("STRIPE_DEEP_PRICE_ID"),
+      intermediate_monthly: Deno.env.get("STRIPE_INTERMEDIATE_PRICE_ID") ?? Deno.env.get("STRIPE_PRO_PRICE_ID"),
+      intermediate_annual:  Deno.env.get("STRIPE_INTERMEDIATE_ANNUAL_PRICE_ID"),
+      deep_monthly:         Deno.env.get("STRIPE_DEEP_PRICE_ID"),
+      deep_annual:          Deno.env.get("STRIPE_DEEP_ANNUAL_PRICE_ID"),
     };
 
-    const priceId = PRICE_IDS[planId] ?? PRICE_IDS["intermediate"];
+    const priceKey = `${planId}_${billing === "annual" ? "annual" : "monthly"}`;
+    const priceId = PRICE_IDS[priceKey] ?? PRICE_IDS[`${planId}_monthly`];
     if (!priceId) {
       return new Response(JSON.stringify({ error: "No price ID configured for this plan" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -230,9 +230,19 @@
 /* Whale image — tints to match the active colour theme */
 .whale-img { filter: var(--whale-filter); transition: filter 0.4s ease; }
 
+@keyframes gold-ring {
+  0%   { transform: rotate(0deg);   opacity: 1; }
+  80%  { opacity: 1; }
+  100% { transform: rotate(360deg); opacity: 0; }
+}
+.animate-gold-ring {
+  animation: gold-ring 0.75s cubic-bezier(0.4, 0, 0.6, 1) 1 forwards;
+  background: conic-gradient(from 0deg, transparent 0%, hsl(45 95% 60%) 12%, hsl(48 100% 70%) 20%, transparent 33%, transparent 100%);
+}
+
 @keyframes marquee {
-  from { transform: translateX(0); }
-  to   { transform: translateX(-50%); }
+  from { transform: translateX(-50%); }
+  to   { transform: translateX(0); }
 }
 
 @keyframes liquid-drift {

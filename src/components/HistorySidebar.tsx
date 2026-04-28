@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Plus, Folder, ChevronRight, ChevronDown, Trash2, FolderOpen, Pencil } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -101,6 +101,8 @@ function scanLabel(scan: Scan, names: Record<string, string>): string {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function HistorySidebar() {
+  const location = useLocation();
+  const activeScanId = (location.state as any)?.scanId as string | undefined;
   const [state, setState] = useState<LabState>(loadLocalState);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [creating, setCreating] = useState(false);
@@ -114,6 +116,21 @@ export default function HistorySidebar() {
       setState(remote);
       saveLocal(remote);
     });
+  }, []);
+
+  // Keep in sync with inline title renames done from the report page
+  useEffect(() => {
+    function handler(e: Event) {
+      const { scanId, name } = (e as CustomEvent).detail as { scanId: string; name: string };
+      setState((prev) => {
+        const names = { ...prev.names, [scanId]: name };
+        const next = { ...prev, names };
+        saveLocal(next);
+        return next;
+      });
+    }
+    window.addEventListener("gogodeep-scan-renamed", handler);
+    return () => window.removeEventListener("gogodeep-scan-renamed", handler);
   }, []);
 
   const update = useCallback((next: LabState) => {
@@ -296,6 +313,7 @@ export default function HistorySidebar() {
                         customName={state.names[scan.id] ?? null}
                         onAssign={assign}
                         onRename={renameScan}
+                        isActive={scan.id === activeScanId}
                       />
                     ))
                   )}
@@ -331,6 +349,7 @@ export default function HistorySidebar() {
                 customName={state.names[scan.id] ?? null}
                 onAssign={assign}
                 onRename={renameScan}
+                isActive={scan.id === activeScanId}
               />
             ))}
           </div>
@@ -350,6 +369,7 @@ function ScanRow({
   customName,
   onAssign,
   onRename,
+  isActive = false,
 }: {
   scan: Scan;
   folders: FolderDef[];
@@ -357,6 +377,7 @@ function ScanRow({
   customName: string | null;
   onAssign: (scanId: string, folderId: string | null) => void;
   onRename: (scanId: string, name: string) => void;
+  isActive?: boolean;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -423,7 +444,10 @@ function ScanRow({
     <div
       ref={ref}
       onClick={handleRowClick}
-      className="group relative flex min-w-0 cursor-pointer items-center gap-1 rounded-md px-1 py-1.5 hover:bg-secondary/40"
+      className={cn(
+        "group relative flex min-w-0 cursor-pointer items-center gap-1 rounded-md px-1 py-1.5 hover:bg-secondary/40",
+        isActive && "bg-primary/10 ring-1 ring-inset ring-primary/20"
+      )}
     >
       {editing ? (
         <input
@@ -440,7 +464,7 @@ function ScanRow({
           className="min-w-0 flex-1 rounded border border-primary bg-card px-1.5 py-0.5 text-xs text-foreground outline-none"
         />
       ) : (
-        <p className="min-w-0 flex-1 truncate text-xs font-medium text-foreground">{label}</p>
+        <p className={cn("min-w-0 flex-1 truncate text-xs font-medium", isActive ? "text-primary" : "text-foreground")}>{label}</p>
       )}
 
       {/* Rename button — always in DOM to prevent layout shift, invisible until hover */}

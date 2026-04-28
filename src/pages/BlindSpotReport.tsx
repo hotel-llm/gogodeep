@@ -569,6 +569,44 @@ const BlindSpotReport = () => {
 
   const [displaySrc, setDisplaySrc] = useState<string | null>(imageSrc);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+
+  // Editable scan title
+  const [scanTitle, setScanTitle] = useState<string>(() => {
+    if (scanId) {
+      try {
+        const labState = JSON.parse(localStorage.getItem("gogodeep_lab_v1") ?? "{}");
+        if (labState.names?.[scanId]) return labState.names[scanId];
+      } catch { /* ignore */ }
+    }
+    return (diagnosis as any)?.concept_label ?? (diagnosis as any)?.question_summary ?? "Scan";
+  });
+  const [titleEditing, setTitleEditing] = useState(false);
+  const [titleDraft, setTitleDraft] = useState("");
+
+  function startTitleEdit() {
+    if (!scanId) return;
+    setTitleDraft(scanTitle);
+    setTitleEditing(true);
+  }
+
+  function commitTitleRename() {
+    const trimmed = titleDraft.trim();
+    if (!trimmed || !scanId) { setTitleEditing(false); return; }
+    setScanTitle(trimmed);
+    setTitleEditing(false);
+    try {
+      const key = "gogodeep_lab_v1";
+      const stored = JSON.parse(localStorage.getItem(key) ?? "{}");
+      const names = { ...(stored.names ?? {}), [scanId]: trimmed };
+      const next = { ...stored, names };
+      localStorage.setItem(key, JSON.stringify(next));
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        if (user) (supabase as any).from("profiles").update({ lab_state: next }).eq("id", user.id);
+      });
+      window.dispatchEvent(new CustomEvent("gogodeep-scan-renamed", { detail: { scanId, name: trimmed } }));
+    } catch { /* ignore */ }
+  }
+
   const [plan, setPlan] = useState<string>("free");
   const [planLoaded, setPlanLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState<ReportTab>(mode === "guide" ? "steps" : "error");
@@ -609,9 +647,10 @@ const BlindSpotReport = () => {
     if (loadingSteps) return;
     const topic = (diagnosis as any)?.concept_label ?? (diagnosis as any)?.underlying_concept ?? (diagnosis as any)?.error_tag ?? (diagnosis as any)?.question_summary ?? "STEM";
     const questionSummary = (diagnosis as any)?.question_summary ?? (diagnosis as any)?.what_happened ?? "";
+    const complexity = parseInt(localStorage.getItem("gogodeep_complexity") ?? "2", 10);
     setLoadingSteps(true);
     supabase.functions.invoke("diagnose-image", {
-      body: { text: questionSummary || topic, mode: "guide_steps" },
+      body: { text: questionSummary || topic, mode: "guide_steps", complexity },
     }).then(({ data, error }) => {
       setLoadingSteps(false);
       if (error || (data as any)?.error) return; // silent — don't toast, steps pane handles empty state
@@ -640,9 +679,10 @@ const BlindSpotReport = () => {
     if (loadingConcept || lazyConceptData) return;
     if ((diagnosis as any)?.core_concept) return; // already in cached diagnosis
     const topic = (diagnosis as any)?.concept_label ?? (diagnosis as any)?.question_summary ?? "STEM";
+    const complexity = parseInt(localStorage.getItem("gogodeep_complexity") ?? "2", 10);
     setLoadingConcept(true);
     supabase.functions.invoke("diagnose-image", {
-      body: { mode: "guide_concept", topic, what_happened: (diagnosis as any)?.what_happened },
+      body: { mode: "guide_concept", topic, what_happened: (diagnosis as any)?.what_happened, complexity },
     }).then(({ data, error }) => {
       setLoadingConcept(false);
       if (error || (data as any)?.error) { whaleToast.error("Failed to load concept."); return; }
@@ -738,8 +778,34 @@ const BlindSpotReport = () => {
   const effectiveRecognitionCue = lazyConceptData?.recognition_cue ?? (diagnosis as any)?.recognition_cue;
   const relatedModels = findRelatedModels(diagnosis);
 
+  const titleHeaderContent = (
+    <div className="min-w-0 flex-1">
+      {titleEditing ? (
+        <input
+          autoFocus
+          value={titleDraft}
+          onChange={(e) => setTitleDraft(e.target.value)}
+          onBlur={commitTitleRename}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commitTitleRename();
+            if (e.key === "Escape") setTitleEditing(false);
+          }}
+          className="w-full bg-transparent text-2xl font-bold tracking-tight text-foreground outline-none border-b border-primary"
+        />
+      ) : (
+        <h1
+          onClick={startTitleEdit}
+          title={scanId ? "Click to rename" : undefined}
+          className={cn("truncate text-2xl font-bold tracking-tight text-foreground", scanId && "cursor-text hover:text-primary/80 transition-colors")}
+        >
+          {scanTitle}
+        </h1>
+      )}
+    </div>
+  );
+
   return (
-    <EducatorLayout>
+    <EducatorLayout headerContent={titleHeaderContent}>
       <Helmet>
         <title>Report</title>
         <meta name="description" content="See the root cause of your mistake, the underlying concept explained, and targeted practice to close the gap. AI working analysis for IB, AP, and A-Level STEM subjects." />

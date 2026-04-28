@@ -300,18 +300,7 @@ export default function WhaleAssistant() {
         </div>
       )}
 
-      {/* Guest persistent bubble — only after they've done a scan */}
-      {isGuest && hasDoneScan && !bubble && (
-        <div className="fixed bottom-24 right-6 z-50 animate-in fade-in slide-in-from-bottom-2 duration-300">
-          <div className="max-w-[300px] rounded-2xl rounded-br-sm border border-border bg-card px-4 py-2.5 text-sm shadow-lg text-foreground">
-            <a href="/signup" className="font-semibold text-primary underline underline-offset-2 hover:text-primary/80">
-              Sign up now
-            </a>
-            {" "}and make your dream score a reality.
-          </div>
-          <div className="ml-auto mr-3 h-2 w-2 rotate-45 translate-y-[-1px] bg-card border-r border-b border-border" style={{ width: 8, height: 8 }} />
-        </div>
-      )}
+      {/* Guest persistent bubble removed */}
 
       {/* Floating button */}
       <button

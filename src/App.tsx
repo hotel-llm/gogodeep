@@ -77,37 +77,48 @@ function GlobalDropZone() {
 
 function AnimatedRoutes() {
   const location = useLocation();
+  const backgroundLocation = (location.state as any)?.backgroundLocation;
+
   return (
-    <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
-        <Route path="/" element={<Index />} />
-        <Route path="/dashboard" element={<DashboardRoute />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route
-          path="/workspace"
-          element={
-            <ErrorBoundary>
-              <DiagnosticLab />
-            </ErrorBoundary>
-          }
-        />
-        <Route
-          path="/report"
-          element={
-            <ErrorBoundary>
-              <BlindSpotReport />
-            </ErrorBoundary>
-          }
-        />
-        <Route path="/interact" element={<Interact />} />
-        <Route path="/pricing" element={<Pricing />} />
-        <Route path="/contact" element={<Contact />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </AnimatePresence>
+    <>
+      {/* Render the background page when pricing is open as an overlay */}
+      <AnimatePresence mode="wait">
+        <Routes location={backgroundLocation ?? location} key={(backgroundLocation ?? location).pathname}>
+          <Route path="/" element={<Index />} />
+          <Route path="/dashboard" element={<DashboardRoute />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route
+            path="/workspace"
+            element={
+              <ErrorBoundary>
+                <DiagnosticLab />
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path="/report"
+            element={
+              <ErrorBoundary>
+                <BlindSpotReport />
+              </ErrorBoundary>
+            }
+          />
+          <Route path="/interact" element={<Interact />} />
+          <Route path="/pricing" element={<Pricing />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </AnimatePresence>
+      {/* Pricing overlay rendered on top of the background page */}
+      {backgroundLocation && (
+        <Routes>
+          <Route path="/pricing" element={<Pricing />} />
+        </Routes>
+      )}
+    </>
   );
 }
 
@@ -133,7 +144,9 @@ function AppLayout() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  const showSidebar = user != null && SIDEBAR_ROUTES.some((r) => location.pathname.startsWith(r));
+  const backgroundLocation = (location.state as any)?.backgroundLocation;
+  const effectivePath = (backgroundLocation ?? location).pathname;
+  const showSidebar = user != null && SIDEBAR_ROUTES.some((r) => effectivePath.startsWith(r));
 
   return (
     <>

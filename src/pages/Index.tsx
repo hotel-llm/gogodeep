@@ -133,27 +133,35 @@ type QuizQuestion = {
   topic: string;
   question: string;
   answer: string;
+  mode: "typed" | "mc" | "tf";
   tfStatement?: string;
   tfCorrect?: boolean;
-  mode?: "tf" | "enter";
+  mcOptions?: string[];
+  mcCorrectIdx?: number;
 };
 
 type QuizState = {
   questions: QuizQuestion[];
   current: number;
   revealed: boolean;
-  questionType: "tf" | "enter" | "both";
   userInput: string;
   results: Array<"correct" | "incorrect">;
   currentResult: "correct" | "incorrect" | null;
   showStats: boolean;
+  selectedMcIdx: number | null;
 };
 
 type QuizConfig = {
   numQuestions: number;
-  questionType: "tf" | "enter" | "both";
+  typed: boolean;
+  multipleChoice: boolean;
+  trueOrFalse: boolean;
   selectedConcepts: string[];
 };
+
+function formatTime(secs: number) {
+  return `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
+}
 
 const Dashboard = ({ user }: { user: User }) => {
   const username = user.user_metadata?.username ?? user.email?.split("@")[0] ?? "there";
@@ -162,7 +170,10 @@ const Dashboard = ({ user }: { user: User }) => {
   const [dropHover, setDropHover] = useState(false);
   const [quiz, setQuiz] = useState<QuizState | null>(null);
   const [showQuizConfig, setShowQuizConfig] = useState(false);
-  const [quizConfig, setQuizConfig] = useState<QuizConfig>({ numQuestions: 10, questionType: "both", selectedConcepts: [] });
+  const [quizConfig, setQuizConfig] = useState<QuizConfig>({ numQuestions: 10, typed: true, multipleChoice: true, trueOrFalse: true, selectedConcepts: [] });
+  const [elapsedSecs, setElapsedSecs] = useState(0);
+  const [quizKey, setQuizKey] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [scanAtBottom, setScanAtBottom] = useState(false);
   const [quoteOffset, setQuoteOffset] = useState(0);
   const scanScrollRef = useRef<HTMLDivElement>(null);
@@ -256,6 +267,15 @@ const Dashboard = ({ user }: { user: User }) => {
     return Array.from(concepts);
   };
 
+  const quizActive = !!quiz && !quiz.showStats;
+  useEffect(() => {
+    if (!quizActive) { if (timerRef.current) clearInterval(timerRef.current); return; }
+    setElapsedSecs(0);
+    const startTs = Date.now();
+    timerRef.current = setInterval(() => setElapsedSecs(Math.floor((Date.now() - startTs) / 1000)), 500);
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [quizActive, quizKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const QUIZ_DAY_KEY = "gogodeep_quiz_day";
   const QUIZ_COUNT_KEY = "gogodeep_quiz_count";
 
@@ -278,42 +298,51 @@ const Dashboard = ({ user }: { user: User }) => {
   const startQuizWithConfig = (cfg: QuizConfig) => {
     if (!data) return;
     setShowQuizConfig(false);
-    // Group questions by concept (scan label)
-    const byTopic: Record<string, QuizQuestion[]> = {};
+    const byTopic: Record<string, { question: string; answer: string }[]> = {};
+    const allAnswers: string[] = [];
     for (const scan of data.recentScans) {
       const raw = localStorage.getItem(SCAN_CACHE_KEY(scan.id));
       if (!raw) continue;
       try {
         const stored = JSON.parse(raw);
         const problems: { question: string; answer: string }[] = stored.diagnosis?.practice_problems ?? [];
-        for (const p of problems) {
-          (byTopic[scan.label] ??= []).push({ topic: scan.label, question: p.question, answer: p.answer });
-        }
+        for (const p of problems) { (byTopic[scan.label] ??= []).push(p); allAnswers.push(p.answer); }
       } catch {}
     }
     const topics = Object.keys(byTopic);
     if (!topics.length) { whaleToast.error("Couldn't load practice questions from your scans."); return; }
-    // Even distribution: take ceil(numQuestions / numTopics) from each, shuffle within topic, then slice
     const perTopic = Math.ceil(cfg.numQuestions / topics.length);
-    const pool: QuizQuestion[] = [];
+    const pool: { topic: string; question: string; answer: string }[] = [];
     for (const topic of topics) {
-      const shuffled = (byTopic[topic] ?? []).sort(() => Math.random() - 0.5);
-      pool.push(...shuffled.slice(0, perTopic));
+      const shuffled = [...(byTopic[topic] ?? [])].sort(() => Math.random() - 0.5);
+      pool.push(...shuffled.slice(0, perTopic).map((p) => ({ topic, ...p })));
     }
-    let final = pool.sort(() => Math.random() - 0.5).slice(0, cfg.numQuestions);
-    if (cfg.questionType === "tf" || cfg.questionType === "both") {
-      const answers = final.map((q) => q.answer);
-      final = final.map((q, i) => {
-        const useTF = cfg.questionType === "tf" || Math.random() < 0.5;
-        if (!useTF) return { ...q, mode: "enter" as const };
+    const base = pool.sort(() => Math.random() - 0.5).slice(0, cfg.numQuestions);
+    const enabledModes: ("typed" | "mc" | "tf")[] = [];
+    if (cfg.typed) enabledModes.push("typed");
+    if (cfg.multipleChoice) enabledModes.push("mc");
+    if (cfg.trueOrFalse) enabledModes.push("tf");
+    if (!enabledModes.length) enabledModes.push("typed");
+    const answers = base.map((q) => q.answer);
+    const final: QuizQuestion[] = base.map((q, i) => {
+      const mode = enabledModes[Math.floor(Math.random() * enabledModes.length)];
+      if (mode === "tf") {
         const isTrue = Math.random() < 0.5;
         if (isTrue) return { ...q, mode: "tf" as const, tfStatement: q.answer, tfCorrect: true };
-        const wrongIdx = (i + 1 + Math.floor(Math.random() * (answers.length - 1))) % answers.length;
-        return { ...q, mode: "tf" as const, tfStatement: answers[wrongIdx], tfCorrect: false };
-      });
-    }
-    setQuiz({ questions: final, current: 0, revealed: false, questionType: cfg.questionType, userInput: "", results: [], currentResult: null, showStats: false });
-    // Record quiz usage for daily limit enforcement
+        const wrongPool = answers.filter((_, idx) => idx !== i);
+        const wrongAnswer = wrongPool[Math.floor(Math.random() * wrongPool.length)] ?? q.answer;
+        return { ...q, mode: "tf" as const, tfStatement: wrongAnswer, tfCorrect: false };
+      }
+      if (mode === "mc") {
+        const wrongs = answers.filter((_, idx) => idx !== i).sort(() => Math.random() - 0.5).slice(0, 3);
+        while (wrongs.length < 3) wrongs.push("None of the above");
+        const opts = [q.answer, ...wrongs].sort(() => Math.random() - 0.5);
+        return { ...q, mode: "mc" as const, mcOptions: opts, mcCorrectIdx: opts.indexOf(q.answer) };
+      }
+      return { ...q, mode: "typed" as const };
+    });
+    setQuizKey((k) => k + 1);
+    setQuiz({ questions: final, current: 0, revealed: false, userInput: "", results: [], currentResult: null, showStats: false, selectedMcIdx: null });
     if (data.plan === "intermediate") recordQuizStarted();
   };
 
@@ -321,13 +350,11 @@ const Dashboard = ({ user }: { user: User }) => {
     if (!data) return;
     if (!FREE_FOR_ALL && data.plan === "free") return;
     if (data.recentScans.length < 5) return;
-    // Intermediate: 1 recap quiz per day
     if (!FREE_FOR_ALL && data.plan === "intermediate" && getQuizzesToday() >= 1) {
       whaleToast.error("You've used your daily recap quiz. Upgrade to Deep for unlimited quizzes.");
       return;
     }
-    const concepts = availableConcepts();
-    setQuizConfig({ numQuestions: 10, questionType: "both", selectedConcepts: concepts });
+    setQuizConfig((c) => ({ ...c, selectedConcepts: availableConcepts() }));
     setShowQuizConfig(true);
   };
 
@@ -563,206 +590,64 @@ const Dashboard = ({ user }: { user: User }) => {
                   <BrainCircuit className="h-4 w-4 text-primary" />
                   <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Quick Recap Quiz</p>
                 </div>
-                {quiz && !quiz.showStats ? (
-                  <span className="text-xs text-muted-foreground">{quiz.current + 1} / {quiz.questions.length}</span>
-                ) : !quiz && data?.plan !== "free" && (data?.recentScans.length ?? 0) >= 5 ? (
-                  <Button size="sm" className="bg-primary hover:bg-primary/90 h-7 text-xs px-3" onClick={startQuiz} disabled={loading}>
+                {!loading && data?.plan !== "free" && (data?.recentScans.length ?? 0) >= 5 && (
+                  <Button size="sm" className="bg-primary hover:bg-primary/90 h-7 text-xs px-3" onClick={startQuiz}>
                     Start Quiz
                   </Button>
-                ) : null}
+                )}
               </div>
-
-              {!quiz ? (
-                <div className="pb-5">
-                  {(!FREE_FOR_ALL && data?.plan === "free") ? (
-                    <div className="flex flex-col items-center gap-3 py-5 text-center">
-                      <BrainCircuit className="h-7 w-7 text-muted-foreground/30" />
-                      <p className="text-sm text-muted-foreground">Available on Intermediate and Deep plans.</p>
-                      <Button size="sm" className="gap-2 bg-primary hover:bg-primary/90" onClick={() => navigate("/pricing")}>
-                        <Lock className="h-3.5 w-3.5" />
-                        Upgrade to unlock
-                      </Button>
-                    </div>
-                  ) : (data?.recentScans.length ?? 0) < 5 ? (
+              <div className="pb-5">
+                {(!FREE_FOR_ALL && data?.plan === "free") ? (
+                  <div className="flex flex-col items-center gap-3 py-5 text-center">
+                    <BrainCircuit className="h-7 w-7 text-muted-foreground/30" />
+                    <p className="text-sm text-muted-foreground">Available on Deep plan.</p>
+                    <Button size="sm" className="gap-2 bg-primary hover:bg-primary/90" onClick={() => navigate("/pricing", { state: { backgroundLocation: location } })}>
+                      <Lock className="h-3.5 w-3.5" />
+                      Upgrade to unlock
+                    </Button>
+                  </div>
+                ) : (data?.recentScans.length ?? 0) < 5 ? (
+                  <div className="flex flex-col items-center gap-2 py-5 text-center">
+                    <BrainCircuit className="h-7 w-7 text-muted-foreground/30" />
+                    <p className="text-sm text-muted-foreground">Need at least 5 scans.</p>
+                    <p className="text-xs text-muted-foreground/60">{data?.recentScans.length ?? 0} / 5 so far</p>
+                  </div>
+                ) : (() => {
+                  const teasers: { topic: string; question: string }[] = [];
+                  const seenTopics: string[] = [];
+                  for (const scan of data!.recentScans) {
+                    if (seenTopics.length >= 2) break;
+                    const raw = localStorage.getItem(SCAN_CACHE_KEY(scan.id));
+                    if (!raw) continue;
+                    try {
+                      const stored = JSON.parse(raw);
+                      const problems: { question: string }[] = stored.diagnosis?.practice_problems ?? [];
+                      const qs = problems.slice(0, 2).map((p) => ({ topic: scan.label, question: p.question }));
+                      if (qs.length) { teasers.push(...qs); seenTopics.push(scan.label); }
+                    } catch {}
+                  }
+                  const shown = teasers.slice(0, 3);
+                  if (!shown.length) return (
                     <div className="flex flex-col items-center gap-2 py-5 text-center">
                       <BrainCircuit className="h-7 w-7 text-muted-foreground/30" />
-                      <p className="text-sm text-muted-foreground">Need at least 5 scans.</p>
-                      <p className="text-xs text-muted-foreground/60">{data?.recentScans.length ?? 0} / 5 so far</p>
+                      <p className="text-sm text-muted-foreground">Open a recent scan to load quiz questions.</p>
                     </div>
-                  ) : (() => {
-                    // Collect up to 2 questions from each of the first 2 distinct concepts
-                    const teasers: QuizQuestion[] = [];
-                    const seenTopics: string[] = [];
-                    for (const scan of data!.recentScans) {
-                      if (seenTopics.length >= 2) break;
-                      const raw = localStorage.getItem(SCAN_CACHE_KEY(scan.id));
-                      if (!raw) continue;
-                      try {
-                        const stored = JSON.parse(raw);
-                        const problems: { question: string; answer: string }[] = stored.diagnosis?.practice_problems ?? [];
-                        const topicQuestions = problems.slice(0, 2).map((p) => ({ topic: scan.label, question: p.question, answer: p.answer }));
-                        if (topicQuestions.length) {
-                          teasers.push(...topicQuestions);
-                          seenTopics.push(scan.label);
-                        }
-                      } catch {}
-                    }
-                    const shown = teasers.slice(0, 3);
-                    if (!shown.length) {
-                      return (
-                        <div className="flex flex-col items-center gap-2 py-5 text-center">
-                          <BrainCircuit className="h-7 w-7 text-muted-foreground/30" />
-                          <p className="text-sm text-muted-foreground">Open a recent scan to load quiz questions.</p>
-                        </div>
-                      );
-                    }
-                    return (
-                      <div className="relative overflow-hidden" style={{ maxHeight: "12rem" }}>
-                        <div className="space-y-2">
-                          {shown.map((q, i) => (
-                            <div key={i} className="rounded-lg border border-border bg-secondary/40 px-3 py-2.5">
-                              <p className="text-[10px] font-semibold uppercase tracking-widest text-primary mb-1">{q.topic}</p>
-                              <p className="text-xs text-foreground">{q.question}</p>
-                            </div>
-                          ))}
-                        </div>
-                        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-card to-transparent" />
+                  );
+                  return (
+                    <div className="relative overflow-hidden" style={{ maxHeight: "12rem" }}>
+                      <div className="space-y-2">
+                        {shown.map((q, i) => (
+                          <div key={i} className="rounded-lg border border-border bg-secondary/40 px-3 py-2.5">
+                            <p className="text-[10px] font-semibold uppercase tracking-widest text-primary mb-1">{q.topic}</p>
+                            <p className="text-xs text-foreground"><RichText text={q.question} /></p>
+                          </div>
+                        ))}
                       </div>
-                    );
-                  })()}
-                </div>
-              ) : quiz.showStats ? (
-                <div className="space-y-4 pb-5">
-                  <div className="rounded-xl border border-border bg-secondary/40 px-4 py-5 text-center">
-                    <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-2">Quiz complete</p>
-                    <p className="text-4xl font-extrabold text-foreground">
-                      {quiz.results.filter(r => r === "correct").length}
-                      <span className="text-xl font-medium text-muted-foreground"> / {quiz.questions.length}</span>
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">correct</p>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5 justify-center">
-                    {quiz.results.map((r, i) => (
-                      <div key={i} className={`h-2.5 w-2.5 rounded-full ${r === "correct" ? "bg-green-400" : "bg-red-400"}`} title={`Q${i + 1}: ${r}`} />
-                    ))}
-                  </div>
-                  <div className="flex justify-center">
-                    <Button size="sm" variant="outline" className="border-border" onClick={() => setQuiz(null)}>Done</Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-3 pb-5">
-                  {(() => {
-                    const currentQ = quiz.questions[quiz.current];
-                    const isCurrentTF = quiz.questionType === "tf" || (quiz.questionType === "both" && currentQ.mode === "tf");
-
-                    const advanceTF = () => {
-                      setQuiz((q) => {
-                        if (!q) return q;
-                        if (q.current >= q.questions.length - 1) return { ...q, showStats: true };
-                        return { ...q, current: q.current + 1, revealed: false, currentResult: null, userInput: "" };
-                      });
-                    };
-
-                    const gradeAndAdvance = (grade: "correct" | "incorrect") => {
-                      setQuiz((q) => {
-                        if (!q) return q;
-                        const newResults = [...q.results, grade];
-                        if (q.current >= q.questions.length - 1) return { ...q, results: newResults, showStats: true };
-                        return { ...q, results: newResults, current: q.current + 1, revealed: false, currentResult: null, userInput: "" };
-                      });
-                    };
-
-                    return (
-                      <>
-                        <div>
-                          <p className="text-[10px] font-semibold uppercase tracking-widest text-primary mb-1">{currentQ.topic}</p>
-                          <p className="text-sm font-medium text-foreground"><RichText text={currentQ.question} /></p>
-                        </div>
-                        {isCurrentTF && !quiz.revealed && (
-                          <div className="rounded-lg border border-border bg-secondary/40 px-3 py-2.5 text-sm text-foreground">
-                            <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground block mb-1">Is this statement true or false?</span>
-                            <RichText text={currentQ.tfStatement} />
-                          </div>
-                        )}
-                        {quiz.revealed ? (
-                          <div className="space-y-2.5">
-                            {isCurrentTF ? (
-                              <>
-                                <div className={`rounded-lg border px-3 py-2 text-sm font-semibold ${quiz.currentResult === "correct" ? "border-green-500/30 bg-green-500/10 text-green-400" : "border-red-500/30 bg-red-500/10 text-red-400"}`}>
-                                  {quiz.currentResult === "correct" ? "Correct! ✓" : "Incorrect ✗"}
-                                </div>
-                                <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5 text-sm text-foreground">
-                                  <span className="text-[10px] font-semibold uppercase tracking-widest text-primary block mb-1">Answer</span>
-                                  <RichText text={currentQ.answer} />
-                                </div>
-                                <div className="flex justify-end">
-                                  <Button size="sm" className="bg-primary hover:bg-primary/90" onClick={advanceTF}>
-                                    {quiz.current < quiz.questions.length - 1 ? <>Next <ArrowRight className="ml-2 h-3.5 w-3.5" /></> : "Finish"}
-                                  </Button>
-                                </div>
-                              </>
-                            ) : (
-                              <>
-                                {quiz.userInput.trim() && (
-                                  <div className="rounded-lg border border-border bg-secondary/40 px-3 py-2.5 text-sm text-foreground">
-                                    <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground block mb-1">Your answer</span>
-                                    {quiz.userInput}
-                                  </div>
-                                )}
-                                <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5 text-sm text-foreground">
-                                  <span className="text-[10px] font-semibold uppercase tracking-widest text-primary block mb-1">Correct answer</span>
-                                  <RichText text={currentQ.answer} />
-                                </div>
-                                <div className="flex gap-2">
-                                  <Button size="sm" variant="outline" className="flex-1 border-green-500/40 text-green-400 hover:bg-green-500/10"
-                                    onClick={() => gradeAndAdvance("correct")}>
-                                    Got it ✓
-                                  </Button>
-                                  <Button size="sm" variant="outline" className="flex-1 border-red-500/40 text-red-400 hover:bg-red-500/10"
-                                    onClick={() => gradeAndAdvance("incorrect")}>
-                                    Wrong ✗
-                                  </Button>
-                                </div>
-                              </>
-                            )}
-                          </div>
-                        ) : isCurrentTF ? (
-                          <div className="flex gap-2">
-                            <Button size="sm" variant="outline" className="flex-1 border-border"
-                              onClick={() => {
-                                const correct = currentQ.tfCorrect === true;
-                                setQuiz((q) => q && ({ ...q, revealed: true, currentResult: correct ? "correct" : "incorrect", results: [...q.results, correct ? "correct" : "incorrect"] }));
-                              }}>True</Button>
-                            <Button size="sm" variant="outline" className="flex-1 border-border"
-                              onClick={() => {
-                                const correct = currentQ.tfCorrect === false;
-                                setQuiz((q) => q && ({ ...q, revealed: true, currentResult: correct ? "correct" : "incorrect", results: [...q.results, correct ? "correct" : "incorrect"] }));
-                              }}>False</Button>
-                          </div>
-                        ) : (
-                          <div className="space-y-2">
-                            <textarea
-                              rows={2}
-                              value={quiz.userInput}
-                              onChange={(e) => setQuiz((q) => q && ({ ...q, userInput: e.target.value }))}
-                              placeholder="Type your answer…"
-                              className="w-full resize-none rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-                            />
-                            <Button size="sm" className="w-full bg-primary hover:bg-primary/90"
-                              onClick={() => {
-                                if (!quiz.userInput.trim()) { whaleToast.error("Please enter your answer first."); return; }
-                                setQuiz((q) => q && ({ ...q, revealed: true }));
-                              }}>
-                              Check answer
-                            </Button>
-                          </div>
-                        )}
-                      </>
-                    );
-                  })()}
-                </div>
-              )}
+                      <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-card to-transparent" />
+                    </div>
+                  );
+                })()}
+              </div>
             </Card>
           </div>
 
@@ -794,63 +679,204 @@ const Dashboard = ({ user }: { user: User }) => {
 
       {/* Quiz config dialog */}
       <Dialog open={showQuizConfig} onOpenChange={setShowQuizConfig}>
-        <DialogContent className="border border-border bg-card sm:max-w-md">
+        <DialogContent className="border border-border bg-card sm:max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-foreground">
               <Settings2 className="h-4 w-4 text-primary" />
-              Customise your quiz
+              Set up your quiz
             </DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              Choose how many questions, what type, and which concepts to include.
+              Choose how many questions and which formats to include.
             </DialogDescription>
           </DialogHeader>
           <div className="mt-4 space-y-5">
-            {/* Number of questions */}
             <div>
               <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Questions: {quizConfig.numQuestions}
               </label>
-              <input
-                type="range"
-                min={1}
-                max={15}
-                value={quizConfig.numQuestions}
+              <input type="range" min={1} max={15} value={quizConfig.numQuestions}
                 onChange={(e) => setQuizConfig((c) => ({ ...c, numQuestions: Number(e.target.value) }))}
-                className="w-full accent-primary"
-              />
-              <div className="flex justify-between text-[10px] text-muted-foreground/60 mt-0.5">
-                <span>1</span><span>15</span>
-              </div>
+                className="w-full accent-primary" />
+              <div className="flex justify-between text-[10px] text-muted-foreground/60 mt-0.5"><span>1</span><span>15</span></div>
             </div>
-
-            {/* Question type */}
             <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Question type</p>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Question formats</p>
               <div className="grid grid-cols-3 gap-2">
-                {(["both", "enter", "tf"] as const).map((t) => (
-                  <button
-                    key={t}
-                    onClick={() => setQuizConfig((c) => ({ ...c, questionType: t }))}
-                    className={`rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
-                      quizConfig.questionType === t
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border bg-secondary/50 text-muted-foreground hover:border-primary/40"
-                    }`}
-                  >
-                    {t === "both" ? "Both" : t === "enter" ? "Short answer" : "True / False"}
-                  </button>
-                ))}
+                {([
+                  { key: "typed", label: "Typed" },
+                  { key: "multipleChoice", label: "Multiple choice" },
+                  { key: "trueOrFalse", label: "True / False" },
+                ] as const).map(({ key, label }) => {
+                  const active = quizConfig[key];
+                  const anyOtherActive = Object.entries(quizConfig)
+                    .filter(([k]) => ["typed", "multipleChoice", "trueOrFalse"].includes(k) && k !== key)
+                    .some(([, v]) => v);
+                  return (
+                    <button key={key}
+                      onClick={() => { if (active && !anyOtherActive) return; setQuizConfig((c) => ({ ...c, [key]: !active })); }}
+                      className={`rounded-lg border px-2 py-2 text-xs font-medium transition-colors ${active ? "border-primary bg-primary/10 text-primary" : "border-border bg-secondary/50 text-muted-foreground hover:border-primary/40"}`}>
+                      {label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
-
           </div>
           <div className="mt-6 flex justify-end gap-2">
             <Button variant="outline" className="border-border" onClick={() => setShowQuizConfig(false)}>Cancel</Button>
             <Button className="bg-primary hover:bg-primary/90" onClick={() => startQuizWithConfig(quizConfig)}>
-              Start Quiz
-              <ArrowRight className="ml-2 h-4 w-4" />
+              Start Quiz <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Quiz Dialog */}
+      <Dialog open={!!quiz} onOpenChange={(open) => { if (!open) setQuiz(null); }}>
+        <DialogContent className="border border-border bg-card sm:max-w-xl p-0 overflow-hidden gap-0">
+          {quiz?.showStats ? (
+            <div className="flex flex-col items-center px-8 py-10 text-center">
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Quiz complete</p>
+              <p className="mt-4 text-7xl font-extrabold text-foreground">
+                {quiz.results.filter((r) => r === "correct").length}
+                <span className="text-3xl font-medium text-muted-foreground"> / {quiz.questions.length}</span>
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">correct · {formatTime(elapsedSecs)}</p>
+              <div className="mt-6 flex flex-wrap justify-center gap-1.5">
+                {quiz.results.map((r, i) => (
+                  <div key={i} title={`Q${i + 1}: ${r}`}
+                    className={`h-3 w-3 rounded-full ${r === "correct" ? "bg-green-400" : "bg-red-400"}`} />
+                ))}
+              </div>
+              <div className="mt-8 flex gap-3">
+                <Button variant="outline" className="border-border" onClick={() => startQuizWithConfig(quizConfig)}>
+                  <RefreshCw className="mr-2 h-4 w-4" /> Try Again
+                </Button>
+                <Button className="bg-primary hover:bg-primary/90" onClick={() => setQuiz(null)}>Done</Button>
+              </div>
+            </div>
+          ) : quiz ? (() => {
+            const currentQ = quiz.questions[quiz.current];
+            const advance = () => setQuiz((q) => {
+              if (!q) return q;
+              if (q.current >= q.questions.length - 1) return { ...q, showStats: true };
+              return { ...q, current: q.current + 1, revealed: false, currentResult: null, userInput: "", selectedMcIdx: null };
+            });
+            const gradeAndAdvance = (grade: "correct" | "incorrect") => setQuiz((q) => {
+              if (!q) return q;
+              const results = [...q.results, grade];
+              if (q.current >= q.questions.length - 1) return { ...q, results, showStats: true };
+              return { ...q, results, current: q.current + 1, revealed: false, currentResult: null, userInput: "", selectedMcIdx: null };
+            });
+            return (
+              <div className="flex flex-col">
+                {/* Header */}
+                <div className="flex items-center justify-between border-b border-border px-6 py-3">
+                  <span className="text-xs font-semibold text-muted-foreground">{quiz.current + 1} / {quiz.questions.length}</span>
+                  <span className="font-mono text-sm font-semibold text-foreground">{formatTime(elapsedSecs)}</span>
+                  <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-muted-foreground"
+                    onClick={() => startQuizWithConfig(quizConfig)}>
+                    <RefreshCw className="mr-1.5 h-3 w-3" /> Reset
+                  </Button>
+                </div>
+                {/* Progress bar */}
+                <div className="h-1 bg-secondary">
+                  <div className="h-full bg-primary transition-all duration-300"
+                    style={{ width: `${(quiz.current / quiz.questions.length) * 100}%` }} />
+                </div>
+                {/* Body */}
+                <div className="space-y-4 px-6 py-6">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-primary mb-1">{currentQ.topic}</p>
+                    <p className="text-base font-medium text-foreground leading-relaxed"><RichText text={currentQ.question} /></p>
+                  </div>
+
+                  {/* TF mode */}
+                  {currentQ.mode === "tf" && !quiz.revealed && (
+                    <>
+                      <div className="rounded-lg border border-border bg-secondary/40 px-4 py-3 text-sm text-foreground">
+                        <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground block mb-1">Is this statement true or false?</span>
+                        <RichText text={currentQ.tfStatement} />
+                      </div>
+                      <div className="flex gap-3">
+                        <Button variant="outline" className="flex-1 border-border" onClick={() => {
+                          const correct = currentQ.tfCorrect === true;
+                          setQuiz((q) => q && ({ ...q, revealed: true, currentResult: correct ? "correct" : "incorrect", results: [...q.results, correct ? "correct" : "incorrect"] }));
+                        }}>True</Button>
+                        <Button variant="outline" className="flex-1 border-border" onClick={() => {
+                          const correct = currentQ.tfCorrect === false;
+                          setQuiz((q) => q && ({ ...q, revealed: true, currentResult: correct ? "correct" : "incorrect", results: [...q.results, correct ? "correct" : "incorrect"] }));
+                        }}>False</Button>
+                      </div>
+                    </>
+                  )}
+
+                  {/* MC mode */}
+                  {currentQ.mode === "mc" && !quiz.revealed && (
+                    <div className="grid grid-cols-2 gap-2">
+                      {currentQ.mcOptions?.map((opt, idx) => (
+                        <button key={idx} onClick={() => {
+                          const correct = idx === currentQ.mcCorrectIdx;
+                          setQuiz((q) => q && ({ ...q, revealed: true, selectedMcIdx: idx, currentResult: correct ? "correct" : "incorrect", results: [...q.results, correct ? "correct" : "incorrect"] }));
+                        }}
+                          className="rounded-lg border border-border bg-secondary/40 px-4 py-3 text-left text-sm text-foreground transition-colors hover:border-primary/50 hover:bg-secondary">
+                          <span className="mr-2 font-bold text-primary">{String.fromCharCode(65 + idx)}.</span>
+                          <RichText text={opt} />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Typed mode */}
+                  {currentQ.mode === "typed" && !quiz.revealed && (
+                    <div className="space-y-2">
+                      <textarea rows={3} value={quiz.userInput}
+                        onChange={(e) => setQuiz((q) => q && ({ ...q, userInput: e.target.value }))}
+                        placeholder="Type your answer…"
+                        className="w-full resize-none rounded-lg border border-border bg-secondary/50 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none" />
+                      <Button className="w-full bg-primary hover:bg-primary/90" onClick={() => {
+                        if (!quiz.userInput.trim()) { whaleToast.error("Please enter your answer first."); return; }
+                        setQuiz((q) => q && ({ ...q, revealed: true }));
+                      }}>Check answer</Button>
+                    </div>
+                  )}
+
+                  {/* Revealed state */}
+                  {quiz.revealed && (
+                    <div className="space-y-3">
+                      <div className={`rounded-lg border px-4 py-2.5 text-sm font-semibold ${quiz.currentResult === "correct" ? "border-green-500/30 bg-green-500/10 text-green-400" : "border-red-500/30 bg-red-500/10 text-red-400"}`}>
+                        {quiz.currentResult === "correct" ? "Correct ✓" : "Incorrect ✗"}
+                      </div>
+                      {currentQ.mode === "mc" && (
+                        <div className="grid grid-cols-2 gap-2">
+                          {currentQ.mcOptions?.map((opt, idx) => (
+                            <div key={idx} className={`rounded-lg border px-4 py-3 text-sm ${idx === currentQ.mcCorrectIdx ? "border-green-500/40 bg-green-500/10 text-green-400 font-semibold" : idx === quiz.selectedMcIdx ? "border-red-500/30 bg-red-500/10 text-red-400" : "border-border bg-secondary/30 text-muted-foreground"}`}>
+                              <span className="mr-2 font-bold">{String.fromCharCode(65 + idx)}.</span>
+                              <RichText text={opt} />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-foreground">
+                        <span className="text-[10px] font-semibold uppercase tracking-widest text-primary block mb-1">Correct answer</span>
+                        <RichText text={currentQ.answer} />
+                      </div>
+                      {currentQ.mode === "typed" ? (
+                        <div className="flex gap-2">
+                          <Button variant="outline" className="flex-1 border-green-500/40 text-green-400 hover:bg-green-500/10" onClick={() => gradeAndAdvance("correct")}>Got it ✓</Button>
+                          <Button variant="outline" className="flex-1 border-red-500/40 text-red-400 hover:bg-red-500/10" onClick={() => gradeAndAdvance("incorrect")}>Wrong ✗</Button>
+                        </div>
+                      ) : (
+                        <Button className="w-full bg-primary hover:bg-primary/90" onClick={advance}>
+                          {quiz.current < quiz.questions.length - 1 ? <>Next <ArrowRight className="ml-2 h-4 w-4" /></> : "Finish"}
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })() : null}
         </DialogContent>
       </Dialog>
     </PageTransition>
@@ -1365,7 +1391,7 @@ const Landing = () => {
                   than the answer.
                 </h1>
                 <p className="mt-8 max-w-md text-xl leading-relaxed text-muted-foreground">
-                  Drop a screenshot of any hard problem right here, right now, and start learning efficiently.
+                  Screenshot a question → get a step-by-step solution, the underlying concept explained, and practice designed to fill the exact gap.
                 </p>
                 <div className="mt-10">
                   <Link to="/workspace" className="group relative inline-block">

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Waves, Atom, LogOut, UserCircle2,
@@ -33,6 +33,12 @@ export default function AppSidebar({ user }: { user: User; onUserUpdate?: (u: Us
   const location = useLocation();
   const navigate = useNavigate();
   const [colorMode, setColorMode] = useState<ColorMode>(getStoredColorMode);
+  const [plan, setPlan] = useState<string>("free");
+
+  useEffect(() => {
+    (supabase as any).from("profiles").select("plan").eq("id", user.id).single()
+      .then(({ data }: { data: any }) => { if (data?.plan) setPlan(data.plan); });
+  }, [user.id]);
 
   const displayName = (u: User) =>
     u.user_metadata?.username ?? u.email?.split("@")[0] ?? "Account";
@@ -67,7 +73,7 @@ export default function AppSidebar({ user }: { user: User; onUserUpdate?: (u: Us
               className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
                 isActive
                   ? "bg-accent text-foreground"
-                  : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                  : "text-foreground/80 hover:bg-accent hover:text-foreground"
               }`}
             >
               <Icon className="h-4 w-4 shrink-0" />
@@ -75,6 +81,17 @@ export default function AppSidebar({ user }: { user: User; onUserUpdate?: (u: Us
             </Link>
           );
         })}
+        {/* Go Deep CTA — only shown when not already on Deep */}
+        {plan !== "deep" && (
+          <div className="pt-4">
+            <button
+              onClick={() => navigate("/pricing", { state: { backgroundLocation: location } })}
+              className="w-full rounded-xl bg-primary px-3 py-2.5 text-center text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              Go Deep
+            </button>
+          </div>
+        )}
       </nav>
 
       {/* Bottom controls */}
@@ -82,7 +99,7 @@ export default function AppSidebar({ user }: { user: User; onUserUpdate?: (u: Us
         {/* Color mode */}
         <button
           onClick={cycleColorMode}
-          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-foreground/80 transition-colors hover:bg-accent hover:text-foreground"
         >
           {COLOR_MODE_ICONS[colorMode]}
           <span>{COLOR_MODE_LABELS[colorMode]}</span>
@@ -91,7 +108,7 @@ export default function AppSidebar({ user }: { user: User; onUserUpdate?: (u: Us
         {/* Account */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+            <button className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-foreground/80 transition-colors hover:bg-accent hover:text-foreground">
               <UserCircle2 className="h-4 w-4 shrink-0" />
               <span className="truncate">{displayName(user)}</span>
             </button>

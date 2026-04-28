@@ -1,29 +1,53 @@
 import { useEffect, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
-import { Check } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import PageTransition from "@/components/PageTransition";
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { applyColorMode, getStoredColorMode, type ColorMode } from "@/lib/theme";
 import { whaleToast } from "@/lib/whaleToast";
 
 export default function Settings() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [user, setUser] = useState<User | null>(null);
   const [newName, setNewName] = useState("");
   const [saving, setSaving] = useState(false);
   const [colorMode, setColorMode] = useState<ColorMode>(getStoredColorMode);
+  const [plan, setPlan] = useState<string>("free");
+  const [managingBilling, setManagingBilling] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user) {
-        setUser(data.user);
-        setNewName(data.user.user_metadata?.username ?? data.user.email?.split("@")[0] ?? "");
-      }
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (!data.user) return;
+      setUser(data.user);
+      setNewName(data.user.user_metadata?.username ?? data.user.email?.split("@")[0] ?? "");
+      const { data: profile } = await (supabase as any)
+        .from("profiles").select("plan").eq("id", data.user.id).single();
+      if (profile?.plan) setPlan(profile.plan);
     });
   }, []);
+
+  async function handleManageBilling() {
+    if (!user) return;
+    setManagingBilling(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("billing-portal", {
+        body: { userId: user.id },
+      });
+      let errMsg = data?.error ?? (error as any)?.message ?? String(error);
+      try { const ctx = (error as any)?.context; if (ctx) { const j = await ctx.json(); errMsg = j?.error ?? errMsg; } } catch {}
+      if (!data?.url) throw new Error(errMsg);
+      window.location.href = data.url;
+    } catch (err) {
+      whaleToast.error(err instanceof Error ? err.message : String(err));
+      setManagingBilling(false);
+    }
+  }
 
   async function saveName() {
     if (!user || !newName.trim()) return;
@@ -90,6 +114,60 @@ export default function Settings() {
                 <p className="text-sm text-foreground">{memberSince}</p>
               </div>
             </div>
+          </section>
+
+          {/* Plan */}
+          <section className="mb-10">
+            <h2 className="mb-4 text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Plan</h2>
+            {plan === "deep" ? (
+              <div className="rounded-xl border border-yellow-400/30 bg-yellow-400/5 p-6 flex items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-foreground">Deep</span>
+                    <span className="rounded-full bg-yellow-400 px-2 py-0.5 text-[10px] font-bold text-black">Active</span>
+                  </div>
+                  <p className="mt-0.5 text-xs text-muted-foreground">You have full access to everything.</p>
+                </div>
+                <Button
+                  variant="outline"
+                  className="shrink-0 border-border text-muted-foreground"
+                  onClick={handleManageBilling}
+                  disabled={managingBilling}
+                >
+                  {managingBilling && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Manage subscription
+                </Button>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-border bg-card overflow-hidden">
+                <div className="p-6">
+                  <div className="flex items-center gap-3 mb-3">
+                    <img src="/whale-e.png" alt="" className="whale-img h-10 w-10 object-contain" />
+                    <div>
+                      <p className="font-bold text-foreground text-lg">Go Deep</p>
+                      <p className="text-xs text-muted-foreground">Unlock everything — unlimited scans, Whal-E, concepts, quizzes.</p>
+                    </div>
+                  </div>
+                  <ul className="grid grid-cols-2 gap-x-6 gap-y-1.5 mb-5">
+                    {["Unlimited scans", "Whal-E AI tutor 24/7", "Unlimited practice", "Underlying concepts", "Unlimited quizzes", "Early feature access"].map((f) => (
+                      <li key={f} className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Check className="h-3.5 w-3.5 shrink-0 text-primary" />
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="flex items-center gap-3">
+                    <Button
+                      className="bg-primary hover:bg-primary/90 font-semibold"
+                      onClick={() => navigate("/pricing", { state: { backgroundLocation: location } })}
+                    >
+                      Go Deep — from $6 / mo
+                    </Button>
+                    <span className="text-xs text-muted-foreground">or $8 / mo monthly</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </section>
 
           {/* Theme */}

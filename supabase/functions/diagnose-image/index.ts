@@ -14,8 +14,22 @@ Deno.serve(async (req: Request) => {
 
   try {
     const body = await req.json();
-    const { image, mimeType, mode = "identify", text, practice_count, topic, start_id, what_happened } = body;
+    const { image, mimeType, mode = "identify", text, practice_count, topic, start_id, what_happened, complexity = 2 } = body;
     console.log("diagnose-image invoked, mode:", mode, "text:", !!text);
+
+    function complexityInstruction(level: number): string {
+      if (level === 1) return " Complexity level: SIMPLE. Use very plain everyday language a 14-year-old could follow. No jargon. Break every step into the smallest possible sub-steps. Use analogies instead of formulas where possible.";
+      if (level === 3) return " Complexity level: ADVANCED. Use precise IB/AP/A-Level academic terminology throughout. Reference standard theorems and rules by name. Keep steps concise — assume solid foundational knowledge.";
+      if (level === 4) return " Complexity level: EXPERT. Use full university-level rigour and formal notation. Be dense and precise. Cite theorems, proofs, and edge cases where relevant. Assume deep mathematical maturity.";
+      return " Complexity level: STANDARD. Use clear, accessible language with standard high-school terminology.";
+    }
+
+    function stepsDescription(level: number): string {
+      if (level === 1) return "Complete step-by-step solution written in plain language for a beginner. Each step must be very small and self-contained — no skipped reasoning. Prefer words over formulas where possible. $...$ for inline math, $$...$$ for display equations.";
+      if (level === 3) return "Complete step-by-step solution using precise academic terminology. Each step is a clear, concise instruction referencing relevant rules or theorems by name. $...$ for inline math, $$...$$ for display equations.";
+      if (level === 4) return "Rigorous step-by-step solution with full formal notation. Concise and dense — no hand-holding. Include theorem names, edge cases, and proof reasoning where relevant. $...$ for inline math, $$...$$ for display equations.";
+      return "Complete step-by-step solution. Each step is one clear instruction. $...$ for inline math, $$...$$ for display equations.";
+    }
 
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
     if (!ANTHROPIC_API_KEY) {
@@ -42,7 +56,7 @@ Deno.serve(async (req: Request) => {
     // ── guide_steps: steps + metadata only, no concept or practice ──────────
     if (mode === "guide_steps") {
       const data = await callAnthropic({
-        system: `You are an expert STEM tutor. Break down the student's question step by step. If the image is NOT a STEM question or is too blurry, set input_status accordingly. You MUST use the guide_steps tool.${MATH}`,
+        system: `You are an expert STEM tutor. Break down the student's question step by step. If the image is NOT a STEM question or is too blurry, set input_status accordingly. You MUST use the guide_steps tool.${complexityInstruction(complexity)}${MATH}`,
         messages: [{
           role: "user",
           content: text
@@ -63,7 +77,7 @@ Deno.serve(async (req: Request) => {
               what_happened: { type: "string", description: "1-2 sentences. Describe exactly what this problem asks the student to find or do. Reference key numbers, variables, or conditions from the question. Under 50 words. Do NOT mention student errors or working." },
               steps: {
                 type: "array", items: { type: "string" },
-                description: "Complete step-by-step solution. Each step is one clear instruction. $...$ for inline math, $$...$$ for display equations.",
+                description: stepsDescription(complexity),
               },
               input_status: { type: "string", enum: ["ok", "blurry", "not_stem"], description: "Input quality check." },
             },
@@ -81,7 +95,7 @@ Deno.serve(async (req: Request) => {
     if (mode === "guide_concept") {
       const contextText = what_happened ? `Problem context: ${what_happened}\n\n` : "";
       const data = await callAnthropic({
-        system: `You are an expert STEM tutor. Explain concepts concisely. Use LaTeX: $...$ inline, $$...$$ display.`,
+        system: `You are an expert STEM tutor. Explain concepts concisely.${complexityInstruction(complexity)} Use LaTeX: $...$ inline, $$...$$ display.`,
         messages: [{ role: "user", content: [{ type: "text", text: `${contextText}Topic: ${topic ?? "STEM"}\n\nExplain the underlying concept and recognition cue.` }] }],
         tools: [{
           name: "concept_explanation",
