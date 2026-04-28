@@ -76,7 +76,7 @@ export default function Settings() {
           <div className="rounded-xl border border-border bg-card divide-y divide-border overflow-hidden shrink-0">
 
             {/* Profile */}
-            <div className="p-5 space-y-4">
+            <div className="p-6 space-y-5">
               <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">Profile</p>
               <div className="flex gap-2">
                 <Input
@@ -99,8 +99,8 @@ export default function Settings() {
             </div>
 
             {/* Plan */}
-            <div className="p-5">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground mb-4">Plan</p>
+            <div className="p-6">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground mb-5">Plan</p>
               {plan === "deep" ? (
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-2">
@@ -133,9 +133,9 @@ export default function Settings() {
             </div>
 
             {/* Theme */}
-            <div className="p-5">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground mb-4">Theme</p>
-              <div className="grid grid-cols-3 gap-3">
+            <div className="p-6">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground mb-5">Theme</p>
+              <div className="grid grid-cols-3 gap-4">
                 <ThemeCard label="Light" active={colorMode === "white"} onClick={() => applyTheme("white")}>
                   <div className="h-full w-full rounded-lg bg-[#efefef] p-2">
                     <div className="h-full rounded-md bg-white flex items-center justify-center shadow-sm">
@@ -173,7 +173,7 @@ export default function Settings() {
 function ThemeCard({ label, active, onClick, children }: { label: string; active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button onClick={onClick} className={`flex flex-col gap-1.5 rounded-xl border-2 p-1.5 text-left transition-all ${active ? "border-primary" : "border-border hover:border-muted-foreground/50"}`}>
-      <div className="h-16 w-full overflow-hidden rounded-lg">{children}</div>
+      <div className="h-20 w-full overflow-hidden rounded-lg">{children}</div>
       <div className="flex items-center justify-between px-1 pb-0.5">
         <span className="text-xs text-muted-foreground">{label}</span>
         {active && <div className="flex h-4 w-4 items-center justify-center rounded-full bg-primary"><Check className="h-2.5 w-2.5 text-primary-foreground" /></div>}
