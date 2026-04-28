@@ -1,5 +1,5 @@
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
-import { BarChart, Bar, XAxis, ResponsiveContainer, Cell } from "recharts";
+import { BarChart, Bar, XAxis, ResponsiveContainer, Cell, Tooltip } from "recharts";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { Aperture, Microscope, Compass, ArrowRight, Zap, ScanLine, BookOpen, Upload, Loader2, Flame, ChevronRight, ChevronDown, BrainCircuit, Lock, Settings2, Lightbulb, RefreshCw } from "lucide-react";
@@ -298,64 +298,49 @@ const Dashboard = ({ user }: { user: User }) => {
   const startQuizWithConfig = (cfg: QuizConfig) => {
     if (!data) return;
     setShowQuizConfig(false);
-    const byTopic: Record<string, { question: string; answer: string }[]> = {};
-    const allAnswers: string[] = [];
+    const byTopic: Record<string, { question: string; answer: string; options?: string[] }[]> = {};
     for (const scan of data.recentScans) {
       const raw = localStorage.getItem(SCAN_CACHE_KEY(scan.id));
       if (!raw) continue;
       try {
         const stored = JSON.parse(raw);
-        const problems: { question: string; answer: string }[] = stored.diagnosis?.practice_problems ?? [];
-        for (const p of problems) { (byTopic[scan.label] ??= []).push(p); allAnswers.push(p.answer); }
+        const problems: { question: string; answer: string; options?: string[] }[] = stored.diagnosis?.practice_problems ?? [];
+        for (const p of problems) { (byTopic[scan.label] ??= []).push(p); }
       } catch {}
     }
     const topics = Object.keys(byTopic);
-    if (!topics.length) { whaleToast.error("Couldn't load practice questions from your scans."); return; }
+    if (!topics.length) { whaleToast.error("Open a few scans first so quiz questions can load."); return; }
     const perTopic = Math.ceil(cfg.numQuestions / topics.length);
-    const pool: { topic: string; question: string; answer: string }[] = [];
+    const pool: { topic: string; question: string; answer: string; options?: string[] }[] = [];
     for (const topic of topics) {
       const shuffled = [...(byTopic[topic] ?? [])].sort(() => Math.random() - 0.5);
       pool.push(...shuffled.slice(0, perTopic).map((p) => ({ topic, ...p })));
     }
     const base = pool.sort(() => Math.random() - 0.5).slice(0, cfg.numQuestions);
-    const enabledModes: ("typed" | "mc" | "tf")[] = [];
-    if (cfg.typed) enabledModes.push("typed");
-    if (cfg.multipleChoice) enabledModes.push("mc");
-    if (cfg.trueOrFalse) enabledModes.push("tf");
-    if (!enabledModes.length) enabledModes.push("typed");
-    const answers = base.map((q) => q.answer);
-    const final: QuizQuestion[] = base.map((q, i) => {
-      const mode = enabledModes[Math.floor(Math.random() * enabledModes.length)];
-      if (mode === "tf") {
-        const isTrue = Math.random() < 0.5;
-        if (isTrue) return { ...q, mode: "tf" as const, tfStatement: q.answer, tfCorrect: true };
-        const wrongPool = answers.filter((_, idx) => idx !== i);
-        const wrongAnswer = wrongPool[Math.floor(Math.random() * wrongPool.length)] ?? q.answer;
-        return { ...q, mode: "tf" as const, tfStatement: wrongAnswer, tfCorrect: false };
+    if (!base.length) { whaleToast.error("Open a few scans first so quiz questions can load."); return; }
+    const final: QuizQuestion[] = base.map((q) => {
+      // Use AI-generated options when available (options[0] is correct answer)
+      if (q.options && q.options.length >= 4) {
+        const shuffled = [...q.options].sort(() => Math.random() - 0.5);
+        return { ...q, mode: "mc" as const, mcOptions: shuffled, mcCorrectIdx: shuffled.indexOf(q.options[0]) };
       }
-      if (mode === "mc") {
-        const wrongs = answers.filter((_, idx) => idx !== i).sort(() => Math.random() - 0.5).slice(0, 3);
-        while (wrongs.length < 3) wrongs.push("None of the above");
-        const opts = [q.answer, ...wrongs].sort(() => Math.random() - 0.5);
-        return { ...q, mode: "mc" as const, mcOptions: opts, mcCorrectIdx: opts.indexOf(q.answer) };
-      }
+      // Fallback for old scans without options
       return { ...q, mode: "typed" as const };
     });
     setQuizKey((k) => k + 1);
     setQuiz({ questions: final, current: 0, revealed: false, userInput: "", results: [], currentResult: null, showStats: false, selectedMcIdx: null });
-    if (data.plan === "intermediate") recordQuizStarted();
   };
 
   const startQuiz = () => {
     if (!data) return;
-    if (!FREE_FOR_ALL && data.plan === "free") return;
-    if (data.recentScans.length < 5) return;
-    if (!FREE_FOR_ALL && data.plan === "intermediate" && getQuizzesToday() >= 1) {
-      whaleToast.error("You've used your daily recap quiz. Upgrade to Deep for unlimited quizzes.");
-      return;
-    }
-    setQuizConfig((c) => ({ ...c, selectedConcepts: availableConcepts() }));
-    setShowQuizConfig(true);
+    // Count scans with actual cached questions
+    const scansWithQs = data.recentScans.filter((scan) => {
+      const raw = localStorage.getItem(SCAN_CACHE_KEY(scan.id));
+      if (!raw) return false;
+      try { return (JSON.parse(raw).diagnosis?.practice_problems?.length ?? 0) > 0; } catch { return false; }
+    });
+    if (scansWithQs.length < 3) return;
+    startQuizWithConfig({ numQuestions: 5, typed: false, multipleChoice: true, trueOrFalse: false, selectedConcepts: [] });
   };
 
   const navigate = useNavigate();
@@ -443,63 +428,15 @@ const Dashboard = ({ user }: { user: User }) => {
 
             {/* Login streak */}
             <Card className="border-border bg-card p-6">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <Flame className="h-4 w-4 text-primary" />
-                  <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Login Streak</p>
-                </div>
-                {!loading && data?.plan !== "deep" && (data?.bonusScans ?? 0) > 0 && (
-                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                    +{data?.bonusScans} bonus
-                  </span>
-                )}
+              <div className="flex items-center gap-2">
+                <Flame className="h-4 w-4 text-primary" />
+                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Login Streak</p>
               </div>
-              {data?.plan === "deep" ? (
-                <>
-                  <p className="mt-4 text-5xl font-extrabold tracking-tight text-foreground">
-                    {loading ? "—" : data.loginStreak}
-                    <span className="ml-2 text-lg font-medium text-muted-foreground">days</span>
-                  </p>
-                  <p className="mt-1.5 text-xs text-muted-foreground">Keep the habit going</p>
-                </>
-              ) : (
-                <>
-                  <p className="mt-4 text-5xl font-extrabold tracking-tight text-foreground">
-                    {loading ? "—" : data?.loginStreak ?? 0}
-                    <span className="ml-2 text-lg font-medium text-muted-foreground">days</span>
-                  </p>
-                  {(() => {
-                    const streak = data?.loginStreak ?? 0;
-                    const cyclePos = streak % 7;
-                    const daysLeft = cyclePos === 0 && streak > 0 ? 0 : 7 - cyclePos;
-                    return (
-                      <p className="mt-1.5 text-xs text-muted-foreground">
-                        {loading ? "\u00a0" : daysLeft === 0
-                          ? `Streak complete — ${data?.plan === "intermediate" ? 20 : 10} bonus credits awarded!`
-                          : `${daysLeft} more day${daysLeft === 1 ? "" : "s"} to earn ${data?.plan === "intermediate" ? 20 : 10} bonus credits`}
-                      </p>
-                    );
-                  })()}
-                  <div className="mt-4 flex gap-1.5">
-                    {Array.from({ length: 7 }).map((_, i) => {
-                      const cyclePos = (data?.loginStreak ?? 0) % 7;
-                      const filled = (data?.loginStreak ?? 0) % 7 === 0 && (data?.loginStreak ?? 0) > 0
-                        ? 7
-                        : cyclePos;
-                      return (
-                        <div
-                          key={i}
-                          className={`h-1.5 flex-1 rounded-full transition-colors ${
-                            i === 6
-                              ? i < filled ? "bg-yellow-400" : "bg-yellow-400/20"
-                              : i < filled ? "bg-primary" : "bg-secondary"
-                          }`}
-                        />
-                      );
-                    })}
-                  </div>
-                </>
-              )}
+              <p className="mt-4 text-5xl font-extrabold tracking-tight text-foreground">
+                {loading ? "—" : data?.loginStreak ?? 0}
+                <span className="ml-2 text-lg font-medium text-muted-foreground">days</span>
+              </p>
+              <p className="mt-1.5 text-xs text-muted-foreground">Keep the habit going</p>
             </Card>
 
             {/* Weekly scan chart */}
@@ -516,6 +453,16 @@ const Dashboard = ({ user }: { user: User }) => {
                 {!loading && data && (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={data.weeklyScans} barSize={12} margin={{ top: 0, right: 0, left: -28, bottom: 0 }}>
+                      <Tooltip
+                        cursor={{ fill: "hsl(var(--primary)/0.08)" }}
+                        content={({ active, payload }) =>
+                          active && payload?.length ? (
+                            <div className="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs font-semibold text-foreground shadow-md">
+                              {payload[0].value} scan{Number(payload[0].value) !== 1 ? "s" : ""}
+                            </div>
+                          ) : null
+                        }
+                      />
                       <XAxis dataKey="day" tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
                       <Bar dataKey="count" radius={[3, 3, 0, 0]}>
                         {data.weeklyScans.map((entry, i) => (
@@ -590,27 +537,18 @@ const Dashboard = ({ user }: { user: User }) => {
                   <BrainCircuit className="h-4 w-4 text-primary" />
                   <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Quick Recap Quiz</p>
                 </div>
-                {!loading && data?.plan !== "free" && (data?.recentScans.length ?? 0) >= 5 && (
+                {!loading && (data?.recentScans.length ?? 0) >= 3 && (
                   <Button size="sm" className="bg-primary hover:bg-primary/90 h-7 text-xs px-3" onClick={startQuiz}>
                     Start Quiz
                   </Button>
                 )}
               </div>
               <div className="pb-5">
-                {(!FREE_FOR_ALL && data?.plan === "free") ? (
-                  <div className="flex flex-col items-center gap-3 py-5 text-center">
-                    <BrainCircuit className="h-7 w-7 text-muted-foreground/30" />
-                    <p className="text-sm text-muted-foreground">Available on Deep plan.</p>
-                    <Button size="sm" className="gap-2 bg-primary hover:bg-primary/90" onClick={() => navigate("/pricing", { state: { backgroundLocation: location } })}>
-                      <Lock className="h-3.5 w-3.5" />
-                      Upgrade to unlock
-                    </Button>
-                  </div>
-                ) : (data?.recentScans.length ?? 0) < 5 ? (
+                {(data?.recentScans.length ?? 0) < 3 ? (
                   <div className="flex flex-col items-center gap-2 py-5 text-center">
                     <BrainCircuit className="h-7 w-7 text-muted-foreground/30" />
-                    <p className="text-sm text-muted-foreground">Need at least 5 scans.</p>
-                    <p className="text-xs text-muted-foreground/60">{data?.recentScans.length ?? 0} / 5 so far</p>
+                    <p className="text-sm text-muted-foreground">Need at least 3 scans to start.</p>
+                    <p className="text-xs text-muted-foreground/60">{data?.recentScans.length ?? 0} / 3 so far</p>
                   </div>
                 ) : (() => {
                   const teasers: { topic: string; question: string }[] = [];
@@ -677,63 +615,9 @@ const Dashboard = ({ user }: { user: User }) => {
         </div>
       </div>
 
-      {/* Quiz config dialog */}
-      <Dialog open={showQuizConfig} onOpenChange={setShowQuizConfig}>
-        <DialogContent className="border border-border bg-card sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-foreground">
-              <Settings2 className="h-4 w-4 text-primary" />
-              Set up your quiz
-            </DialogTitle>
-            <DialogDescription className="text-muted-foreground">
-              Choose how many questions and which formats to include.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="mt-4 space-y-5">
-            <div>
-              <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Questions: {quizConfig.numQuestions}
-              </label>
-              <input type="range" min={1} max={15} value={quizConfig.numQuestions}
-                onChange={(e) => setQuizConfig((c) => ({ ...c, numQuestions: Number(e.target.value) }))}
-                className="w-full accent-primary" />
-              <div className="flex justify-between text-[10px] text-muted-foreground/60 mt-0.5"><span>1</span><span>15</span></div>
-            </div>
-            <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Question formats</p>
-              <div className="grid grid-cols-3 gap-2">
-                {([
-                  { key: "typed", label: "Typed" },
-                  { key: "multipleChoice", label: "Multiple choice" },
-                  { key: "trueOrFalse", label: "True / False" },
-                ] as const).map(({ key, label }) => {
-                  const active = quizConfig[key];
-                  const anyOtherActive = Object.entries(quizConfig)
-                    .filter(([k]) => ["typed", "multipleChoice", "trueOrFalse"].includes(k) && k !== key)
-                    .some(([, v]) => v);
-                  return (
-                    <button key={key}
-                      onClick={() => { if (active && !anyOtherActive) return; setQuizConfig((c) => ({ ...c, [key]: !active })); }}
-                      className={`rounded-lg border px-2 py-2 text-xs font-medium transition-colors ${active ? "border-primary bg-primary/10 text-primary" : "border-border bg-secondary/50 text-muted-foreground hover:border-primary/40"}`}>
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-          <div className="mt-6 flex justify-end gap-2">
-            <Button variant="outline" className="border-border" onClick={() => setShowQuizConfig(false)}>Cancel</Button>
-            <Button className="bg-primary hover:bg-primary/90" onClick={() => startQuizWithConfig(quizConfig)}>
-              Start Quiz <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
       {/* Quiz Dialog */}
       <Dialog open={!!quiz} onOpenChange={(open) => { if (!open) setQuiz(null); }}>
-        <DialogContent className="border border-border bg-card sm:max-w-xl p-0 overflow-hidden gap-0">
+        <DialogContent className="border border-border bg-card sm:max-w-2xl p-0 overflow-hidden gap-0">
           {quiz?.showStats ? (
             <div className="flex flex-col items-center px-8 py-10 text-center">
               <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Quiz complete</p>
@@ -741,7 +625,7 @@ const Dashboard = ({ user }: { user: User }) => {
                 {quiz.results.filter((r) => r === "correct").length}
                 <span className="text-3xl font-medium text-muted-foreground"> / {quiz.questions.length}</span>
               </p>
-              <p className="mt-1 text-sm text-muted-foreground">correct · {formatTime(elapsedSecs)}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{formatTime(elapsedSecs)}</p>
               <div className="mt-6 flex flex-wrap justify-center gap-1.5">
                 {quiz.results.map((r, i) => (
                   <div key={i} title={`Q${i + 1}: ${r}`}
@@ -770,14 +654,16 @@ const Dashboard = ({ user }: { user: User }) => {
             });
             return (
               <div className="flex flex-col">
-                {/* Header */}
-                <div className="flex items-center justify-between border-b border-border px-6 py-3">
-                  <span className="text-xs font-semibold text-muted-foreground">{quiz.current + 1} / {quiz.questions.length}</span>
-                  <span className="font-mono text-sm font-semibold text-foreground">{formatTime(elapsedSecs)}</span>
-                  <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-muted-foreground"
-                    onClick={() => startQuizWithConfig(quizConfig)}>
+                {/* Header — Reset on left, counter+timer centred, X from Dialog is top-right */}
+                <div className="flex items-center border-b border-border px-4 py-3 pr-12">
+                  <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-muted-foreground mr-3 shrink-0"
+                    onClick={() => startQuizWithConfig({ numQuestions: 5, typed: false, multipleChoice: true, trueOrFalse: false, selectedConcepts: [] })}>
                     <RefreshCw className="mr-1.5 h-3 w-3" /> Reset
                   </Button>
+                  <div className="flex flex-1 items-center justify-center gap-4">
+                    <span className="text-xs font-semibold text-muted-foreground">{quiz.current + 1} / {quiz.questions.length}</span>
+                    <span className="font-mono text-sm font-semibold text-foreground">{formatTime(elapsedSecs)}</span>
+                  </div>
                 </div>
                 {/* Progress bar */}
                 <div className="h-1 bg-secondary">
@@ -786,10 +672,7 @@ const Dashboard = ({ user }: { user: User }) => {
                 </div>
                 {/* Body */}
                 <div className="space-y-4 px-6 py-6">
-                  <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-widest text-primary mb-1">{currentQ.topic}</p>
-                    <p className="text-base font-medium text-foreground leading-relaxed"><RichText text={currentQ.question} /></p>
-                  </div>
+                  <p className="text-base font-medium text-foreground leading-relaxed"><RichText text={currentQ.question} /></p>
 
                   {/* TF mode */}
                   {currentQ.mode === "tf" && !quiz.revealed && (

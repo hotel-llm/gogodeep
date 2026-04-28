@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
-  LayoutDashboard, Waves, Atom, LogOut, UserCircle2,
-  Moon, Sun, SunMoon, Settings, Mail,
+  LayoutDashboard, Waves, LogOut, UserCircle2,
+  Moon, Sun, SunMoon, Settings, Mail, Menu, ChevronsLeft,
 } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,11 +12,11 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
   { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { path: "/workspace", label: "Workspace", icon: Waves },
-  { path: "/interact", label: "Interact", icon: Atom },
 ];
 
 const COLOR_MODE_CYCLE: ColorMode[] = ["dark", "white", "auto"];
@@ -34,14 +34,21 @@ export default function AppSidebar({ user }: { user: User; onUserUpdate?: (u: Us
   const navigate = useNavigate();
   const [colorMode, setColorMode] = useState<ColorMode>(getStoredColorMode);
   const [plan, setPlan] = useState<string>("free");
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem("main_sidebar_collapsed") === "true");
 
   useEffect(() => {
     (supabase as any).from("profiles").select("plan").eq("id", user.id).single()
       .then(({ data }: { data: any }) => { if (data?.plan) setPlan(data.plan); });
   }, [user.id]);
 
-  const displayName = (u: User) =>
-    u.user_metadata?.username ?? u.email?.split("@")[0] ?? "Account";
+  function toggleCollapsed() {
+    const next = !collapsed;
+    setCollapsed(next);
+    localStorage.setItem("main_sidebar_collapsed", String(next));
+    window.dispatchEvent(new CustomEvent("main-sidebar-toggle", { detail: { collapsed: next } }));
+  }
+
+  const displayName = (u: User) => u.user_metadata?.username ?? u.email?.split("@")[0] ?? "Account";
 
   function cycleColorMode() {
     const next = COLOR_MODE_CYCLE[(COLOR_MODE_CYCLE.indexOf(colorMode) + 1) % 3];
@@ -55,82 +62,124 @@ export default function AppSidebar({ user }: { user: User; onUserUpdate?: (u: Us
   }
 
   return (
-    <aside className="fixed left-0 top-0 z-50 flex h-screen w-56 flex-col border-r border-border bg-card">
-      {/* Logo */}
-      <Link to="/dashboard" className="flex items-center gap-3 px-5 py-5">
-        <img src={gogodeepLogo} alt="Gogodeep" className="h-7 w-7 object-contain" />
-        <span className="text-base font-bold tracking-tight text-foreground">Gogodeep</span>
-      </Link>
+    <aside className={cn(
+      "fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-border bg-card transition-[width] duration-200 overflow-hidden",
+      collapsed ? "w-14" : "w-56"
+    )}>
 
-      {/* Nav items */}
-      <nav className="flex-1 space-y-0.5 px-3 py-1">
-        {NAV_ITEMS.map(({ path, label, icon: Icon }) => {
-          const isActive = location.pathname === path;
-          return (
+      {collapsed ? (
+        /* ── Collapsed state ── */
+        <div className="flex flex-col items-center py-3 gap-1">
+          {/* Hamburger expands sidebar */}
+          <button
+            onClick={toggleCollapsed}
+            title="Expand sidebar"
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-foreground/70 transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+
+          <div className="my-1 h-px w-8 bg-border" />
+
+          {/* Icon-only nav items */}
+          {NAV_ITEMS.map(({ path, label, icon: Icon }) => (
             <Link
               key={path}
               to={path}
-              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
-                isActive
-                  ? "bg-accent text-foreground"
-                  : "text-foreground/80 hover:bg-accent hover:text-foreground"
-              }`}
+              title={label}
+              className={cn(
+                "flex h-9 w-9 items-center justify-center rounded-lg transition-colors",
+                location.pathname === path ? "bg-accent text-foreground" : "text-foreground/70 hover:bg-accent hover:text-foreground"
+              )}
             >
-              <Icon className="h-4 w-4 shrink-0" />
-              {label}
+              <Icon className="h-4 w-4" />
             </Link>
-          );
-        })}
-        {/* Go Deep CTA — only shown when not already on Deep */}
-        {plan !== "deep" && (
-          <div className="pt-4">
+          ))}
+        </div>
+      ) : (
+        /* ── Expanded state ── */
+        <>
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-4">
+            <Link to="/dashboard" className="flex items-center gap-3 min-w-0">
+              <img src={gogodeepLogo} alt="Gogodeep" className="h-7 w-7 shrink-0 object-contain" />
+              <span className="text-base font-bold tracking-tight text-foreground truncate">Gogodeep</span>
+            </Link>
             <button
-              onClick={() => navigate("/pricing", { state: { backgroundLocation: location } })}
-              className="w-full rounded-xl bg-primary px-3 py-2.5 text-center text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+              onClick={toggleCollapsed}
+              title="Collapse sidebar"
+              className="ml-1 shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
-              Go Deep
+              <ChevronsLeft className="h-4 w-4" />
             </button>
           </div>
-        )}
-      </nav>
 
-      {/* Bottom controls */}
-      <div className="space-y-0.5 px-3 pb-4">
-        {/* Color mode */}
-        <button
-          onClick={cycleColorMode}
-          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-foreground/80 transition-colors hover:bg-accent hover:text-foreground"
-        >
-          {COLOR_MODE_ICONS[colorMode]}
-          <span>{COLOR_MODE_LABELS[colorMode]}</span>
-        </button>
+          {/* Nav items */}
+          <nav className="flex-1 space-y-0.5 px-3 py-1">
+            {NAV_ITEMS.map(({ path, label, icon: Icon }) => {
+              const isActive = location.pathname === path;
+              return (
+                <Link
+                  key={path}
+                  to={path}
+                  className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
+                    isActive ? "bg-accent text-foreground" : "text-foreground/80 hover:bg-accent hover:text-foreground"
+                  }`}
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  {label}
+                </Link>
+              );
+            })}
+            {plan !== "deep" && (
+              <div className="pt-4">
+                <button
+                  onClick={() => navigate("/pricing", { state: { backgroundLocation: location } })}
+                  className="w-full rounded-xl bg-primary px-3 py-2.5 text-center text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                >
+                  Go Deep
+                </button>
+              </div>
+            )}
+          </nav>
 
-        {/* Account */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-foreground/80 transition-colors hover:bg-accent hover:text-foreground">
-              <UserCircle2 className="h-4 w-4 shrink-0" />
-              <span className="truncate">{displayName(user)}</span>
+          {/* Bottom controls */}
+          <div className="space-y-0.5 px-3 pb-4">
+            <button
+              onClick={cycleColorMode}
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-foreground/80 transition-colors hover:bg-accent hover:text-foreground"
+            >
+              {COLOR_MODE_ICONS[colorMode]}
+              <span>{COLOR_MODE_LABELS[colorMode]}</span>
             </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent side="top" align="start" className="w-52 border border-border bg-card">
-            <DropdownMenuLabel className="truncate text-xs font-normal text-muted-foreground">
-              {user.email}
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => navigate("/settings")} className="cursor-pointer gap-2">
-              <Settings className="h-4 w-4" /> Settings
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate("/contact")} className="cursor-pointer gap-2">
-              <Mail className="h-4 w-4" /> Contact
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={onLogout} className="cursor-pointer gap-2">
-              <LogOut className="h-4 w-4" /> Logout
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-foreground/80 transition-colors hover:bg-accent hover:text-foreground">
+                  <UserCircle2 className="h-4 w-4 shrink-0" />
+                  <span className="truncate">{displayName(user)}</span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent side="top" align="start" className="w-52 border border-border bg-card">
+                <DropdownMenuLabel className="truncate text-xs font-normal text-muted-foreground">
+                  {user.email}
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate("/settings")} className="cursor-pointer gap-2">
+                  <Settings className="h-4 w-4" /> Settings
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/contact")} className="cursor-pointer gap-2">
+                  <Mail className="h-4 w-4" /> Contact
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={onLogout} className="cursor-pointer gap-2">
+                  <LogOut className="h-4 w-4" /> Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </>
+      )}
     </aside>
   );
 }

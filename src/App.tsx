@@ -30,7 +30,7 @@ const queryClient = new QueryClient();
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp", "image/heic", "image/heif"];
 
 // Routes that use the sidebar layout (authenticated app shell)
-const SIDEBAR_ROUTES = ["/dashboard", "/workspace", "/report", "/interact", "/settings"];
+const SIDEBAR_ROUTES = ["/dashboard", "/workspace", "/report", "/settings"];
 
 function GlobalDropZone() {
   const navigate = useNavigate();
@@ -147,6 +147,15 @@ function AppLayout() {
   const backgroundLocation = (location.state as any)?.backgroundLocation;
   const effectivePath = (backgroundLocation ?? location).pathname;
   const showSidebar = user != null && SIDEBAR_ROUTES.some((r) => effectivePath.startsWith(r));
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(
+    () => localStorage.getItem("main_sidebar_collapsed") === "true"
+  );
+
+  useEffect(() => {
+    const handler = (e: Event) => setSidebarCollapsed((e as CustomEvent).detail.collapsed);
+    window.addEventListener("main-sidebar-toggle", handler);
+    return () => window.removeEventListener("main-sidebar-toggle", handler);
+  }, []);
 
   return (
     <>
@@ -155,7 +164,7 @@ function AppLayout() {
       ) : (
         <AppNav user={user ?? null} />
       )}
-      <div className={showSidebar ? "ml-56" : ""}>
+      <div className={showSidebar ? (sidebarCollapsed ? "ml-14 transition-[margin] duration-200" : "ml-56 transition-[margin] duration-200") : ""}>
         <AnimatedRoutes />
       </div>
       <WhaleAssistant />

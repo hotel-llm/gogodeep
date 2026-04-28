@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ScanLine } from "lucide-react";
+import { ScanLine, ChevronsLeft, Menu } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import HistorySidebar from "@/components/HistorySidebar";
@@ -19,36 +19,71 @@ export default function EducatorLayout({
   className?: string;
 }) {
   const navigate = useNavigate();
+  const [collapsed, setCollapsed] = React.useState(
+    () => localStorage.getItem("workspace_sidebar_collapsed") === "true"
+  );
+
+  function toggleCollapsed() {
+    const next = !collapsed;
+    setCollapsed(next);
+    localStorage.setItem("workspace_sidebar_collapsed", String(next));
+  }
 
   return (
     <div className="relative z-10 flex h-screen overflow-hidden">
 
       {/* ── Sidebar ───────────────────────────────────────────────────────────── */}
-      <aside className="flex h-full w-60 flex-shrink-0 flex-col overflow-hidden border-r border-border bg-card">
-        {/* Header */}
-        <div className="flex items-center border-b border-border px-3 py-2.5">
-          <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            Workspace
-          </span>
-        </div>
+      <aside className={cn(
+        "flex h-full flex-shrink-0 flex-col overflow-hidden border-r border-border bg-card transition-[width] duration-200",
+        collapsed ? "w-12" : "w-60"
+      )}>
 
-        {/* New scan button */}
-        <div className="p-2">
-          <button
-            onClick={() => navigate("/workspace")}
-            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-primary/70 transition-colors hover:bg-primary/5 hover:text-primary"
-          >
-            <ScanLine className="h-3.5 w-3.5 shrink-0" />
-            New scan
-          </button>
-        </div>
+        {collapsed ? (
+          /* Collapsed: hamburger only */
+          <div className="flex flex-col items-center pt-3">
+            <button
+              onClick={toggleCollapsed}
+              title="Expand sidebar"
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            >
+              <Menu className="h-4 w-4" />
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-border px-3 py-2.5">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                Workspace
+              </span>
+              <button
+                onClick={toggleCollapsed}
+                title="Collapse sidebar"
+                className="rounded-md p-0.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              >
+                <ChevronsLeft className="h-3.5 w-3.5" />
+              </button>
+            </div>
 
-        <div className="border-t border-border" />
+            {/* New scan button */}
+            <div className="p-2">
+              <button
+                onClick={() => navigate("/workspace")}
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-primary/70 transition-colors hover:bg-primary/5 hover:text-primary"
+              >
+                <ScanLine className="h-3.5 w-3.5 shrink-0" />
+                New scan
+              </button>
+            </div>
 
-        {/* Scrollable scan history */}
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          <HistorySidebar />
-        </div>
+            <div className="border-t border-border" />
+
+            {/* Scrollable scan history */}
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              <HistorySidebar />
+            </div>
+          </>
+        )}
       </aside>
 
       {/* ── Main content ──────────────────────────────────────────────────────── */}

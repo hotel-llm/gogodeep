@@ -56,7 +56,7 @@ Deno.serve(async (req: Request) => {
     // ── guide_steps: steps + metadata only, no concept or practice ──────────
     if (mode === "guide_steps") {
       const data = await callAnthropic({
-        system: `You are an expert STEM tutor. Break down the student's question step by step. If the image is NOT a STEM question or is too blurry, set input_status accordingly. You MUST use the guide_steps tool.${complexityInstruction(complexity)}${MATH}`,
+        system: `You are an expert STEM tutor. Break down the student's question step by step and generate 3 practice problems with multiple-choice options. If the image is NOT a STEM question or is too blurry, set input_status accordingly. You MUST use the guide_steps tool.${complexityInstruction(complexity)}${MATH}`,
         messages: [{
           role: "user",
           content: text
@@ -79,9 +79,26 @@ Deno.serve(async (req: Request) => {
                 type: "array", items: { type: "string" },
                 description: stepsDescription(complexity),
               },
+              practice_problems: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    id: { type: "number" },
+                    question: { type: "string", description: "A practice question on the same concept." },
+                    answer: { type: "string", description: "The correct answer. Use a plain value (number, expression, short phrase). $...$ for math." },
+                    options: {
+                      type: "array", items: { type: "string" }, minItems: 4, maxItems: 4,
+                      description: "Exactly 4 answer choices. options[0] is the CORRECT answer. ALL 4 must be the same type and format — if the answer is a plain number, all options are plain numbers; if the answer has units, all options have the same units; if an expression, all are expressions. Wrong options must be plausible but clearly distinct. No mixing of formats.",
+                    },
+                  },
+                  required: ["id", "question", "answer", "options"],
+                },
+                description: "Exactly 3 practice problems on the same concept. Each has 4 MC options of identical format.",
+              },
               input_status: { type: "string", enum: ["ok", "blurry", "not_stem"], description: "Input quality check." },
             },
-            required: ["concept_label", "question_summary", "what_happened", "steps", "input_status"],
+            required: ["concept_label", "question_summary", "what_happened", "steps", "practice_problems", "input_status"],
           },
         }],
         tool_choice: { type: "tool", name: "guide_steps" },
@@ -130,8 +147,20 @@ Deno.serve(async (req: Request) => {
             properties: {
               practice_problems: {
                 type: "array",
-                items: { type: "object", properties: { id: { type: "number" }, question: { type: "string" }, answer: { type: "string" } }, required: ["id", "question", "answer"] },
-                description: `Exactly ${count} problems. Start IDs at ${idStart}. $...$ LaTeX for all math. Answers must be whole numbers, simple fractions, or short text — never irrational numbers or bare square roots.`,
+                items: {
+                  type: "object",
+                  properties: {
+                    id: { type: "number" },
+                    question: { type: "string" },
+                    answer: { type: "string" },
+                    options: {
+                      type: "array", items: { type: "string" }, minItems: 4, maxItems: 4,
+                      description: "Exactly 4 MC options. options[0] is correct. All options must be same type/format. No mixing formats.",
+                    },
+                  },
+                  required: ["id", "question", "answer", "options"],
+                },
+                description: `Exactly ${count} problems. Start IDs at ${idStart}. $...$ LaTeX for all math. Answers must be whole numbers, simple fractions, or short text. Each has 4 MC options of identical format.`,
               },
             },
             required: ["practice_problems"],

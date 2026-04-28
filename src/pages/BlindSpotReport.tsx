@@ -540,10 +540,15 @@ function StepsTab({ diagnosis, steps, revealed, setRevealed, plan, isLoading }: 
             ))}
           </div>
           {revealed < steps.length ? (
-            <Button variant="outline" className="w-full border-border" onClick={() => setRevealed((v) => v + 1)}>
-              Show next step
-              <ChevronRight className="ml-2 h-4 w-4" />
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1 border-border" onClick={() => setRevealed((v) => v + 1)}>
+                Show next step
+                <ChevronRight className="ml-2 h-4 w-4" />
+              </Button>
+              <Button variant="outline" className="border-border" onClick={() => setRevealed(steps.length)}>
+                Show all
+              </Button>
+            </div>
           ) : (
             <p className="text-center text-xs text-muted-foreground">All steps revealed.</p>
           )}
@@ -857,9 +862,7 @@ const BlindSpotReport = () => {
                   { value: "concept" as ReportTab, label: "Concept", Icon: Lightbulb },
                   { value: "practice" as ReportTab, label: "Practice", Icon: ClipboardList },
                 ];
-            const tabList = relatedModels.length > 0
-              ? [...baseTabList, { value: "model" as ReportTab, label: "Model", Icon: Layers }]
-              : baseTabList;
+            const tabList = baseTabList;
             const activeIdx = tabList.findIndex((t) => t.value === activeTab);
             const tabCount = tabList.length;
             return (
@@ -879,11 +882,6 @@ const BlindSpotReport = () => {
                     >
                       <Icon className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
                       <span className="truncate">{label}</span>
-                      {value === "model" && (
-                        <span className="absolute -right-1 -top-2 rounded-sm bg-blue-500 px-1 py-px text-[8px] font-bold uppercase leading-none text-white">
-                          beta
-                        </span>
-                      )}
                     </button>
                   ))}
                 </div>
@@ -900,20 +898,6 @@ const BlindSpotReport = () => {
                     isLoadingConcept={loadingConcept}
                   />}
                   {activeTab === "practice" && <PracticeTab problems={practice} plan={plan} onGenerateMore={generateMoreProblems} isGeneratingMore={isGeneratingMore} isLoadingPractice={loadingPractice} />}
-                  {activeTab === "model" && relatedModels.length > 0 && (
-                    <div className="space-y-3">
-                      <p className="text-xs text-muted-foreground italic">These models are matched to your topic and may not be a perfect fit.</p>
-                      {relatedModels.map((m) => (
-                        <div key={m.title} className="rounded-xl border border-border bg-card overflow-hidden">
-                          <div className="px-4 pt-4 pb-2">
-                            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Interactive Model</p>
-                            <p className="mt-0.5 text-sm font-semibold text-foreground">{m.title}</p>
-                          </div>
-                          <m.Component />
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
               </>
             );

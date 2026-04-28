@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Plus, Folder, ChevronRight, ChevronDown, Trash2, FolderOpen, Pencil } from "lucide-react";
+import { Plus, Folder, ChevronRight, ChevronDown, Trash2, FolderOpen, Pencil, Search, X } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { SCAN_CACHE_KEY } from "@/lib/supabase";
@@ -108,6 +108,20 @@ export default function HistorySidebar() {
   const [creating, setCreating] = useState(false);
   const [draftName, setDraftName] = useState("");
   const [draftColor, setDraftColor] = useState("blue");
+  const [searchQuery, setSearchQuery] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    function handler(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        searchRef.current?.focus();
+        searchRef.current?.select();
+      }
+    }
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, []);
 
   // Sync with Supabase on mount — remote wins
   useEffect(() => {
@@ -208,11 +222,37 @@ export default function HistorySidebar() {
     });
   }
 
+  // Filter scans by search query (flat list when searching)
+  const filteredScans = useMemo(() => {
+    if (!searchQuery.trim()) return null; // null means "use normal folder structure"
+    const q = searchQuery.toLowerCase();
+    return scans.filter((s) => scanLabel(s, state.names).toLowerCase().includes(q));
+  }, [searchQuery, scans, state.names]);
+
   return (
     <div className="flex flex-col py-2">
 
+      {/* ── Search ── */}
+      <div className="px-2 pb-2">
+        <div className="relative flex items-center">
+          <Search className="absolute left-2.5 h-3 w-3 text-muted-foreground/50" />
+          <input
+            ref={searchRef}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search  ⌘K"
+            className="w-full rounded-md border border-border bg-secondary/50 py-1.5 pl-7 pr-7 text-xs text-foreground placeholder:text-muted-foreground/50 focus:border-primary/50 focus:outline-none"
+          />
+          {searchQuery && (
+            <button onClick={() => setSearchQuery("")} className="absolute right-2 text-muted-foreground/50 hover:text-foreground">
+              <X className="h-3 w-3" />
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* ── Scans header ── */}
-      <div className="flex items-center justify-between px-3 pb-1 pt-2">
+      <div className="flex items-center justify-between px-3 pb-1 pt-1">
         <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Scans</p>
         <button
           onClick={() => setCreating(true)}
@@ -267,6 +307,30 @@ export default function HistorySidebar() {
         </div>
       )}
 
+      {/* ── Search results (flat list when query is active) ── */}
+      {filteredScans !== null ? (
+        <div className="px-2">
+          {filteredScans.length === 0 ? (
+            <p className="px-1 py-2 text-[11px] text-muted-foreground/50">No scans match.</p>
+          ) : (
+            <div className="space-y-0.5">
+              {filteredScans.map((scan) => (
+                <ScanRow
+                  key={scan.id}
+                  scan={scan}
+                  folders={state.folders}
+                  currentFolderId={state.assignments[scan.id] ?? null}
+                  customName={state.names[scan.id] ?? null}
+                  onAssign={assign}
+                  onRename={renameScan}
+                  isActive={scan.id === activeScanId}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+      <>
       {/* ── Folders ── */}
       <div className="px-2">
         {state.folders.map((folder) => {
@@ -355,6 +419,8 @@ export default function HistorySidebar() {
           </div>
         )}
       </div>
+      </>
+      )}
 
     </div>
   );
@@ -445,8 +511,8 @@ function ScanRow({
       ref={ref}
       onClick={handleRowClick}
       className={cn(
-        "group relative flex min-w-0 cursor-pointer items-center gap-1 rounded-md px-1 py-1.5 hover:bg-secondary/40",
-        isActive && "bg-primary/10 ring-1 ring-inset ring-primary/20"
+        "group relative flex min-w-0 cursor-pointer items-center gap-1.5 rounded-lg px-2 py-2 hover:bg-secondary/50",
+        isActive && "bg-primary/10 ring-1 ring-inset ring-primary/25"
       )}
     >
       {editing ? (
@@ -464,7 +530,7 @@ function ScanRow({
           className="min-w-0 flex-1 rounded border border-primary bg-card px-1.5 py-0.5 text-xs text-foreground outline-none"
         />
       ) : (
-        <p className={cn("min-w-0 flex-1 truncate text-xs font-medium", isActive ? "text-primary" : "text-foreground")}>{label}</p>
+        <p className={cn("min-w-0 flex-1 truncate text-[13px] font-medium leading-snug", isActive ? "text-primary" : "text-foreground")}>{label}</p>
       )}
 
       {/* Rename button — always in DOM to prevent layout shift, invisible until hover */}
