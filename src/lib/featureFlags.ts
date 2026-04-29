@@ -7,4 +7,4 @@
  * To restore full pricing, tell Claude:
  *   "restore pricing — set FREE_FOR_ALL back to false"
  */
-export const FREE_FOR_ALL = true;
+export const FREE_FOR_ALL = false;

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { X, Send, ArrowRight, Loader2, Maximize2, Minimize2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -45,6 +45,9 @@ const EXPANDED_H = 640;
 
 export default function WhaleAssistant() {
   const navigate = useNavigate();
+  const location = useLocation();
+  // Hide on report page — Whal-E lives inline there
+  if (location.pathname === "/report" || location.pathname === "/workspace") return null;
   const [plan, setPlan] = useState<string | null>(null);
   const [isGuest, setIsGuest] = useState(false);
   const [hasDoneScan, setHasDoneScan] = useState(() => !!localStorage.getItem("gogodeep_guest_scan_used"));

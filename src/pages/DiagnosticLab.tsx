@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { Helmet } from "react-helmet-async";
 import { useNavigate, Link } from "react-router-dom";
 import { Upload, Loader2, Waves, ArrowRight, Lock } from "lucide-react";
@@ -13,6 +13,20 @@ import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const SESSION_REPORT_KEY = "gogodeep_pending_report";
+
+function useUtcResetCountdown() {
+  const get = () => {
+    const now = new Date();
+    const midnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+    const s = Math.floor((midnight.getTime() - now.getTime()) / 1000);
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    return `${h}h ${String(m).padStart(2, "0")}m`;
+  };
+  const [label, setLabel] = useState(get);
+  useEffect(() => { const id = setInterval(() => setLabel(get()), 30000); return () => clearInterval(id); }, []);
+  return label;
+}
 const GUEST_SCAN_KEY = "gogodeep_guest_scan_used";
 
 function WhaleScanLoader({ complete }: { complete: boolean }) {
@@ -57,6 +71,7 @@ const DiagnosticLab = () => {
   });
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [remainingCredits, setRemainingCredits] = useState<number | null>(null);
+  const resetCountdown = useUtcResetCountdown();
   const [showLoginGate, setShowLoginGate] = useState(false);
   const pendingNavRef = useRef<{ imageUrl: string; diagnosis: unknown } | null>(null);
   const navigate = useNavigate();
@@ -448,19 +463,19 @@ const DiagnosticLab = () => {
       </div>
 
       <Dialog open={showUpgradeModal} onOpenChange={setShowUpgradeModal}>
-        <DialogContent className="border border-border bg-card sm:max-w-md">
+        <DialogContent className="border border-border bg-card sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-foreground">
-              <Lock className="h-4 w-4 text-primary" />
-              Out of scan credits
-            </DialogTitle>
+            <DialogTitle className="text-foreground text-base">All 3 scans used for today</DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              You've used all your scans for today{remainingCredits !== null ? ` (${remainingCredits} left)` : ""}. Upgrade to Intermediate or Deep for more scans.
+              Your free scans reset in <span className="font-medium text-foreground">{resetCountdown}</span>. Go Deep for unlimited scans — no daily cap.
             </DialogDescription>
           </DialogHeader>
-          <div className="mt-4 flex justify-end">
-            <Button className="bg-primary hover:bg-primary/90" onClick={() => navigate("/pricing")}>
-              View plans
+          <div className="mt-4 flex items-center justify-between">
+            <button className="text-xs text-muted-foreground hover:text-foreground transition-colors" onClick={() => setShowUpgradeModal(false)}>
+              Wait for reset
+            </button>
+            <Button className="bg-primary hover:bg-primary/90" onClick={() => { setShowUpgradeModal(false); navigate("/pricing"); }}>
+              Go Deep
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>

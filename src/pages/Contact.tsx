@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
-import PageTransition from "@/components/PageTransition";
+import EducatorLayout from "@/components/EducatorLayout";
 
 const INQUIRY_TYPES = [
   "General question",
@@ -44,14 +44,12 @@ const Contact = () => {
   };
 
   return (
-    <PageTransition>
+    <EducatorLayout title="Contact" noSidebar>
       <Helmet>
         <title>Contact</title>
         <meta name="description" content="Get in touch with the Gogodeep team. Questions about the AI study tool for STEM students, school and team plans, or partnerships." />
       </Helmet>
-      <div className="relative z-10 min-h-screen pt-20">
-        <div className="container py-20">
-          <div className="mx-auto max-w-xl">
+      <div className="max-w-xl mx-auto">
 
             <div className="mb-10 text-center">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Contact</p>
@@ -151,10 +149,8 @@ const Contact = () => {
               )}
             </Card>
 
-          </div>
-        </div>
       </div>
-    </PageTransition>
+    </EducatorLayout>
   );
 };
 

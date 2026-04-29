@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Helmet } from "react-helmet-async";
 import { useLocation, Link, useNavigate } from "react-router-dom";
 import {
   BookOpen, ArrowLeft, TriangleAlert, Lightbulb, ClipboardList,
-  ChevronRight, ArrowRight, FileSearch, Lock, Loader2, Waves, CheckCircle2, Layers,
+  ChevronRight, ArrowRight, FileSearch, Lock, Loader2, Waves, CheckCircle2, Layers, X, Send,
 } from "lucide-react";
 import { UnitCircle, LawOfSinesCosines, TrigIdentities, PythagoreanTheorem, QuadraticEquations, TheDerivative, DefiniteIntegrals, LimitsAndContinuity, TaylorSeries, DifferentialEquations, LinearRegression, BinomialDistribution, Vectors2D, ComplexNumbers, Logarithms, ConicSections, MatrixTransformations, SequencesSeries, Optimization, SimilarTriangles, Inequalities } from "@/components/interact/MathModels2";
 import { NormalDistribution } from "@/components/interact/MathCSModels";
@@ -480,13 +480,126 @@ function IdentifyErrorTab({ diagnosis }: { diagnosis: IdentifyDiagnosis }) {
 
 // ── Steps tab ─────────────────────────────────────────────────────────────────
 
-function StepsTab({ diagnosis, steps, revealed, setRevealed, plan, isLoading }: {
+// ── Whal-E inline chat ────────────────────────────────────────────────────────
+
+type ChatMsg = { role: "user" | "assistant"; content: string };
+
+function WhaleChatPanel({ diagnosis, onClose }: { diagnosis: Diagnosis | undefined; onClose: () => void }) {
+  const conceptLabel = (diagnosis as any)?.concept_label ?? "";
+  const whatHappened = (diagnosis as any)?.what_happened ?? "";
+  const coreConcept = (diagnosis as any)?.core_concept ?? "";
+  const greeting = conceptLabel
+    ? `I've read your scan on ${conceptLabel}. What would you like to understand better?`
+    : "I've read your scan. What would you like to understand better?";
+  const stepContext = [
+    conceptLabel && `Concept: ${conceptLabel}`,
+    whatHappened && `Problem context: ${whatHappened}`,
+    coreConcept && `Core concept: ${coreConcept}`,
+  ].filter(Boolean).join("\n");
+
+  const [messages, setMessages] = useState<ChatMsg[]>([{ role: "assistant", content: greeting }]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+
+  async function send() {
+    const text = input.trim();
+    if (!text || loading) return;
+    setInput("");
+    const next: ChatMsg[] = [...messages, { role: "user", content: text }];
+    setMessages(next);
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("chat-assistant", {
+        body: { messages: next, stepContext },
+      });
+      const reply = (!error && (data as any)?.reply) ? (data as any).reply : "Sorry, something went wrong.";
+      setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
+    } catch {
+      setMessages((prev) => [...prev, { role: "assistant", content: "Sorry, something went wrong." }]);
+    }
+    setLoading(false);
+    setTimeout(() => inputRef.current?.focus(), 50);
+  }
+
+  return (
+    <div className="flex h-full flex-col bg-card border-l border-border">
+      {/* Header */}
+      <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
+        <div className="flex items-center gap-2">
+          <img src="/whale-e.png" alt="" className="whale-img h-6 w-6 object-contain" />
+          <span className="text-sm font-semibold text-foreground">Whal-E</span>
+        </div>
+        <button onClick={onClose} className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      {/* Messages */}
+      <div className="flex-1 space-y-3 overflow-y-auto p-4">
+        {messages.map((m, i) => (
+          <div key={i} className={cn("flex gap-2", m.role === "user" ? "flex-row-reverse" : "flex-row")}>
+            {m.role === "assistant" && (
+              <img src="/whale-e.png" alt="" className="whale-img mt-0.5 h-5 w-5 shrink-0 object-contain" />
+            )}
+            <div className={cn(
+              "max-w-[82%] rounded-2xl px-3 py-2 text-sm leading-relaxed",
+              m.role === "user"
+                ? "rounded-tr-sm bg-primary text-primary-foreground"
+                : "rounded-tl-sm bg-secondary/70 text-foreground"
+            )}>
+              {m.content}
+            </div>
+          </div>
+        ))}
+        {loading && (
+          <div className="flex gap-2">
+            <img src="/whale-e.png" alt="" className="whale-img mt-0.5 h-5 w-5 shrink-0 object-contain" />
+            <div className="rounded-2xl rounded-tl-sm bg-secondary/70 px-3 py-2">
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            </div>
+          </div>
+        )}
+        <div ref={bottomRef} />
+      </div>
+
+      {/* Input */}
+      <div className="shrink-0 border-t border-border p-3">
+        <div className="flex gap-2">
+          <input
+            ref={inputRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
+            placeholder="Ask anything about this scan…"
+            className="flex-1 rounded-xl border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none"
+          />
+          <button
+            onClick={send}
+            disabled={!input.trim() || loading}
+            className="rounded-xl bg-primary p-2 text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40"
+          >
+            <Send className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StepsTab({ diagnosis, steps, revealed, setRevealed, plan, isLoading, imageSrc, inputText, onImageClick }: {
   diagnosis: GuideDiagnosis;
   steps: string[];
   revealed: number;
   setRevealed: React.Dispatch<React.SetStateAction<number>>;
   plan: string;
   isLoading?: boolean;
+  imageSrc?: string | null;
+  inputText?: string | null;
+  onImageClick?: () => void;
 }) {
   const isPaid = FREE_FOR_ALL || plan === "intermediate" || plan === "deep";
 
@@ -507,11 +620,21 @@ function StepsTab({ diagnosis, steps, revealed, setRevealed, plan, isLoading }: 
 
   return (
     <div className="space-y-4">
-      {diagnosis.question_summary && (
-        <p className="rounded-lg border border-border bg-secondary/40 px-4 py-3 text-sm italic text-muted-foreground">
-          <RichText text={diagnosis.question_summary} />
-        </p>
-      )}
+      {/* Uploaded image or typed question at the top */}
+      {imageSrc ? (
+        <div className="rounded-xl border border-border bg-secondary/40 p-2 flex items-center justify-center">
+          <img
+            src={imageSrc}
+            alt="Your question"
+            className="max-h-56 w-full cursor-zoom-in rounded-lg object-contain"
+            onClick={onImageClick}
+          />
+        </div>
+      ) : inputText ? (
+        <div className="rounded-xl border border-border bg-secondary/40 px-4 py-3 text-sm text-foreground">
+          <p className="whitespace-pre-wrap leading-relaxed">{inputText}</p>
+        </div>
+      ) : null}
       {steps.length === 0 ? (
         <p className="text-sm text-muted-foreground">No steps available for this scan.</p>
       ) : (
@@ -574,6 +697,29 @@ const BlindSpotReport = () => {
 
   const [displaySrc, setDisplaySrc] = useState<string | null>(imageSrc);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [whaleOpen, setWhaleOpen] = useState(true);
+  const [splitLeft, setSplitLeft] = useState(62);
+  const splitContainerRef = useRef<HTMLDivElement>(null);
+  const dragging = useRef(false);
+
+  useEffect(() => {
+    function onMove(e: MouseEvent) {
+      if (!dragging.current || !splitContainerRef.current) return;
+      const rect = splitContainerRef.current.getBoundingClientRect();
+      const pct = ((e.clientX - rect.left) / rect.width) * 100;
+      setSplitLeft(Math.min(Math.max(pct, 35), 78));
+    }
+    function onUp() {
+      if (dragging.current) {
+        dragging.current = false;
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+      }
+    }
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
+  }, []);
 
   // Editable scan title
   const [scanTitle, setScanTitle] = useState<string>(() => {
@@ -784,128 +930,148 @@ const BlindSpotReport = () => {
   const relatedModels = findRelatedModels(diagnosis);
 
   const titleHeaderContent = (
-    <div className="min-w-0 flex-1">
-      {titleEditing ? (
-        <input
-          autoFocus
-          value={titleDraft}
-          onChange={(e) => setTitleDraft(e.target.value)}
-          onBlur={commitTitleRename}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") commitTitleRename();
-            if (e.key === "Escape") setTitleEditing(false);
-          }}
-          className="w-full bg-transparent text-2xl font-bold tracking-tight text-foreground outline-none border-b border-primary"
-        />
-      ) : (
-        <h1
-          onClick={startTitleEdit}
-          title={scanId ? "Click to rename" : undefined}
-          className={cn("truncate text-2xl font-bold tracking-tight text-foreground", scanId && "cursor-text hover:text-primary/80 transition-colors")}
-        >
-          {scanTitle}
-        </h1>
-      )}
+    <div className="flex min-w-0 flex-1 items-center justify-between gap-3">
+      <div className="min-w-0 flex-1">
+        {titleEditing ? (
+          <input
+            autoFocus
+            value={titleDraft}
+            onChange={(e) => setTitleDraft(e.target.value)}
+            onBlur={commitTitleRename}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commitTitleRename();
+              if (e.key === "Escape") setTitleEditing(false);
+            }}
+            className="w-full bg-transparent text-2xl font-bold tracking-tight text-foreground outline-none border-b border-primary"
+          />
+        ) : (
+          <h1
+            onClick={startTitleEdit}
+            title={scanId ? "Click to rename" : undefined}
+            className={cn("truncate text-2xl font-bold tracking-tight text-foreground", scanId && "cursor-text hover:text-primary/80 transition-colors")}
+          >
+            {scanTitle}
+          </h1>
+        )}
+      </div>
+      <button
+        onClick={() => setWhaleOpen((v) => !v)}
+        className="shrink-0 flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+      >
+        <img src="/whale-e.png" alt="" className="whale-img h-4 w-4 object-contain" />
+        {whaleOpen ? "Close Whal-E" : "Ask Whal-E"}
+      </button>
     </div>
   );
 
+  const tabList = mode === "guide"
+    ? [
+        { value: "steps" as ReportTab, label: "Step by Step", Icon: ArrowRight },
+        { value: "concept" as ReportTab, label: "Concept", Icon: Lightbulb },
+        { value: "practice" as ReportTab, label: "Practice", Icon: ClipboardList },
+      ]
+    : [
+        { value: "error" as ReportTab, label: "Error Found", Icon: TriangleAlert },
+        { value: "concept" as ReportTab, label: "Concept", Icon: Lightbulb },
+        { value: "practice" as ReportTab, label: "Practice", Icon: ClipboardList },
+      ];
+  const activeIdx = tabList.findIndex((t) => t.value === activeTab);
+
   return (
-    <EducatorLayout headerContent={titleHeaderContent}>
+    <EducatorLayout headerContent={titleHeaderContent} fullBleed>
       <Helmet>
         <title>Report</title>
         <meta name="description" content="See the root cause of your mistake, the underlying concept explained, and targeted practice to close the gap. AI working analysis for IB, AP, and A-Level STEM subjects." />
       </Helmet>
-      <div className={cn("grid gap-6", (displaySrc || inputText) ? "lg:grid-cols-5" : "lg:grid-cols-1")}>
 
-        {/* Left panel — image or typed question */}
-        {(displaySrc || inputText) && (
-          <div className="lg:col-span-2">
-            <div className="sticky top-4 rounded-xl border border-border bg-card p-4">
-              <div className="mb-3 flex items-center gap-2">
-                <FileSearch className="h-4 w-4 text-muted-foreground" />
-                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-                  {displaySrc ? "Uploaded image" : "Your question"}
-                </p>
-              </div>
-              <div className={cn("rounded-lg bg-secondary/40 p-3", displaySrc ? "flex min-h-[220px] items-center justify-center" : "")}>
-                {displaySrc ? (
-                  <img
-                    src={displaySrc}
-                    alt="Uploaded work"
-                    className="max-h-80 w-full cursor-zoom-in rounded object-contain"
-                    onClick={() => setLightboxOpen(true)}
-                    onError={() => {
-                      const fallback = scanId ? scanImageStore.get(scanId) : null;
-                      if (fallback) setDisplaySrc(fallback);
-                      else setDisplaySrc(null);
-                    }}
-                  />
-                ) : (
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">{inputText}</p>
-                )}
-              </div>
+      {/* Resizable split container */}
+      <div ref={splitContainerRef} className="flex h-full min-h-0">
+
+        {/* ── Left: tabs ───────────────────────────────────────────────────── */}
+        <div
+          style={{ width: whaleOpen ? `${splitLeft}%` : "100%" }}
+          className="flex min-w-0 flex-col overflow-y-auto transition-none"
+        >
+          <div className="p-6 space-y-4">
+            {/* Tab bar */}
+            <div className="relative flex w-full rounded-md border border-border bg-secondary p-1">
+              <div
+                className="absolute bottom-1 top-1 rounded-sm bg-card shadow-sm transition-transform duration-200 ease-out"
+                style={{ width: `calc((100% - 8px) / ${tabList.length})`, transform: `translateX(calc(${activeIdx} * 100%))` }}
+              />
+              {tabList.map(({ value, label, Icon }) => (
+                <button
+                  key={value}
+                  onClick={() => setActiveTab(value)}
+                  className={`relative z-10 flex flex-1 items-center justify-center gap-1.5 rounded-sm py-1.5 text-xs sm:text-sm font-medium transition-colors duration-200 ${
+                    activeTab === value ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Icon className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
+                  <span className="truncate">{label}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Tab content */}
+            <div className="animate-in fade-in duration-200">
+              {activeTab === "steps" && (
+                <StepsTab
+                  diagnosis={diagnosis as GuideDiagnosis}
+                  steps={effectiveSteps}
+                  revealed={revealedSteps}
+                  setRevealed={setRevealedSteps}
+                  plan={plan}
+                  isLoading={loadingSteps}
+                  imageSrc={displaySrc}
+                  inputText={inputText}
+                  onImageClick={() => setLightboxOpen(true)}
+                />
+              )}
+              {activeTab === "error" && <IdentifyErrorTab diagnosis={diagnosis as IdentifyDiagnosis} />}
+              {activeTab === "concept" && (
+                <ConceptTab
+                  whatHappened={diagnosis.what_happened}
+                  coreConcept={effectiveConcept}
+                  recognitionCue={effectiveRecognitionCue}
+                  legacyConcept={diagnosis.underlying_concept}
+                  plan={plan}
+                  onMasterClick={() => setActiveTab("practice")}
+                  isLoadingConcept={loadingConcept}
+                />
+              )}
+              {activeTab === "practice" && (
+                <PracticeTab
+                  problems={practice}
+                  plan={plan}
+                  onGenerateMore={generateMoreProblems}
+                  isGeneratingMore={isGeneratingMore}
+                  isLoadingPractice={loadingPractice}
+                />
+              )}
             </div>
           </div>
-        )}
-
-        {/* Tabs panel */}
-        <div className={(imageSrc || inputText) ? "lg:col-span-3" : "lg:col-span-1"}>
-          {(() => {
-            const baseTabList = mode === "guide"
-              ? [
-                  { value: "steps" as ReportTab, label: "Step by Step", Icon: ArrowRight },
-                  { value: "concept" as ReportTab, label: "Concept", Icon: Lightbulb },
-                  { value: "practice" as ReportTab, label: "Practice", Icon: ClipboardList },
-                ]
-              : [
-                  { value: "error" as ReportTab, label: "Error Found", Icon: TriangleAlert },
-                  { value: "concept" as ReportTab, label: "Concept", Icon: Lightbulb },
-                  { value: "practice" as ReportTab, label: "Practice", Icon: ClipboardList },
-                ];
-            const tabList = baseTabList;
-            const activeIdx = tabList.findIndex((t) => t.value === activeTab);
-            const tabCount = tabList.length;
-            return (
-              <>
-                <div className="relative mb-4 flex w-full rounded-md border border-border bg-secondary p-1">
-                  <div
-                    className="absolute bottom-1 top-1 rounded-sm bg-card shadow-sm transition-transform duration-200 ease-out"
-                    style={{ width: `calc((100% - 8px) / ${tabCount})`, transform: `translateX(calc(${activeIdx} * 100%))` }}
-                  />
-                  {tabList.map(({ value, label, Icon }) => (
-                    <button
-                      key={value}
-                      onClick={() => setActiveTab(value)}
-                      className={`relative z-10 flex flex-1 items-center justify-center gap-1.5 rounded-sm py-1.5 text-xs sm:text-sm font-medium transition-colors duration-200 ${
-                        activeTab === value ? "text-foreground" : "text-muted-foreground hover:text-foreground"
-                      }`}
-                    >
-                      <Icon className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
-                      <span className="truncate">{label}</span>
-                    </button>
-                  ))}
-                </div>
-                <div className="animate-in fade-in duration-200">
-                  {activeTab === "steps" && <StepsTab diagnosis={diagnosis as GuideDiagnosis} steps={effectiveSteps} revealed={revealedSteps} setRevealed={setRevealedSteps} plan={plan} isLoading={loadingSteps} />}
-                  {activeTab === "error" && <IdentifyErrorTab diagnosis={diagnosis as IdentifyDiagnosis} />}
-                  {activeTab === "concept" && <ConceptTab
-                    whatHappened={diagnosis.what_happened}
-                    coreConcept={effectiveConcept}
-                    recognitionCue={effectiveRecognitionCue}
-                    legacyConcept={diagnosis.underlying_concept}
-                    plan={plan}
-                    onMasterClick={() => setActiveTab("practice")}
-                    isLoadingConcept={loadingConcept}
-                  />}
-                  {activeTab === "practice" && <PracticeTab problems={practice} plan={plan} onGenerateMore={generateMoreProblems} isGeneratingMore={isGeneratingMore} isLoadingPractice={loadingPractice} />}
-                </div>
-              </>
-            );
-          })()}
         </div>
 
-      </div>
+        {/* ── Draggable divider ─────────────────────────────────────────────── */}
+        {whaleOpen && (
+          <div
+            className="w-1.5 shrink-0 cursor-col-resize bg-border transition-colors hover:bg-primary/30"
+            onMouseDown={() => {
+              dragging.current = true;
+              document.body.style.cursor = "col-resize";
+              document.body.style.userSelect = "none";
+            }}
+          />
+        )}
 
+        {/* ── Right: Whal-E chat ────────────────────────────────────────────── */}
+        {whaleOpen && (
+          <div style={{ width: `calc(${100 - splitLeft}% - 6px)` }} className="min-w-0 flex-shrink-0 overflow-hidden">
+            <WhaleChatPanel diagnosis={diagnosis} onClose={() => setWhaleOpen(false)} />
+          </div>
+        )}
+      </div>
 
       {/* Lightbox */}
       {lightboxOpen && displaySrc && (

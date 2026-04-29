@@ -30,7 +30,7 @@ const queryClient = new QueryClient();
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp", "image/heic", "image/heif"];
 
 // Routes that use the sidebar layout (authenticated app shell)
-const SIDEBAR_ROUTES = ["/dashboard", "/workspace", "/report", "/settings"];
+const SIDEBAR_ROUTES = ["/dashboard", "/workspace", "/report", "/settings", "/contact"];
 
 function GlobalDropZone() {
   const navigate = useNavigate();

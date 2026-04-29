@@ -1171,6 +1171,7 @@ const Landing = () => {
   const [landingQuoteOffset, setLandingQuoteOffset] = useState(0);
   const [highlightedStep, setHighlightedStep] = useState<0 | 1 | 2>(0);
   const [chevronVisible, setChevronVisible] = useState(true);
+  const [deeperY, setDeeperY] = useState(0);
   const highlightFired = useRef(false);
 
   const runHighlight = useCallback(() => {
@@ -1212,6 +1213,10 @@ const Landing = () => {
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
+      // "deeper" sinks as mouse moves down the viewport
+      const ratio = e.clientY / window.innerHeight; // 0 = top, 1 = bottom
+      setDeeperY(ratio * 10);
+
       if (!logoRef.current) return;
       const rect = logoRef.current.getBoundingClientRect();
       const cx = rect.left + rect.width / 2;
@@ -1268,7 +1273,7 @@ const Landing = () => {
                   ))}
                 </div>
                 <h1 className="relative text-6xl font-extrabold tracking-tight text-foreground md:text-7xl lg:text-[5.25rem] whitespace-nowrap">
-                  Go <span style={{ fontFamily: "'Fraunces', serif", fontStyle: "italic", fontOpticalSizing: "auto", paddingRight: "0.08em", backgroundImage: "linear-gradient(to bottom, hsl(225 90% 70%), hsl(225 75% 50%) 70%, hsl(225 60% 25%))", WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent", color: "transparent" } as React.CSSProperties}>deeper</span>
+                  Go <span style={{ fontFamily: "'Fraunces', serif", fontStyle: "italic", fontOpticalSizing: "auto", paddingRight: "0.08em", backgroundImage: "linear-gradient(to bottom, hsl(225 90% 70%), hsl(225 75% 50%) 70%, hsl(225 60% 25%))", WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent", color: "transparent", display: "inline-block", transform: `translateY(${deeperY}px)`, transition: "transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94)" } as React.CSSProperties}>deeper</span>
                 </h1>
                 <h1 className="relative text-4xl font-extrabold tracking-tight text-foreground md:text-5xl lg:text-[3.75rem] whitespace-nowrap">
                   than the answer.

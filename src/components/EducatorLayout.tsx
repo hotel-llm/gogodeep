@@ -11,12 +11,16 @@ export default function EducatorLayout({
   headerContent,
   children,
   className,
+  noSidebar = false,
+  fullBleed = false,
 }: {
   title?: string;
   subtitle?: string;
   headerContent?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
+  noSidebar?: boolean;
+  fullBleed?: boolean;
 }) {
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = React.useState(
@@ -33,7 +37,7 @@ export default function EducatorLayout({
     <div className="relative z-10 flex h-screen overflow-hidden">
 
       {/* ── Sidebar ───────────────────────────────────────────────────────────── */}
-      <aside className={cn(
+      {!noSidebar && <aside className={cn(
         "flex h-full flex-shrink-0 flex-col overflow-hidden border-r border-border bg-card transition-[width] duration-200",
         collapsed ? "w-12" : "w-60"
       )}>
@@ -84,7 +88,7 @@ export default function EducatorLayout({
             </div>
           </>
         )}
-      </aside>
+      </aside>}
 
       {/* ── Main content ──────────────────────────────────────────────────────── */}
       <div className={cn("flex min-w-0 flex-1 flex-col overflow-hidden", className)}>
@@ -101,11 +105,17 @@ export default function EducatorLayout({
         )}
 
         {/* Page content */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="container max-w-6xl py-6 sm:py-8">
+        {fullBleed ? (
+          <div className="flex-1 overflow-hidden flex flex-col min-h-0">
             {children}
           </div>
-        </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto">
+            <div className="container max-w-6xl py-6 sm:py-8">
+              {children}
+            </div>
+          </div>
+        )}
       </div>
 
     </div>
