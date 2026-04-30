@@ -3,7 +3,7 @@ import { Helmet } from "react-helmet-async";
 import { useLocation, Link, useNavigate } from "react-router-dom";
 import {
   BookOpen, ArrowLeft, TriangleAlert, Lightbulb, ClipboardList,
-  ChevronRight, ArrowRight, FileSearch, Lock, Loader2, Waves, CheckCircle2, Layers, X, Send,
+  ChevronRight, ArrowRight, FileSearch, Lock, Loader2, Waves, CheckCircle2, Layers, X, Send, ChevronsRight, ChevronLeft,
 } from "lucide-react";
 import { UnitCircle, LawOfSinesCosines, TrigIdentities, PythagoreanTheorem, QuadraticEquations, TheDerivative, DefiniteIntegrals, LimitsAndContinuity, TaylorSeries, DifferentialEquations, LinearRegression, BinomialDistribution, Vectors2D, ComplexNumbers, Logarithms, ConicSections, MatrixTransformations, SequencesSeries, Optimization, SimilarTriangles, Inequalities } from "@/components/interact/MathModels2";
 import { NormalDistribution } from "@/components/interact/MathCSModels";
@@ -480,6 +480,58 @@ function IdentifyErrorTab({ diagnosis }: { diagnosis: IdentifyDiagnosis }) {
 
 // ── Steps tab ─────────────────────────────────────────────────────────────────
 
+// ── Whal-E markdown renderer ─────────────────────────────────────────────────
+
+function InlineMd({ text }: { text: string }) {
+  const parts = text.split(/(\*\*[^*]+\*\*|\$[^$]+\$)/g);
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (part.startsWith("**") && part.endsWith("**"))
+          return <strong key={i} className="font-semibold text-primary">{part.slice(2, -2)}</strong>;
+        if (part.startsWith("$") && part.endsWith("$"))
+          return <RichText key={i} text={part} />;
+        return <span key={i}>{part}</span>;
+      })}
+    </>
+  );
+}
+
+function WhaleMd({ text }: { text: string }) {
+  const lines = text.split("\n");
+  const nodes: React.ReactNode[] = [];
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (line.startsWith("# ")) {
+      nodes.push(<p key={i} className="mt-3 mb-1 text-xs font-bold uppercase tracking-wide text-primary first:mt-0">{line.slice(2)}</p>);
+    } else if (line.startsWith("- ") || line.startsWith("* ")) {
+      const items: string[] = [];
+      while (i < lines.length && (lines[i].startsWith("- ") || lines[i].startsWith("* "))) {
+        items.push(lines[i].slice(2));
+        i++;
+      }
+      nodes.push(
+        <ul key={`ul-${i}`} className="my-1.5 space-y-1">
+          {items.map((item, j) => (
+            <li key={j} className="flex items-start gap-2 text-sm leading-snug text-foreground">
+              <span className="mt-[6px] h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+              <span><InlineMd text={item} /></span>
+            </li>
+          ))}
+        </ul>
+      );
+      continue;
+    } else if (line.trim() === "") {
+      nodes.push(<div key={i} className="h-1.5" />);
+    } else {
+      nodes.push(<p key={i} className="text-sm leading-relaxed text-foreground"><InlineMd text={line} /></p>);
+    }
+    i++;
+  }
+  return <div className="space-y-0.5">{nodes}</div>;
+}
+
 // ── Whal-E inline chat ────────────────────────────────────────────────────────
 
 type ChatMsg = { role: "user" | "assistant"; content: string };
@@ -497,18 +549,24 @@ function WhaleChatPanel({ diagnosis, onClose }: { diagnosis: Diagnosis | undefin
     coreConcept && `Core concept: ${coreConcept}`,
   ].filter(Boolean).join("\n");
 
+  const SUGGESTIONS = [
+    "Explain this concept in simpler terms",
+    "What's the most common mistake here?",
+    "Give me a tip to remember this for exams",
+  ];
+
   const [messages, setMessages] = useState<ChatMsg[]>([{ role: "assistant", content: greeting }]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
-  async function send() {
-    const text = input.trim();
+  async function send(text: string) {
     if (!text || loading) return;
-    setInput("");
+    setShowSuggestions(false);
     const next: ChatMsg[] = [...messages, { role: "user", content: text }];
     setMessages(next);
     setLoading(true);
@@ -516,51 +574,66 @@ function WhaleChatPanel({ diagnosis, onClose }: { diagnosis: Diagnosis | undefin
       const { data, error } = await supabase.functions.invoke("chat-assistant", {
         body: { messages: next, stepContext },
       });
-      const reply = (!error && (data as any)?.reply) ? (data as any).reply : "Sorry, something went wrong.";
+      const reply = (!error && (data as any)?.reply) ? (data as any).reply : "Something went wrong. Try again.";
       setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
     } catch {
-      setMessages((prev) => [...prev, { role: "assistant", content: "Sorry, something went wrong." }]);
+      setMessages((prev) => [...prev, { role: "assistant", content: "Something went wrong. Try again." }]);
     }
     setLoading(false);
-    setTimeout(() => inputRef.current?.focus(), 50);
   }
 
   return (
-    <div className="flex h-full flex-col bg-card border-l border-border">
+    <div className="flex h-full flex-col bg-card">
       {/* Header */}
       <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">
-          <img src="/whale-e.png" alt="" className="whale-img h-6 w-6 object-contain" />
+          <img src="/whale-e.png" alt="" className="whale-img h-5 w-5 object-contain" />
           <span className="text-sm font-semibold text-foreground">Whal-E</span>
         </div>
-        <button onClick={onClose} className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
-          <X className="h-4 w-4" />
+        <button
+          onClick={onClose}
+          title="Slide out"
+          className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+        >
+          <ChevronsRight className="h-4 w-4" />
         </button>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 space-y-3 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
         {messages.map((m, i) => (
-          <div key={i} className={cn("flex gap-2", m.role === "user" ? "flex-row-reverse" : "flex-row")}>
-            {m.role === "assistant" && (
-              <img src="/whale-e.png" alt="" className="whale-img mt-0.5 h-5 w-5 shrink-0 object-contain" />
+          <div key={i}>
+            {m.role === "user" ? (
+              <div className="flex justify-end">
+                <div className="rounded-2xl rounded-tr-sm bg-primary px-3 py-2 text-sm text-primary-foreground max-w-[85%]">
+                  {m.content}
+                </div>
+              </div>
+            ) : (
+              <WhaleMd text={m.content} />
             )}
-            <div className={cn(
-              "max-w-[82%] rounded-2xl px-3 py-2 text-sm leading-relaxed",
-              m.role === "user"
-                ? "rounded-tr-sm bg-primary text-primary-foreground"
-                : "rounded-tl-sm bg-secondary/70 text-foreground"
-            )}>
-              {m.content}
-            </div>
           </div>
         ))}
+
+        {/* Suggestion chips */}
+        {showSuggestions && !loading && (
+          <div className="flex flex-col gap-2 pt-1">
+            {SUGGESTIONS.map((s) => (
+              <button
+                key={s}
+                onClick={() => send(s)}
+                className="w-fit rounded-xl border border-border bg-secondary/50 px-3 py-2 text-left text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:bg-secondary hover:text-foreground"
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
+
         {loading && (
-          <div className="flex gap-2">
-            <img src="/whale-e.png" alt="" className="whale-img mt-0.5 h-5 w-5 shrink-0 object-contain" />
-            <div className="rounded-2xl rounded-tl-sm bg-secondary/70 px-3 py-2">
-              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-            </div>
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            <span className="text-xs">Thinking…</span>
           </div>
         )}
         <div ref={bottomRef} />
@@ -572,13 +645,13 @@ function WhaleChatPanel({ diagnosis, onClose }: { diagnosis: Diagnosis | undefin
           <input
             ref={inputRef}
             value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
-            placeholder="Ask anything about this scan…"
+            onChange={(e) => { setInput(e.target.value); if (e.target.value) setShowSuggestions(false); }}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); } }}
+            placeholder="Ask anything…"
             className="flex-1 rounded-xl border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none"
           />
           <button
-            onClick={send}
+            onClick={() => send(input)}
             disabled={!input.trim() || loading}
             className="rounded-xl bg-primary p-2 text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40"
           >
@@ -698,7 +771,7 @@ const BlindSpotReport = () => {
   const [displaySrc, setDisplaySrc] = useState<string | null>(imageSrc);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [whaleOpen, setWhaleOpen] = useState(true);
-  const [splitLeft, setSplitLeft] = useState(62);
+  const [splitLeft, setSplitLeft] = useState(60);
   const splitContainerRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
 
@@ -930,37 +1003,28 @@ const BlindSpotReport = () => {
   const relatedModels = findRelatedModels(diagnosis);
 
   const titleHeaderContent = (
-    <div className="flex min-w-0 flex-1 items-center justify-between gap-3">
-      <div className="min-w-0 flex-1">
-        {titleEditing ? (
-          <input
-            autoFocus
-            value={titleDraft}
-            onChange={(e) => setTitleDraft(e.target.value)}
-            onBlur={commitTitleRename}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") commitTitleRename();
-              if (e.key === "Escape") setTitleEditing(false);
-            }}
-            className="w-full bg-transparent text-2xl font-bold tracking-tight text-foreground outline-none border-b border-primary"
-          />
-        ) : (
-          <h1
-            onClick={startTitleEdit}
-            title={scanId ? "Click to rename" : undefined}
-            className={cn("truncate text-2xl font-bold tracking-tight text-foreground", scanId && "cursor-text hover:text-primary/80 transition-colors")}
-          >
-            {scanTitle}
-          </h1>
-        )}
-      </div>
-      <button
-        onClick={() => setWhaleOpen((v) => !v)}
-        className="shrink-0 flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
-      >
-        <img src="/whale-e.png" alt="" className="whale-img h-4 w-4 object-contain" />
-        {whaleOpen ? "Close Whal-E" : "Ask Whal-E"}
-      </button>
+    <div className="min-w-0 flex-1">
+      {titleEditing ? (
+        <input
+          autoFocus
+          value={titleDraft}
+          onChange={(e) => setTitleDraft(e.target.value)}
+          onBlur={commitTitleRename}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commitTitleRename();
+            if (e.key === "Escape") setTitleEditing(false);
+          }}
+          className="w-full bg-transparent text-2xl font-bold tracking-tight text-foreground outline-none border-b border-primary"
+        />
+      ) : (
+        <h1
+          onClick={startTitleEdit}
+          title={scanId ? "Click to rename" : undefined}
+          className={cn("truncate text-2xl font-bold tracking-tight text-foreground", scanId && "cursor-text hover:text-primary/80 transition-colors")}
+        >
+          {scanTitle}
+        </h1>
+      )}
     </div>
   );
 
@@ -978,19 +1042,19 @@ const BlindSpotReport = () => {
   const activeIdx = tabList.findIndex((t) => t.value === activeTab);
 
   return (
-    <EducatorLayout headerContent={titleHeaderContent} fullBleed>
+    <EducatorLayout headerContent={titleHeaderContent} fullBleed noSidebar>
       <Helmet>
         <title>Report</title>
         <meta name="description" content="See the root cause of your mistake, the underlying concept explained, and targeted practice to close the gap. AI working analysis for IB, AP, and A-Level STEM subjects." />
       </Helmet>
 
       {/* Resizable split container */}
-      <div ref={splitContainerRef} className="flex h-full min-h-0">
+      <div ref={splitContainerRef} className="relative flex h-full min-h-0">
 
         {/* ── Left: tabs ───────────────────────────────────────────────────── */}
         <div
           style={{ width: whaleOpen ? `${splitLeft}%` : "100%" }}
-          className="flex min-w-0 flex-col overflow-y-auto transition-none"
+          className="flex min-w-0 flex-col overflow-y-auto transition-[width] duration-300 ease-in-out"
         >
           <div className="p-6 space-y-4">
             {/* Tab bar */}
@@ -1054,23 +1118,43 @@ const BlindSpotReport = () => {
         </div>
 
         {/* ── Draggable divider ─────────────────────────────────────────────── */}
-        {whaleOpen && (
-          <div
-            className="w-1.5 shrink-0 cursor-col-resize bg-border transition-colors hover:bg-primary/30"
-            onMouseDown={() => {
-              dragging.current = true;
-              document.body.style.cursor = "col-resize";
-              document.body.style.userSelect = "none";
-            }}
-          />
-        )}
+        <div
+          className={cn(
+            "shrink-0 cursor-col-resize bg-border transition-all duration-300 hover:bg-primary/30",
+            whaleOpen ? "w-1.5" : "w-0"
+          )}
+          onMouseDown={() => {
+            if (!whaleOpen) return;
+            dragging.current = true;
+            document.body.style.cursor = "col-resize";
+            document.body.style.userSelect = "none";
+          }}
+        />
 
-        {/* ── Right: Whal-E chat ────────────────────────────────────────────── */}
-        {whaleOpen && (
-          <div style={{ width: `calc(${100 - splitLeft}% - 6px)` }} className="min-w-0 flex-shrink-0 overflow-hidden">
-            <WhaleChatPanel diagnosis={diagnosis} onClose={() => setWhaleOpen(false)} />
-          </div>
-        )}
+        {/* ── Right: Whal-E chat (always in DOM, width transitions) ──────────── */}
+        <div
+          style={{ width: whaleOpen ? `calc(${100 - splitLeft}% - 6px)` : "0" }}
+          className="min-w-0 shrink-0 overflow-hidden transition-[width] duration-300 ease-in-out"
+        >
+          <WhaleChatPanel diagnosis={diagnosis} onClose={() => setWhaleOpen(false)} />
+        </div>
+
+        {/* ── Pull tab when Whal-E is closed ───────────────────────────────── */}
+        <div
+          className={cn(
+            "absolute right-0 top-1/2 z-20 -translate-y-1/2 transition-all duration-300",
+            whaleOpen ? "pointer-events-none opacity-0" : "pointer-events-auto opacity-100"
+          )}
+        >
+          <button
+            onClick={() => setWhaleOpen(true)}
+            title="Open Whal-E"
+            className="flex flex-col items-center gap-2 rounded-l-xl border border-r-0 border-border bg-card px-2 py-5 shadow-lg transition-colors hover:bg-secondary"
+          >
+            <img src="/whale-e.png" alt="" className="whale-img h-5 w-5 object-contain" />
+            <ChevronLeft className="h-3 w-3 text-muted-foreground" />
+          </button>
+        </div>
       </div>
 
       {/* Lightbox */}

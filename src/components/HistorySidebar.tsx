@@ -533,25 +533,25 @@ function ScanRow({
         <p className={cn("min-w-0 flex-1 truncate text-[13px] font-medium leading-snug", isActive ? "text-primary" : "text-foreground")}>{label}</p>
       )}
 
-      {/* Rename button — always in DOM to prevent layout shift, invisible until hover */}
-      <button
-        data-action-btn
-        onClick={(e) => { e.stopPropagation(); setEditing(true); }}
-        className="shrink-0 rounded p-0.5 text-transparent group-hover:text-muted-foreground hover:!text-foreground"
-        title="Rename"
-      >
-        <Pencil className="h-3 w-3" />
-      </button>
-
-      {/* Folder button — always in DOM to prevent layout shift */}
-      <button
-        data-action-btn
-        onClick={(e) => { e.stopPropagation(); setMenuOpen((v) => !v); }}
-        className="shrink-0 rounded p-0.5 text-transparent group-hover:text-muted-foreground hover:!text-foreground"
-        title="Move to folder"
-      >
-        <FolderOpen className="h-3.5 w-3.5" />
-      </button>
+      {/* Action buttons — collapse to zero width when not hovered */}
+      <div className="flex shrink-0 items-center gap-0.5 overflow-hidden w-0 opacity-0 group-hover:w-auto group-hover:opacity-100 transition-all duration-150">
+        <button
+          data-action-btn
+          onClick={(e) => { e.stopPropagation(); setEditing(true); }}
+          className="rounded p-0.5 text-muted-foreground hover:text-foreground"
+          title="Rename"
+        >
+          <Pencil className="h-3 w-3" />
+        </button>
+        <button
+          data-action-btn
+          onClick={(e) => { e.stopPropagation(); setMenuOpen((v) => !v); }}
+          className="rounded p-0.5 text-muted-foreground hover:text-foreground"
+          title="Move to folder"
+        >
+          <FolderOpen className="h-3.5 w-3.5" />
+        </button>
+      </div>
 
       {menuOpen && (
         <div className="absolute right-0 top-full z-50 mt-0.5 min-w-[140px] rounded-lg border border-border bg-card p-1 shadow-xl">

@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
-  LayoutDashboard, Waves, LogOut, UserCircle2,
-  Moon, Sun, SunMoon, Settings, Mail, Menu, ChevronsLeft,
+  LayoutDashboard, LogOut, UserCircle2,
+  Moon, Sun, SunMoon, Settings, Mail, Menu, ChevronsLeft, ChevronDown, ScanLine,
 } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,11 +13,7 @@ import {
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-
-const NAV_ITEMS = [
-  { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { path: "/workspace", label: "Workspace", icon: Waves },
-];
+import HistorySidebar from "@/components/HistorySidebar";
 
 const COLOR_MODE_CYCLE: ColorMode[] = ["dark", "white", "auto"];
 const COLOR_MODE_ICONS: Record<ColorMode, React.ReactNode> = {
@@ -29,12 +25,21 @@ const COLOR_MODE_LABELS: Record<ColorMode, string> = {
   dark: "Dark", white: "Light", auto: "System",
 };
 
+const isWorkspacePath = (p: string) => p.startsWith("/workspace") || p.startsWith("/report");
+
 export default function AppSidebar({ user }: { user: User; onUserUpdate?: (u: User) => void }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [colorMode, setColorMode] = useState<ColorMode>(getStoredColorMode);
   const [plan, setPlan] = useState<string>("free");
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem("main_sidebar_collapsed") === "true");
+  const [workspaceExpanded, setWorkspaceExpanded] = useState(
+    () => isWorkspacePath(location.pathname)
+  );
+
+  useEffect(() => {
+    if (isWorkspacePath(location.pathname)) setWorkspaceExpanded(true);
+  }, [location.pathname]);
 
   useEffect(() => {
     (supabase as any).from("profiles").select("plan").eq("id", user.id).single()
@@ -61,98 +66,111 @@ export default function AppSidebar({ user }: { user: User; onUserUpdate?: (u: Us
     navigate("/", { replace: true });
   }
 
+  const isDashboard = location.pathname === "/dashboard";
+  const isWorkspace = isWorkspacePath(location.pathname);
+
   return (
     <aside className={cn(
       "fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-border bg-card transition-[width] duration-200 overflow-hidden",
-      collapsed ? "w-14" : "w-56"
+      collapsed ? "w-14" : "w-64"
     )}>
 
       {collapsed ? (
-        /* ── Collapsed state ── */
+        /* ── Collapsed ── */
         <div className="flex flex-col items-center py-3 gap-1">
-          {/* Hamburger expands sidebar */}
-          <button
-            onClick={toggleCollapsed}
-            title="Expand sidebar"
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-foreground/70 transition-colors hover:bg-accent hover:text-foreground"
-          >
+          <button onClick={toggleCollapsed} title="Expand sidebar"
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-foreground/70 transition-colors hover:bg-accent hover:text-foreground">
             <Menu className="h-5 w-5" />
           </button>
-
           <div className="my-1 h-px w-8 bg-border" />
-
-          {/* Icon-only nav items */}
-          {NAV_ITEMS.map(({ path, label, icon: Icon }) => (
-            <Link
-              key={path}
-              to={path}
-              title={label}
-              className={cn(
-                "flex h-9 w-9 items-center justify-center rounded-lg transition-colors",
-                location.pathname === path ? "bg-accent text-foreground" : "text-foreground/70 hover:bg-accent hover:text-foreground"
-              )}
-            >
-              <Icon className="h-4 w-4" />
-            </Link>
-          ))}
+          <Link to="/dashboard" title="Dashboard"
+            className={cn("flex h-9 w-9 items-center justify-center rounded-lg transition-colors",
+              isDashboard ? "bg-accent text-foreground" : "text-foreground/70 hover:bg-accent hover:text-foreground")}>
+            <LayoutDashboard className="h-4 w-4" />
+          </Link>
+          <Link to="/workspace" title="Workspace"
+            className={cn("flex h-9 w-9 items-center justify-center rounded-lg transition-colors",
+              isWorkspace ? "bg-accent text-foreground" : "text-foreground/70 hover:bg-accent hover:text-foreground")}>
+            <ScanLine className="h-4 w-4" />
+          </Link>
         </div>
       ) : (
-        /* ── Expanded state ── */
+        /* ── Expanded ── */
         <>
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-4">
+          <div className="flex shrink-0 items-center justify-between px-4 py-4">
             <Link to="/dashboard" className="flex items-center gap-3 min-w-0">
               <img src={gogodeepLogo} alt="Gogodeep" className="h-7 w-7 shrink-0 object-contain" />
               <span className="text-base font-bold tracking-tight text-foreground truncate">Gogodeep</span>
             </Link>
-            <button
-              onClick={toggleCollapsed}
-              title="Collapse sidebar"
-              className="ml-1 shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-            >
+            <button onClick={toggleCollapsed} title="Collapse sidebar"
+              className="ml-1 shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
               <ChevronsLeft className="h-4 w-4" />
             </button>
           </div>
 
-          {/* Nav items */}
-          <nav className="flex-1 space-y-0.5 px-3 py-1">
-            {NAV_ITEMS.map(({ path, label, icon: Icon }) => {
-              const isActive = location.pathname === path;
-              return (
-                <Link
-                  key={path}
-                  to={path}
-                  className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
-                    isActive ? "bg-accent text-foreground" : "text-foreground/80 hover:bg-accent hover:text-foreground"
-                  }`}
-                >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  {label}
-                </Link>
-              );
-            })}
-            {plan !== "deep" && (
-              <div className="pt-4">
-                <button
-                  onClick={() => navigate("/pricing", { state: { backgroundLocation: location } })}
-                  className="w-full rounded-xl bg-primary px-3 py-2.5 text-center text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-                >
-                  Go Deep
-                </button>
+          {/* Scrollable nav + scan list */}
+          <div className="flex-1 overflow-y-auto min-h-0">
+            <div className="space-y-0.5 px-3 py-1">
+
+              {/* Dashboard */}
+              <Link to="/dashboard"
+                className={cn("flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+                  isDashboard ? "bg-accent text-foreground" : "text-foreground/80 hover:bg-accent hover:text-foreground")}>
+                <LayoutDashboard className="h-4 w-4 shrink-0" />
+                Dashboard
+              </Link>
+
+              {/* Workspace — with expandable dropdown */}
+              <div>
+                <div className={cn("flex items-center rounded-xl transition-colors",
+                  isWorkspace ? "bg-accent text-foreground" : "text-foreground/80 hover:bg-accent hover:text-foreground")}>
+                  <Link to="/workspace" className="flex flex-1 items-center gap-3 px-3 py-2.5 text-sm font-medium">
+                    <ScanLine className="h-4 w-4 shrink-0" />
+                    Workspace
+                  </Link>
+                  <button
+                    onClick={() => setWorkspaceExpanded((v) => !v)}
+                    className="pr-3 py-2.5 text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-200", workspaceExpanded ? "rotate-0" : "-rotate-90")} />
+                  </button>
+                </div>
+
+                {/* Dropdown content */}
+                {workspaceExpanded && (
+                  <div className="mt-0.5 ml-3 border-l border-border pl-2 pb-1">
+                    {/* Scan history — fades after ~5 items, scrollable */}
+                    <div className="relative max-h-52 overflow-y-auto">
+                      <HistorySidebar />
+                      {/* Fade gradient at bottom */}
+                      <div className="pointer-events-none sticky bottom-0 h-8 bg-gradient-to-t from-card to-transparent" />
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
-          </nav>
+
+              {/* Go Deep CTA */}
+              {plan !== "deep" && (
+                <div className="pt-3">
+                  <button
+                    onClick={() => navigate("/pricing", { state: { backgroundLocation: location } })}
+                    className="w-full rounded-xl bg-primary px-3 py-2.5 text-center text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                  >
+                    Go Deep
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
 
           {/* Bottom controls */}
-          <div className="space-y-0.5 px-3 pb-4">
-            <button
-              onClick={cycleColorMode}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-foreground/80 transition-colors hover:bg-accent hover:text-foreground"
-            >
+          <div className="shrink-0 space-y-0.5 px-3 pb-4">
+            <button onClick={cycleColorMode}
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-foreground/80 transition-colors hover:bg-accent hover:text-foreground">
               {COLOR_MODE_ICONS[colorMode]}
               <span>{COLOR_MODE_LABELS[colorMode]}</span>
             </button>
-
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-foreground/80 transition-colors hover:bg-accent hover:text-foreground">

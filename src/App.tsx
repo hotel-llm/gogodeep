@@ -164,7 +164,7 @@ function AppLayout() {
       ) : (
         <AppNav user={user ?? null} />
       )}
-      <div className={showSidebar ? (sidebarCollapsed ? "ml-14 transition-[margin] duration-200" : "ml-56 transition-[margin] duration-200") : ""}>
+      <div className={showSidebar ? (sidebarCollapsed ? "ml-14 transition-[margin] duration-200" : "ml-64 transition-[margin] duration-200") : ""}>
         <AnimatedRoutes />
       </div>
       <WhaleAssistant />

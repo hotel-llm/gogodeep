@@ -415,7 +415,7 @@ const Dashboard = ({ user }: { user: User }) => {
           <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 
             {/* Total scans */}
-            <Card className="border-border bg-card p-6">
+            <Card className="border-border bg-card p-6 flex flex-col">
               <div className="flex items-center gap-2">
                 <Microscope className="h-4 w-4 text-primary" />
                 <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Total Scans</p>
@@ -424,10 +424,24 @@ const Dashboard = ({ user }: { user: User }) => {
                 {loading ? "—" : data?.totalScans ?? 0}
               </p>
               <p className="mt-1.5 text-xs text-muted-foreground">All-time diagnoses</p>
+              <div className="mt-4">
+                {data?.plan === "deep" ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-yellow-400/15 px-2.5 py-1 text-[11px] font-semibold text-yellow-400">
+                    Deep plan active
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => navigate("/pricing", { state: { backgroundLocation: location } })}
+                    className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                  >
+                    Get Deep: unlimited scans →
+                  </button>
+                )}
+              </div>
             </Card>
 
             {/* Login streak */}
-            <Card className="border-border bg-card p-6">
+            <Card className="border-border bg-card p-6 flex flex-col">
               <div className="flex items-center gap-2">
                 <Flame className="h-4 w-4 text-primary" />
                 <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Login Streak</p>
@@ -437,6 +451,14 @@ const Dashboard = ({ user }: { user: User }) => {
                 <span className="ml-2 text-lg font-medium text-muted-foreground">days</span>
               </p>
               <p className="mt-1.5 text-xs text-muted-foreground">Keep the habit going</p>
+              <div className="mt-4">
+                <button
+                  onClick={() => navigate("/workspace")}
+                  className="rounded-lg border border-border bg-secondary/50 px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-secondary hover:border-primary/40"
+                >
+                  Do a scan now →
+                </button>
+              </div>
             </Card>
 
             {/* Weekly scan chart */}

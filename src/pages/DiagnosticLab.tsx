@@ -367,7 +367,7 @@ const DiagnosticLab = () => {
   }, [analyzeImage]);
 
   return (
-    <EducatorLayout title="Workspace" subtitle="Upload a question and you will understand it within minutes.">
+    <EducatorLayout title="Workspace" subtitle="Upload a question and you will understand it within minutes." noSidebar>
       <Helmet>
         <title>Workspace</title>
         <meta name="description" content="Upload a photo of your exam working or handwritten notes. Gogodeep analyses hard STEM questions, finds your error, and guides you step by step. Supports Physics HL, Math HL AA, AP Calculus BC, and AP Statistics." />
