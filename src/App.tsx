@@ -1,6 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, useLocation, useNavigate } from "react-router-dom";
-import { AnimatePresence } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Upload } from "lucide-react";
@@ -82,36 +81,34 @@ function AnimatedRoutes() {
   return (
     <>
       {/* Render the background page when pricing is open as an overlay */}
-      <AnimatePresence mode="wait">
-        <Routes location={backgroundLocation ?? location} key={(backgroundLocation ?? location).pathname}>
-          <Route path="/" element={<Index />} />
-          <Route path="/dashboard" element={<DashboardRoute />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-          <Route
-            path="/workspace"
-            element={
-              <ErrorBoundary>
-                <DiagnosticLab />
-              </ErrorBoundary>
-            }
-          />
-          <Route
-            path="/report"
-            element={
-              <ErrorBoundary>
-                <BlindSpotReport />
-              </ErrorBoundary>
-            }
-          />
-          <Route path="/interact" element={<Interact />} />
-          <Route path="/pricing" element={<Pricing />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </AnimatePresence>
+      <Routes location={backgroundLocation ?? location}>
+        <Route path="/" element={<Index />} />
+        <Route path="/dashboard" element={<DashboardRoute />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route
+          path="/workspace"
+          element={
+            <ErrorBoundary>
+              <DiagnosticLab />
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/report"
+          element={
+            <ErrorBoundary>
+              <BlindSpotReport />
+            </ErrorBoundary>
+          }
+        />
+        <Route path="/interact" element={<Interact />} />
+        <Route path="/pricing" element={<Pricing />} />
+        <Route path="/contact" element={<Contact />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
       {/* Pricing overlay rendered on top of the background page */}
       {backgroundLocation && (
         <Routes>

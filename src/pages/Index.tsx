@@ -1412,32 +1412,22 @@ export function DashboardRoute() {
   const [user, setUser] = useState<User | null | undefined>(undefined);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user ?? null));
+    supabase.auth.getSession().then(({ data: { session } }) => setUser(session?.user ?? null));
     const { data: listener } = supabase.auth.onAuthStateChange((_e, session) => {
       setUser(session?.user ?? null);
     });
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  if (user === undefined) return null;
+  if (user === undefined) return (
+    <div className="flex min-h-screen items-center justify-center">
+      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+    </div>
+  );
   if (!user) return <Navigate to="/" replace />;
   return <Dashboard user={user} />;
 }
 
-function Home() {
-  const [user, setUser] = useState<User | null | undefined>(undefined);
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user ?? null));
-    const { data: listener } = supabase.auth.onAuthStateChange((_e, session) => {
-      setUser(session?.user ?? null);
-    });
-    return () => listener.subscription.unsubscribe();
-  }, []);
-
-  if (user === undefined) return null;
-  if (user) return <Navigate to="/dashboard" replace />;
-  return <Landing />;
-}
+const Home = () => <Landing />;
 
 export default Home;

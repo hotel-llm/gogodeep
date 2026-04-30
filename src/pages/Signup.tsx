@@ -20,7 +20,6 @@ const Signup = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
   const [usernameError, setUsernameError] = useState("");
   const [formError, setFormError] = useState("");
 
@@ -57,34 +56,13 @@ const Signup = () => {
       if (pendingReport) {
         navigate("/report", { replace: true, state: pendingReport });
       } else {
-        setSuccess(true);
+        navigate("/dashboard", { replace: true });
       }
     } catch {
       setIsLoading(false);
       setFormError("An unexpected error occurred. Please try again.");
     }
   };
-
-  if (success) {
-    return (
-      <PageTransition>
-        <div className="relative z-10 min-h-screen pt-20">
-          <div className="container flex min-h-[calc(100vh-3.5rem)] items-center justify-center py-12">
-            <Card className="w-full max-w-md border border-border bg-card p-10 text-center">
-              <img src={gogodeepLogo} alt="Gogodeep — AI exam mistake helper for IB, AP, and A-Level STEM students" className="mx-auto h-14 w-14 object-contain" />
-              <h1 className="mt-6 text-2xl font-bold tracking-tight text-foreground">Check your email</h1>
-              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                We sent a confirmation link to <span className="font-medium text-foreground">{email}</span>. Click the link to activate your account.
-              </p>
-              <Link to="/login" className="mt-8 inline-block">
-                <Button variant="outline" className="border-border">Back to Login</Button>
-              </Link>
-            </Card>
-          </div>
-        </div>
-      </PageTransition>
-    );
-  }
 
   return (
     <PageTransition>

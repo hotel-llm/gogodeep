@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { Check, Loader2 } from "lucide-react";
+import PageTransition from "@/components/PageTransition";
 import type { User } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -67,6 +68,7 @@ export default function Settings() {
     : "—";
 
   return (
+    <PageTransition>
     <>
       <Helmet><title>Settings · Gogodeep</title></Helmet>
       <div className="relative z-10 flex h-screen flex-col overflow-hidden pt-8">
@@ -167,6 +169,7 @@ export default function Settings() {
         </div>
       </div>
     </>
+    </PageTransition>
   );
 }
 
