@@ -101,6 +101,8 @@ type ErrorLog = {
 type DashboardData = {
   totalScans: number;
   creditsLeft: number | null;
+  usedToday: number;
+  dailyLimit: number | null;
   plan: string;
   conceptualCount: number;
   conceptsLearned: number;
@@ -252,7 +254,7 @@ const Dashboard = ({ user }: { user: User }) => {
         return { day: DAY_LABELS[d.getDay()], count: logs.filter((l) => l.created_at?.startsWith(dateStr)).length };
       });
 
-      setData({ totalScans: logs.length, creditsLeft, plan, conceptualCount, conceptsLearned, topTags, recentTopics, recentScans, loginStreak, bonusScans, weeklyScans });
+      setData({ totalScans: logs.length, creditsLeft, usedToday: used, dailyLimit: limit as number | null, plan, conceptualCount, conceptsLearned, topTags, recentTopics, recentScans, loginStreak, bonusScans, weeklyScans });
       setLoading(false);
     };
     load();
@@ -318,15 +320,14 @@ const Dashboard = ({ user }: { user: User }) => {
     }
     const base = pool.sort(() => Math.random() - 0.5).slice(0, cfg.numQuestions);
     if (!base.length) { whaleToast.error("Open a few scans first so quiz questions can load."); return; }
-    const final: QuizQuestion[] = base.map((q) => {
-      // Use AI-generated options when available (options[0] is correct answer)
+    const final: QuizQuestion[] = base.flatMap((q) => {
       if (q.options && q.options.length >= 4) {
         const shuffled = [...q.options].sort(() => Math.random() - 0.5);
-        return { ...q, mode: "mc" as const, mcOptions: shuffled, mcCorrectIdx: shuffled.indexOf(q.options[0]) };
+        return [{ ...q, mode: "mc" as const, mcOptions: shuffled, mcCorrectIdx: shuffled.indexOf(q.options[0]) }];
       }
-      // Fallback for old scans without options
-      return { ...q, mode: "typed" as const };
+      return [];
     });
+    if (!final.length) { whaleToast.error("Open a few scans first so quiz questions can load."); return; }
     setQuizKey((k) => k + 1);
     setQuiz({ questions: final, current: 0, revealed: false, userInput: "", results: [], currentResult: null, showStats: false, selectedMcIdx: null });
   };
@@ -424,6 +425,19 @@ const Dashboard = ({ user }: { user: User }) => {
                 {loading ? "—" : data?.totalScans ?? 0}
               </p>
               <p className="mt-1.5 text-xs text-muted-foreground">All-time diagnoses</p>
+              {!loading && data?.plan !== "deep" && data?.dailyLimit !== null && (
+                <div className="mt-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs text-muted-foreground">{data.usedToday} / {data.dailyLimit} used today</span>
+                  </div>
+                  <div className="h-1.5 w-full rounded-full bg-secondary overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-primary transition-all duration-300"
+                      style={{ width: `${Math.min(100, ((data.usedToday) / (data.dailyLimit as number)) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+              )}
               <div className="mt-4">
                 {data?.plan === "deep" ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-yellow-400/15 px-2.5 py-1 text-[11px] font-semibold text-yellow-400">
@@ -434,7 +448,7 @@ const Dashboard = ({ user }: { user: User }) => {
                     onClick={() => navigate("/pricing", { state: { backgroundLocation: location } })}
                     className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
                   >
-                    Get Deep: unlimited scans →
+                    Unlock unlimited scans →
                   </button>
                 )}
               </div>
@@ -732,20 +746,6 @@ const Dashboard = ({ user }: { user: User }) => {
                     </div>
                   )}
 
-                  {/* Typed mode */}
-                  {currentQ.mode === "typed" && !quiz.revealed && (
-                    <div className="space-y-2">
-                      <textarea rows={3} value={quiz.userInput}
-                        onChange={(e) => setQuiz((q) => q && ({ ...q, userInput: e.target.value }))}
-                        placeholder="Type your answer…"
-                        className="w-full resize-none rounded-lg border border-border bg-secondary/50 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none" />
-                      <Button className="w-full bg-primary hover:bg-primary/90" onClick={() => {
-                        if (!quiz.userInput.trim()) { whaleToast.error("Please enter your answer first."); return; }
-                        setQuiz((q) => q && ({ ...q, revealed: true }));
-                      }}>Check answer</Button>
-                    </div>
-                  )}
-
                   {/* Revealed state */}
                   {quiz.revealed && (
                     <div className="space-y-3">
@@ -766,16 +766,9 @@ const Dashboard = ({ user }: { user: User }) => {
                         <span className="text-[10px] font-semibold uppercase tracking-widest text-primary block mb-1">Correct answer</span>
                         <RichText text={currentQ.answer} />
                       </div>
-                      {currentQ.mode === "typed" ? (
-                        <div className="flex gap-2">
-                          <Button variant="outline" className="flex-1 border-green-500/40 text-green-400 hover:bg-green-500/10" onClick={() => gradeAndAdvance("correct")}>Got it ✓</Button>
-                          <Button variant="outline" className="flex-1 border-red-500/40 text-red-400 hover:bg-red-500/10" onClick={() => gradeAndAdvance("incorrect")}>Wrong ✗</Button>
-                        </div>
-                      ) : (
-                        <Button className="w-full bg-primary hover:bg-primary/90" onClick={advance}>
-                          {quiz.current < quiz.questions.length - 1 ? <>Next <ArrowRight className="ml-2 h-4 w-4" /></> : "Finish"}
-                        </Button>
-                      )}
+                      <Button className="w-full bg-primary hover:bg-primary/90" onClick={advance}>
+                        {quiz.current < quiz.questions.length - 1 ? <>Next <ArrowRight className="ml-2 h-4 w-4" /></> : "Finish"}
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -1431,6 +1424,20 @@ export function DashboardRoute() {
   return <Dashboard user={user} />;
 }
 
-const Home = () => <Landing />;
+function Home() {
+  const [user, setUser] = useState<User | null | undefined>(undefined);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUser(data.user ?? null));
+    const { data: listener } = supabase.auth.onAuthStateChange((_e, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  if (user === undefined) return null;
+  if (user) return <Navigate to="/dashboard" replace />;
+  return <Landing />;
+}
 
 export default Home;

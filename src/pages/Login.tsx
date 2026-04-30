@@ -2,7 +2,6 @@ import { FormEvent, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Loader2, Mail, Lock, ArrowLeft } from "lucide-react";
 import gogodeepLogo from "@/assets/gogodeep-logo.png";
-import { whaleToast } from "@/lib/whaleToast";
 
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -15,6 +14,7 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [formError, setFormError] = useState("");
   const [forgotOpen, setForgotOpen] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
@@ -27,11 +27,12 @@ const Login = () => {
 
   const onLogin = async (e: FormEvent) => {
     e.preventDefault();
+    setFormError("");
     setIsLoading(true);
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       setIsLoading(false);
-      if (error) { whaleToast.error(error.message); return; }
+      if (error) { setFormError(error.message); return; }
       if (pendingReport) {
         navigate("/report", { replace: true, state: pendingReport });
       } else {
@@ -39,7 +40,7 @@ const Login = () => {
       }
     } catch {
       setIsLoading(false);
-      whaleToast.error("An unexpected error occurred. Please try again.");
+      setFormError("An unexpected error occurred. Please try again.");
     }
   };
 
@@ -114,7 +115,7 @@ const Login = () => {
                     <label htmlFor="login-email" className="text-xs font-medium text-muted-foreground">Email</label>
                     <div className="relative">
                       <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                      <Input id="login-email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className="border-border bg-secondary pl-9" placeholder="name@example.com" required />
+                      <Input id="login-email" type="email" autoComplete="email" value={email} onChange={(e) => { setEmail(e.target.value); setFormError(""); }} className="border-border bg-secondary pl-9" placeholder="name@example.com" required />
                     </div>
                   </div>
 
@@ -127,10 +128,11 @@ const Login = () => {
                     </div>
                     <div className="relative">
                       <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                      <Input id="login-password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} className="border-border bg-secondary pl-9" placeholder="••••••••" required />
+                      <Input id="login-password" type="password" autoComplete="current-password" value={password} onChange={(e) => { setPassword(e.target.value); setFormError(""); }} className="border-border bg-secondary pl-9" placeholder="••••••••" required />
                     </div>
                   </div>
 
+                  {formError && <p className="text-xs text-destructive">{formError}</p>}
                   <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={isLoading}>
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Sign in

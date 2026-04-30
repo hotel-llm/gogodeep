@@ -2,7 +2,6 @@ import { FormEvent, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Loader2, Mail, Lock, User } from "lucide-react";
 import gogodeepLogo from "@/assets/gogodeep-logo.png";
-import { whaleToast } from "@/lib/whaleToast";
 
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -22,27 +21,19 @@ const Signup = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [usernameError, setUsernameError] = useState("");
+  const [formError, setFormError] = useState("");
 
   const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 
   const onSignup = async (e: FormEvent) => {
     e.preventDefault();
+    setFormError("");
     if (!username.trim()) {
-      whaleToast.error("Please enter a username.");
+      setUsernameError("Please enter a username.");
       return;
     }
-    if (!isValidEmail(email)) {
-      whaleToast.error("Please enter a valid email address.");
-      return;
-    }
-    if (password.length < 8) {
-      whaleToast.error("Password must be at least 8 characters.");
-      return;
-    }
-    if (password !== confirmPassword) {
-      whaleToast.error("Passwords do not match.");
-      return;
-    }
+    if (!isValidEmail(email) || password.length < 8 || password !== confirmPassword) return;
     setIsLoading(true);
     try {
       const { error } = await supabase.auth.signUp({
@@ -56,9 +47,9 @@ const Signup = () => {
 
       if (error) {
         if (error.message.toLowerCase().includes("already registered") || error.message.toLowerCase().includes("already exists")) {
-          whaleToast.error("An account with that email already exists. Try logging in instead.");
+          setFormError("An account with that email already exists. Try logging in instead.");
         } else {
-          whaleToast.error(error.message);
+          setFormError(error.message);
         }
         return;
       }
@@ -68,9 +59,9 @@ const Signup = () => {
       } else {
         setSuccess(true);
       }
-    } catch (err) {
+    } catch {
       setIsLoading(false);
-      whaleToast.error("An unexpected error occurred. Please try again.");
+      setFormError("An unexpected error occurred. Please try again.");
     }
   };
 
@@ -119,8 +110,9 @@ const Signup = () => {
                 <label htmlFor="signup-username" className="text-xs font-medium text-muted-foreground">Username</label>
                 <div className="relative">
                   <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input id="signup-username" type="text" autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} className="border-border bg-secondary pl-9" placeholder="Your name" required />
+                  <Input id="signup-username" type="text" autoComplete="username" value={username} onChange={(e) => { setUsername(e.target.value); setUsernameError(""); }} className="border-border bg-secondary pl-9" placeholder="Your name" required />
                 </div>
+                {usernameError && <p className="text-xs text-destructive">{usernameError}</p>}
               </div>
 
               <div className="space-y-2">
@@ -156,6 +148,7 @@ const Signup = () => {
                 )}
               </div>
 
+              {formError && <p className="text-xs text-destructive">{formError}</p>}
               <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={isLoading}>
                 {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Create Account
