@@ -70,7 +70,10 @@ export default function Settings() {
   return (
     <PageTransition>
     <>
-      <Helmet><title>Settings · Gogodeep</title></Helmet>
+      <Helmet>
+        <title>Settings · Gogodeep</title>
+        <link rel="canonical" href="https://gogodeep.com/settings" />
+      </Helmet>
       <div className="relative z-10 flex h-screen flex-col overflow-hidden pt-8">
         <div className="container max-w-xl flex-1 flex flex-col py-6 min-h-0">
           <h1 className="mb-6 text-2xl font-bold tracking-tight text-foreground shrink-0">Settings</h1>

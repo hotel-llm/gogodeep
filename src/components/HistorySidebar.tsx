@@ -37,7 +37,6 @@ const COLORS = [
   { key: "red",    hex: "#f87171" },
   { key: "yellow", hex: "#fbbf24" },
   { key: "pink",   hex: "#f472b6" },
-  { key: "cyan",   hex: "#22d3ee" },
 ];
 
 function dotColor(key: string) {

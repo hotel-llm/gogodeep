@@ -171,6 +171,7 @@ const Dashboard = ({ user }: { user: User }) => {
   const [loading, setLoading] = useState(true);
   const [dropHover, setDropHover] = useState(false);
   const [quiz, setQuiz] = useState<QuizState | null>(null);
+  const [quizCardVersion, setQuizCardVersion] = useState(0);
   const [showQuizConfig, setShowQuizConfig] = useState(false);
   const [quizConfig, setQuizConfig] = useState<QuizConfig>({ numQuestions: 10, typed: true, multipleChoice: true, trueOrFalse: true, selectedConcepts: [] });
   const [elapsedSecs, setElapsedSecs] = useState(0);
@@ -269,6 +270,46 @@ const Dashboard = ({ user }: { user: User }) => {
     return Array.from(concepts);
   };
 
+  // Auto-generate practice problems for scans that don't have them cached
+  useEffect(() => {
+    if (!data || data.recentScans.length < 3) return;
+    const scansNeedingProblems = data.recentScans.slice(0, 5).filter((scan) => {
+      const raw = localStorage.getItem(SCAN_CACHE_KEY(scan.id));
+      if (!raw) return true;
+      try { return !(JSON.parse(raw).diagnosis?.practice_problems?.length > 0); } catch { return true; }
+    });
+    if (!scansNeedingProblems.length) return;
+    const topics = scansNeedingProblems.map((s) => s.label).filter((l) => l && l !== "Unnamed scan");
+    if (!topics.length) return;
+    supabase.functions.invoke("generate-quiz", { body: { topics } }).then(({ data: result, error }) => {
+      if (error || !Array.isArray(result?.questions) || !result.questions.length) return;
+      let updated = false;
+      result.questions.forEach((q: { topic: string; question: string; options: string[]; correct: number; explanation?: string }, idx: number) => {
+        const scan = scansNeedingProblems.find((s) => s.label.toLowerCase() === q.topic.toLowerCase()) ?? scansNeedingProblems[idx];
+        if (!scan) return;
+        const correctAnswer = q.options[q.correct];
+        const problem = {
+          question: q.question,
+          answer: q.explanation ? `${correctAnswer}\n\n${q.explanation}` : correctAnswer,
+          options: [correctAnswer, ...q.options.filter((_: string, i: number) => i !== q.correct)],
+        };
+        const cacheKey = SCAN_CACHE_KEY(scan.id);
+        try {
+          const existing = localStorage.getItem(cacheKey);
+          if (existing) {
+            const parsed = JSON.parse(existing);
+            parsed.diagnosis = { ...parsed.diagnosis, practice_problems: [problem] };
+            localStorage.setItem(cacheKey, JSON.stringify(parsed));
+          } else {
+            localStorage.setItem(cacheKey, JSON.stringify({ diagnosis: { practice_problems: [problem], concept_label: scan.label } }));
+          }
+          updated = true;
+        } catch {}
+      });
+      if (updated) setQuizCardVersion((v) => v + 1);
+    });
+  }, [data]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const quizActive = !!quiz && !quiz.showStats;
   useEffect(() => {
     if (!quizActive) { if (timerRef.current) clearInterval(timerRef.current); return; }
@@ -311,7 +352,7 @@ const Dashboard = ({ user }: { user: User }) => {
       } catch {}
     }
     const topics = Object.keys(byTopic);
-    if (!topics.length) { whaleToast.error("Open a few scans first so quiz questions can load."); return; }
+    if (!topics.length) return;
     const perTopic = Math.ceil(cfg.numQuestions / topics.length);
     const pool: { topic: string; question: string; answer: string; options?: string[] }[] = [];
     for (const topic of topics) {
@@ -319,7 +360,7 @@ const Dashboard = ({ user }: { user: User }) => {
       pool.push(...shuffled.slice(0, perTopic).map((p) => ({ topic, ...p })));
     }
     const base = pool.sort(() => Math.random() - 0.5).slice(0, cfg.numQuestions);
-    if (!base.length) { whaleToast.error("Open a few scans first so quiz questions can load."); return; }
+    if (!base.length) return;
     const final: QuizQuestion[] = base.flatMap((q) => {
       if (q.options && q.options.length >= 4) {
         const shuffled = [...q.options].sort(() => Math.random() - 0.5);
@@ -327,20 +368,13 @@ const Dashboard = ({ user }: { user: User }) => {
       }
       return [];
     });
-    if (!final.length) { whaleToast.error("Open a few scans first so quiz questions can load."); return; }
+    if (!final.length) return;
     setQuizKey((k) => k + 1);
     setQuiz({ questions: final, current: 0, revealed: false, userInput: "", results: [], currentResult: null, showStats: false, selectedMcIdx: null });
   };
 
   const startQuiz = () => {
     if (!data) return;
-    // Count scans with actual cached questions
-    const scansWithQs = data.recentScans.filter((scan) => {
-      const raw = localStorage.getItem(SCAN_CACHE_KEY(scan.id));
-      if (!raw) return false;
-      try { return (JSON.parse(raw).diagnosis?.practice_problems?.length ?? 0) > 0; } catch { return false; }
-    });
-    if (scansWithQs.length < 3) return;
     startQuizWithConfig({ numQuestions: 5, typed: false, multipleChoice: true, trueOrFalse: false, selectedConcepts: [] });
   };
 
@@ -362,6 +396,7 @@ const Dashboard = ({ user }: { user: User }) => {
       <Helmet>
         <title>Gogodeep</title>
         <meta name="description" content="Trace any difficult question down to its roots with AI. Gogodeep finds the exact error in your STEM working, explains the underlying concept, and builds targeted practice to fix the gap. Free for IB, AP, and A-Level students." />
+        <link rel="canonical" href="https://gogodeep.com/dashboard" />
       </Helmet>
       <div className="relative z-10 min-h-screen pt-8">
         <div className="container max-w-5xl py-8">
@@ -440,7 +475,7 @@ const Dashboard = ({ user }: { user: User }) => {
               )}
               <div className="mt-4">
                 {data?.plan === "deep" ? (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-yellow-400/15 px-2.5 py-1 text-[11px] font-semibold text-yellow-400">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-yellow-400/20 dark:bg-yellow-400/15 px-2.5 py-1 text-[11px] font-semibold text-yellow-600 dark:text-yellow-400 ring-1 ring-yellow-400/40 dark:ring-yellow-400/20">
                     Deep plan active
                   </span>
                 ) : (
@@ -568,16 +603,9 @@ const Dashboard = ({ user }: { user: User }) => {
 
             {/* Quick Recap Quiz */}
             <Card className="border-border bg-card pt-5 px-5 pb-0 lg:col-span-2">
-              <div className="mb-4 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <BrainCircuit className="h-4 w-4 text-primary" />
-                  <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Quick Recap Quiz</p>
-                </div>
-                {!loading && (data?.recentScans.length ?? 0) >= 3 && (
-                  <Button size="sm" className="bg-primary hover:bg-primary/90 h-7 text-xs px-3" onClick={startQuiz}>
-                    Start Quiz
-                  </Button>
-                )}
+              <div className="mb-4 flex items-center gap-2">
+                <BrainCircuit className="h-4 w-4 text-primary" />
+                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">Quick Recap Quiz</p>
               </div>
               <div className="pb-5">
                 {(data?.recentScans.length ?? 0) < 3 ? (
@@ -587,6 +615,7 @@ const Dashboard = ({ user }: { user: User }) => {
                     <p className="text-xs text-muted-foreground/60">{data?.recentScans.length ?? 0} / 3 so far</p>
                   </div>
                 ) : (() => {
+                  void quizCardVersion; // re-read localStorage after auto-generation
                   const teasers: { topic: string; question: string }[] = [];
                   const seenTopics: string[] = [];
                   for (const scan of data!.recentScans) {
@@ -608,16 +637,21 @@ const Dashboard = ({ user }: { user: User }) => {
                     </div>
                   );
                   return (
-                    <div className="relative overflow-hidden" style={{ maxHeight: "12rem" }}>
-                      <div className="space-y-2">
-                        {shown.map((q, i) => (
-                          <div key={i} className="rounded-lg border border-border bg-secondary/40 px-3 py-2.5">
-                            <p className="text-[10px] font-semibold uppercase tracking-widest text-primary mb-1">{q.topic}</p>
-                            <p className="text-xs text-foreground"><RichText text={q.question} /></p>
-                          </div>
-                        ))}
+                    <div className="space-y-3">
+                      <div className="relative overflow-hidden" style={{ maxHeight: "11rem" }}>
+                        <div className="space-y-2">
+                          {shown.map((q, i) => (
+                            <div key={i} className="rounded-lg border border-border bg-secondary/40 px-3 py-2.5">
+                              <p className="text-[10px] font-semibold uppercase tracking-widest text-primary mb-1">{q.topic}</p>
+                              <p className="text-xs text-foreground"><RichText text={q.question} /></p>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-card to-transparent" />
                       </div>
-                      <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-card to-transparent" />
+                      <Button size="sm" className="w-full bg-primary hover:bg-primary/90 h-8 text-xs" onClick={startQuiz}>
+                        Start Quiz
+                      </Button>
                     </div>
                   );
                 })()}
@@ -1256,6 +1290,7 @@ const Landing = () => {
       <Helmet>
         <title>Gogodeep</title>
         <meta name="description" content="Trace any difficult question down to its roots with AI. Gogodeep finds the exact error in your STEM working, explains the underlying concept, and builds targeted practice to fix the gap. Free for IB, AP, and A-Level students." />
+        <link rel="canonical" href="https://gogodeep.com/" />
       </Helmet>
       <div className="relative z-10 min-h-screen pt-28">
 

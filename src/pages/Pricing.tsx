@@ -72,7 +72,10 @@ const Pricing = () => {
 
   return (
     <>
-      <Helmet><title>Go Deep</title></Helmet>
+      <Helmet>
+        <title>Go Deep</title>
+        <link rel="canonical" href="https://gogodeep.com/pricing" />
+      </Helmet>
 
       {/* Backdrop — click outside to close, fade in */}
       <div

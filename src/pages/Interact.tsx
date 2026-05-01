@@ -288,6 +288,7 @@ export default function Interact() {
       <Helmet>
         <title>Interact</title>
         <meta name="description" content="Explore 100+ interactive STEM diagrams and models. Drag, adjust, and animate concepts across biology, physics, chemistry, and mathematics." />
+        <link rel="canonical" href="https://gogodeep.com/interact" />
       </Helmet>
 
       <div className="relative z-10 min-h-screen pt-8">

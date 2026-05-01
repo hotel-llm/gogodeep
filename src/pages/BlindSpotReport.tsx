@@ -215,12 +215,13 @@ function UpgradeDialog({ open, onClose, deep = false }: { open: boolean; onClose
 
 // ── Practice tab ──────────────────────────────────────────────────────────────
 
-function PracticeTab({ problems, plan, onGenerateMore, isGeneratingMore, isLoadingPractice }: {
+function PracticeTab({ problems, plan, onGenerateMore, isGeneratingMore, isLoadingPractice, onAskWhale }: {
   problems: PracticeItem[];
   plan: string;
   onGenerateMore: () => Promise<void>;
   isGeneratingMore: boolean;
   isLoadingPractice: boolean;
+  onAskWhale: (text: string) => void;
 }) {
   const isPaid = FREE_FOR_ALL || plan === "intermediate" || plan === "deep";
   const [revealed, setRevealed] = useState<Set<number>>(new Set());
@@ -269,9 +270,18 @@ function PracticeTab({ problems, plan, onGenerateMore, isGeneratingMore, isLoadi
                 </button>
               </div>
               {open && (
-                <p className="mt-3 animate-in fade-in slide-in-from-top-1 duration-200 rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-sm text-foreground">
-                  <RichText text={p.answer} />
-                </p>
+                <div className="mt-3 animate-in fade-in slide-in-from-top-1 duration-200 space-y-2">
+                  <p className="rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-sm text-foreground">
+                    <RichText text={p.answer} />
+                  </p>
+                  <button
+                    onClick={() => onAskWhale(`Help me understand this practice question: ${p.question}`)}
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-primary"
+                  >
+                    <img src="/whale-e.png" alt="" className="whale-img h-3.5 w-3.5 rounded-full object-cover" />
+                    Ask Whal-E about this question
+                  </button>
+                </div>
               )}
             </div>
           );
@@ -301,10 +311,11 @@ function PracticeTab({ problems, plan, onGenerateMore, isGeneratingMore, isLoadi
 // ── Concept tab ───────────────────────────────────────────────────────────────
 
 function ConceptTab({
-  whatHappened, coreConcept, recognitionCue, legacyConcept, plan, onMasterClick, isLoadingConcept,
+  whatHappened, coreConcept, recognitionCue, legacyConcept, plan, onMasterClick, isLoadingConcept, onAskWhale,
 }: {
   whatHappened?: string; coreConcept?: string; recognitionCue?: string;
   legacyConcept?: string; plan: string; onMasterClick: () => void; isLoadingConcept?: boolean;
+  onAskWhale: (text: string) => void;
 }) {
   const isPaid = FREE_FOR_ALL || plan === "intermediate" || plan === "deep";
   const [showUpgrade, setShowUpgrade] = useState(false);
@@ -348,18 +359,7 @@ function ConceptTab({
     );
   }
 
-  // New three-section layout
   const sections = [
-    {
-      id: "happened",
-      label: "In this problem",
-      Icon: Waves,
-      content: whatHappened,
-      locked: false,
-      cardClass: "border-border bg-secondary/40",
-      labelClass: "text-muted-foreground",
-      iconClass: "text-muted-foreground",
-    },
     {
       id: "concept",
       label: "The concept",
@@ -369,6 +369,7 @@ function ConceptTab({
       cardClass: "border-primary/20 bg-primary/5",
       labelClass: "text-primary",
       iconClass: "text-primary",
+      askText: "Explain this concept in more detail",
     },
     {
       id: "cue",
@@ -379,50 +380,73 @@ function ConceptTab({
       cardClass: "border-border bg-secondary/60",
       labelClass: "text-muted-foreground",
       iconClass: "text-muted-foreground",
+      askText: "When should I use this concept and how do I recognise it?",
     },
   ];
 
   return (
     <>
       <div className="space-y-3" data-feature="root-cause-analysis-exam-mistakes" data-content="ai-analysis-breakdown,underlying-concept,targeted-practice">
-        {sections.map(({ id, label, Icon, content, locked, cardClass, labelClass, iconClass }) => (
-          <div
-            key={id}
-            className={`relative rounded-lg border p-5 ${cardClass} ${locked ? "cursor-pointer" : ""}`}
-            style={{ minHeight: "8rem" }}
-            onClick={locked ? () => setShowUpgrade(true) : undefined}
-          >
-            <div className="mb-2.5 flex items-center gap-2">
-              <Icon className={`h-4 w-4 ${iconClass}`} />
-              <p className={`text-xs font-semibold uppercase tracking-[0.15em] ${labelClass}`}>{label}</p>
-            </div>
-            {isLoadingConcept && locked ? (
-              <div className="flex items-center gap-2 py-2">
-                <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">Loading…</span>
+        {sections.map(({ id, label, Icon, content, locked, cardClass, labelClass, iconClass, askText }) => (
+          <div key={id}>
+            <div
+              className={`relative rounded-lg border p-5 ${cardClass} ${locked ? "cursor-pointer" : ""}`}
+              style={{ minHeight: "8rem" }}
+              onClick={locked ? () => setShowUpgrade(true) : undefined}
+            >
+              <div className="mb-2.5 flex items-center gap-2">
+                <Icon className={`h-4 w-4 ${iconClass}`} />
+                <p className={`text-xs font-semibold uppercase tracking-[0.15em] ${labelClass}`}>{label}</p>
               </div>
-            ) : locked ? (
-              <div className="relative">
-                <div className="overflow-hidden" style={{ maxHeight: "4.2rem" }}>
-                  <p className="text-sm leading-relaxed text-foreground select-none">
+              {isLoadingConcept && locked ? (
+                <div className="flex items-center gap-2 py-2">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">Loading…</span>
+                </div>
+              ) : locked ? (
+                <div className="relative">
+                  <div className="overflow-hidden" style={{ maxHeight: "4.2rem" }}>
+                    <p className="text-sm leading-relaxed text-foreground select-none">
+                      <RichText text={content ?? ""} />
+                    </p>
+                  </div>
+                  <div className="pointer-events-none absolute inset-x-0 top-0 bottom-0 bg-gradient-to-b from-transparent via-card/70 to-card" style={{ top: "1.4rem" }} />
+                  <div className="relative mt-2 flex items-center gap-1.5">
+                    <Lock className="h-3 w-3 text-primary" />
+                    <span className="text-xs font-semibold text-primary">Upgrade to unlock</span>
+                  </div>
+                </div>
+              ) : isLoadingConcept ? (
+                <div className="flex items-center gap-2 py-2">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">Loading…</span>
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm leading-relaxed text-foreground">
                     <RichText text={content ?? ""} />
                   </p>
-                </div>
-                <div className="pointer-events-none absolute inset-x-0 top-0 bottom-0 bg-gradient-to-b from-transparent via-card/70 to-card" style={{ top: "1.4rem" }} />
-                <div className="relative mt-2 flex items-center gap-1.5">
-                  <Lock className="h-3 w-3 text-primary" />
-                  <span className="text-xs font-semibold text-primary">Upgrade to unlock</span>
-                </div>
-              </div>
-            ) : isLoadingConcept ? (
-              <div className="flex items-center gap-2 py-2">
-                <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">Loading…</span>
-              </div>
-            ) : (
-              <p className="text-sm leading-relaxed text-foreground">
-                <RichText text={content ?? ""} />
-              </p>
+                  <div className="mt-3 border-t border-border/60 pt-3">
+                    <button
+                      onClick={() => onAskWhale(askText)}
+                      className="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-primary"
+                    >
+                      <img src="/whale-e.png" alt="" className="whale-img h-3.5 w-3.5 rounded-full object-cover" />
+                      Ask Whal-E
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+            {/* Explain like I'm 5 — inserted after The concept card */}
+            {id === "concept" && !locked && !isLoadingConcept && (
+              <button
+                onClick={() => onAskWhale("Explain this concept like I'm 5 years old, using a simple everyday example")}
+                className="mt-2 flex w-full items-center gap-2 rounded-lg border border-border bg-secondary/40 px-4 py-3 text-left text-sm text-muted-foreground transition-colors hover:border-primary/30 hover:bg-secondary hover:text-foreground"
+              >
+                <span className="text-base">🧒</span>
+                <span className="font-medium">Explain like I'm 5</span>
+              </button>
             )}
           </div>
         ))}
@@ -503,7 +527,11 @@ function WhaleMd({ text }: { text: string }) {
   let i = 0;
   while (i < lines.length) {
     const line = lines[i];
-    if (line.startsWith("# ")) {
+    if (line.startsWith("### ")) {
+      nodes.push(<p key={i} className="mt-2 mb-0.5 text-xs font-semibold text-foreground">{line.slice(4)}</p>);
+    } else if (line.startsWith("## ")) {
+      nodes.push(<p key={i} className="mt-3 mb-1 text-xs font-bold uppercase tracking-wide text-primary first:mt-0">{line.slice(3)}</p>);
+    } else if (line.startsWith("# ")) {
       nodes.push(<p key={i} className="mt-3 mb-1 text-xs font-bold uppercase tracking-wide text-primary first:mt-0">{line.slice(2)}</p>);
     } else if (line.startsWith("- ") || line.startsWith("* ")) {
       const items: string[] = [];
@@ -536,7 +564,12 @@ function WhaleMd({ text }: { text: string }) {
 
 type ChatMsg = { role: "user" | "assistant"; content: string };
 
-function WhaleChatPanel({ diagnosis, onClose }: { diagnosis: Diagnosis | undefined; onClose: () => void }) {
+function WhaleChatPanel({ diagnosis, onClose, pendingMessage, onMessageHandled }: {
+  diagnosis: Diagnosis | undefined;
+  onClose: () => void;
+  pendingMessage?: string | null;
+  onMessageHandled?: () => void;
+}) {
   const conceptLabel = (diagnosis as any)?.concept_label ?? "";
   const whatHappened = (diagnosis as any)?.what_happened ?? "";
   const coreConcept = (diagnosis as any)?.core_concept ?? "";
@@ -563,6 +596,13 @@ function WhaleChatPanel({ diagnosis, onClose }: { diagnosis: Diagnosis | undefin
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+
+  useEffect(() => {
+    if (pendingMessage) {
+      send(pendingMessage);
+      onMessageHandled?.();
+    }
+  }, [pendingMessage]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function send(text: string) {
     if (!text || loading) return;
@@ -663,7 +703,7 @@ function WhaleChatPanel({ diagnosis, onClose }: { diagnosis: Diagnosis | undefin
   );
 }
 
-function StepsTab({ diagnosis, steps, revealed, setRevealed, plan, isLoading, imageSrc, inputText, onImageClick }: {
+function StepsTab({ diagnosis, steps, revealed, setRevealed, plan, isLoading, imageSrc, inputText, onImageClick, onAskWhale }: {
   diagnosis: GuideDiagnosis;
   steps: string[];
   revealed: number;
@@ -673,14 +713,9 @@ function StepsTab({ diagnosis, steps, revealed, setRevealed, plan, isLoading, im
   imageSrc?: string | null;
   inputText?: string | null;
   onImageClick?: () => void;
+  onAskWhale: (text: string) => void;
 }) {
   const isPaid = FREE_FOR_ALL || plan === "intermediate" || plan === "deep";
-
-  function askWhale(stepNum: number, stepText: string) {
-    window.dispatchEvent(new CustomEvent("whale-context", {
-      detail: { stepNum, stepText, questionSummary: diagnosis.question_summary },
-    }));
-  }
 
   if (isLoading) {
     return (
@@ -724,7 +759,7 @@ function StepsTab({ diagnosis, steps, revealed, setRevealed, plan, isLoading, im
                 {isPaid && (
                   <div className="mt-3 border-t border-primary/10 pt-3">
                     <button
-                      onClick={() => askWhale(i + 1, step)}
+                      onClick={() => onAskWhale(`Explain step ${i + 1}: ${step}`)}
                       className="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-primary"
                     >
                       <img src="/whale-e.png" alt="" className="whale-img h-3.5 w-3.5 rounded-full object-cover" />
@@ -771,6 +806,12 @@ const BlindSpotReport = () => {
   const [displaySrc, setDisplaySrc] = useState<string | null>(imageSrc);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [whaleOpen, setWhaleOpen] = useState(true);
+  const [pendingWhaleMessage, setPendingWhaleMessage] = useState<string | null>(null);
+
+  function askWhale(text: string) {
+    setWhaleOpen(true);
+    setPendingWhaleMessage(text);
+  }
   const [splitLeft, setSplitLeft] = useState(60);
   const splitContainerRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
@@ -1046,6 +1087,7 @@ const BlindSpotReport = () => {
       <Helmet>
         <title>Report</title>
         <meta name="description" content="See the root cause of your mistake, the underlying concept explained, and targeted practice to close the gap. AI working analysis for IB, AP, and A-Level STEM subjects." />
+        <link rel="canonical" href="https://gogodeep.com/report" />
       </Helmet>
 
       {/* Resizable split container */}
@@ -1090,6 +1132,7 @@ const BlindSpotReport = () => {
                   imageSrc={displaySrc}
                   inputText={inputText}
                   onImageClick={() => setLightboxOpen(true)}
+                  onAskWhale={askWhale}
                 />
               )}
               {activeTab === "error" && <IdentifyErrorTab diagnosis={diagnosis as IdentifyDiagnosis} />}
@@ -1102,6 +1145,7 @@ const BlindSpotReport = () => {
                   plan={plan}
                   onMasterClick={() => setActiveTab("practice")}
                   isLoadingConcept={loadingConcept}
+                  onAskWhale={askWhale}
                 />
               )}
               {activeTab === "practice" && (
@@ -1111,6 +1155,7 @@ const BlindSpotReport = () => {
                   onGenerateMore={generateMoreProblems}
                   isGeneratingMore={isGeneratingMore}
                   isLoadingPractice={loadingPractice}
+                  onAskWhale={askWhale}
                 />
               )}
             </div>
@@ -1136,7 +1181,7 @@ const BlindSpotReport = () => {
           style={{ width: whaleOpen ? `calc(${100 - splitLeft}% - 6px)` : "0" }}
           className="min-w-0 shrink-0 overflow-hidden transition-[width] duration-300 ease-in-out"
         >
-          <WhaleChatPanel diagnosis={diagnosis} onClose={() => setWhaleOpen(false)} />
+          <WhaleChatPanel diagnosis={diagnosis} onClose={() => setWhaleOpen(false)} pendingMessage={pendingWhaleMessage} onMessageHandled={() => setPendingWhaleMessage(null)} />
         </div>
 
         {/* ── Pull tab when Whal-E is closed ───────────────────────────────── */}

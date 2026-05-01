@@ -371,6 +371,7 @@ const DiagnosticLab = () => {
       <Helmet>
         <title>Workspace</title>
         <meta name="description" content="Upload a photo of your exam working or handwritten notes. Gogodeep analyses hard STEM questions, finds your error, and guides you step by step. Supports Physics HL, Math HL AA, AP Calculus BC, and AP Statistics." />
+        <link rel="canonical" href="https://gogodeep.com/workspace" />
       </Helmet>
       <div className="mx-auto max-w-2xl mt-12" data-feature="ai-scanner-for-hard-stem-questions" data-input-type="handwritten-notes,photo-upload,exam-working">
         <div className="flex justify-end mb-2">

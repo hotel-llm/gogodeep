@@ -48,6 +48,7 @@ const Contact = () => {
       <Helmet>
         <title>Contact</title>
         <meta name="description" content="Get in touch with the Gogodeep team. Questions about the AI study tool for STEM students, school and team plans, or partnerships." />
+        <link rel="canonical" href="https://gogodeep.com/contact" />
       </Helmet>
       <div className="max-w-xl mx-auto">
 

@@ -81,7 +81,7 @@ function AnimatedRoutes() {
   return (
     <>
       {/* Render the background page when pricing is open as an overlay */}
-      <Routes location={backgroundLocation ?? location}>
+      <Routes location={backgroundLocation ?? location} key={(backgroundLocation ?? location).pathname}>
         <Route path="/" element={<Index />} />
         <Route path="/dashboard" element={<DashboardRoute />} />
         <Route path="/login" element={<Login />} />
