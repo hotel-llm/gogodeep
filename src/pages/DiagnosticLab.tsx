@@ -32,25 +32,36 @@ const GUEST_SCAN_KEY = "gogodeep_guest_scan_used";
 function WhaleScanLoader({ complete }: { complete: boolean }) {
   return (
     <div className="flex flex-col items-center gap-5 px-6 text-center">
-      <img
-        src="/whale-e.png"
-        alt=""
-        className="whale-img h-24 w-24 object-contain"
-        style={{ animation: "float 4s ease-in-out infinite" }}
-      />
+      <div className="relative">
+        <img
+          src="/whale-e.png"
+          alt=""
+          className="whale-img h-24 w-24 object-contain"
+          style={{
+            animation: complete ? "none" : "float 4s ease-in-out infinite",
+            transition: "transform 0.3s ease",
+            transform: complete ? "scale(1.08)" : "scale(1)",
+          }}
+        />
+        {complete && (
+          <div className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full bg-green-500 shadow-md animate-in zoom-in duration-300">
+            <svg className="h-4 w-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </div>
+        )}
+      </div>
       <div className="w-32 overflow-hidden rounded-full bg-secondary h-1">
         <div
-          className="h-full rounded-full bg-primary"
+          className="h-full rounded-full bg-primary transition-all duration-500"
           style={{
-            animation: complete
-              ? "none"
-              : "loading-bar 1.6s ease-in-out infinite",
+            animation: complete ? "none" : "loading-bar 1.6s ease-in-out infinite",
             width: complete ? "100%" : undefined,
           }}
         />
       </div>
-      <p className="text-sm font-semibold tracking-widest text-muted-foreground uppercase">
-        Analysing
+      <p className={`text-sm font-semibold tracking-widest uppercase transition-colors duration-300 ${complete ? "text-green-500" : "text-muted-foreground"}`}>
+        {complete ? "Done!" : "Analysing"}
       </p>
     </div>
   );

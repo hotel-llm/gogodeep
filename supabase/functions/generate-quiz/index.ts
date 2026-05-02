@@ -1,12 +1,9 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-serve(async (req) => {
+Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -29,7 +26,7 @@ serve(async (req) => {
       });
     }
 
-    const topicList = topics.slice(0, 5).join(", ");
+    const topicList = (topics as string[]).slice(0, 5).join(", ");
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -40,12 +37,12 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: "claude-haiku-4-5-20251001",
-        max_tokens: 1024,
-        system: `You are a STEM tutor generating short recap quiz questions to help students consolidate their understanding of concepts they previously struggled with. Questions should be concise, clear, and directly target the concept. Always use the generate_quiz tool.`,
+        max_tokens: 2048,
+        system: `You are a STEM tutor generating short recap quiz questions. Always use the generate_quiz tool to return your answer.`,
         messages: [
           {
             role: "user",
-            content: `Generate one multiple-choice quiz question for each of these STEM concepts the student previously struggled with: ${topicList}. Each question should test core understanding, not just recall.`,
+            content: `Generate one multiple-choice quiz question for each of these STEM concepts: ${topicList}. Each question should test core understanding.`,
           },
         ],
         tools: [
@@ -60,15 +57,11 @@ serve(async (req) => {
                   items: {
                     type: "object",
                     properties: {
-                      topic: { type: "string", description: "The concept this question targets" },
-                      question: { type: "string", description: "The question text" },
-                      options: {
-                        type: "array",
-                        items: { type: "string" },
-                        description: "Exactly 4 answer options",
-                      },
+                      topic: { type: "string" },
+                      question: { type: "string" },
+                      options: { type: "array", items: { type: "string" }, minItems: 4, maxItems: 4 },
                       correct: { type: "number", description: "0-indexed position of the correct option" },
-                      explanation: { type: "string", description: "Brief explanation of why the correct answer is right" },
+                      explanation: { type: "string" },
                     },
                     required: ["topic", "question", "options", "correct", "explanation"],
                   },
@@ -85,7 +78,7 @@ serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error("Anthropic API error:", response.status, errorText);
-      return new Response(JSON.stringify({ error: "Failed to generate quiz" }), {
+      return new Response(JSON.stringify({ error: "Failed to generate quiz", detail: errorText }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -95,6 +88,7 @@ serve(async (req) => {
     const toolUse = data.content?.find((block: any) => block.type === "tool_use");
 
     if (!toolUse) {
+      console.error("No tool_use block in response:", JSON.stringify(data));
       return new Response(JSON.stringify({ error: "AI did not return quiz data" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

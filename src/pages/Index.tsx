@@ -171,7 +171,8 @@ const Dashboard = ({ user }: { user: User }) => {
   const [loading, setLoading] = useState(true);
   const [dropHover, setDropHover] = useState(false);
   const [quiz, setQuiz] = useState<QuizState | null>(null);
-  const [quizCardVersion, setQuizCardVersion] = useState(0);
+  const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[] | null>(null);
+  const [quizLoading, setQuizLoading] = useState(false);
   const [showQuizConfig, setShowQuizConfig] = useState(false);
   const [quizConfig, setQuizConfig] = useState<QuizConfig>({ numQuestions: 10, typed: true, multipleChoice: true, trueOrFalse: true, selectedConcepts: [] });
   const [elapsedSecs, setElapsedSecs] = useState(0);
@@ -270,43 +271,32 @@ const Dashboard = ({ user }: { user: User }) => {
     return Array.from(concepts);
   };
 
-  // Auto-generate practice problems for scans that don't have them cached
+  // Auto-generate quiz questions into state when enough scans exist
   useEffect(() => {
     if (!data || data.recentScans.length < 3) return;
-    const scansNeedingProblems = data.recentScans.slice(0, 5).filter((scan) => {
-      const raw = localStorage.getItem(SCAN_CACHE_KEY(scan.id));
-      if (!raw) return true;
-      try { return !(JSON.parse(raw).diagnosis?.practice_problems?.length > 0); } catch { return true; }
-    });
-    if (!scansNeedingProblems.length) return;
-    const topics = scansNeedingProblems.map((s) => s.label).filter((l) => l && l !== "Unnamed scan");
+    const topics = data.recentScans.slice(0, 5).map((s) => s.label).filter(Boolean);
     if (!topics.length) return;
+    setQuizLoading(true);
+    setQuizQuestions(null);
     supabase.functions.invoke("generate-quiz", { body: { topics } }).then(({ data: result, error }) => {
-      if (error || !Array.isArray(result?.questions) || !result.questions.length) return;
-      let updated = false;
-      result.questions.forEach((q: { topic: string; question: string; options: string[]; correct: number; explanation?: string }, idx: number) => {
-        const scan = scansNeedingProblems.find((s) => s.label.toLowerCase() === q.topic.toLowerCase()) ?? scansNeedingProblems[idx];
-        if (!scan) return;
+      setQuizLoading(false);
+      if (error || !Array.isArray(result?.questions) || !result.questions.length) {
+        console.error("[Quiz] generate-quiz failed:", error, result);
+        return;
+      }
+      const questions: QuizQuestion[] = (result.questions as { topic: string; question: string; options: string[]; correct: number; explanation?: string }[]).map((q) => {
         const correctAnswer = q.options[q.correct];
-        const problem = {
+        const shuffled = [...q.options].sort(() => Math.random() - 0.5);
+        return {
+          topic: q.topic,
           question: q.question,
           answer: q.explanation ? `${correctAnswer}\n\n${q.explanation}` : correctAnswer,
-          options: [correctAnswer, ...q.options.filter((_: string, i: number) => i !== q.correct)],
+          mode: "mc" as const,
+          mcOptions: shuffled,
+          mcCorrectIdx: shuffled.indexOf(correctAnswer),
         };
-        const cacheKey = SCAN_CACHE_KEY(scan.id);
-        try {
-          const existing = localStorage.getItem(cacheKey);
-          if (existing) {
-            const parsed = JSON.parse(existing);
-            parsed.diagnosis = { ...parsed.diagnosis, practice_problems: [problem] };
-            localStorage.setItem(cacheKey, JSON.stringify(parsed));
-          } else {
-            localStorage.setItem(cacheKey, JSON.stringify({ diagnosis: { practice_problems: [problem], concept_label: scan.label } }));
-          }
-          updated = true;
-        } catch {}
       });
-      if (updated) setQuizCardVersion((v) => v + 1);
+      setQuizQuestions(questions);
     });
   }, [data]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -374,8 +364,9 @@ const Dashboard = ({ user }: { user: User }) => {
   };
 
   const startQuiz = () => {
-    if (!data) return;
-    startQuizWithConfig({ numQuestions: 5, typed: false, multipleChoice: true, trueOrFalse: false, selectedConcepts: [] });
+    if (!quizQuestions?.length) return;
+    setQuizKey((k) => k + 1);
+    setQuiz({ questions: quizQuestions, current: 0, revealed: false, userInput: "", results: [], currentResult: null, showStats: false, selectedMcIdx: null });
   };
 
   const navigate = useNavigate();
@@ -614,47 +605,34 @@ const Dashboard = ({ user }: { user: User }) => {
                     <p className="text-sm text-muted-foreground">Need at least 3 scans to start.</p>
                     <p className="text-xs text-muted-foreground/60">{data?.recentScans.length ?? 0} / 3 so far</p>
                   </div>
-                ) : (() => {
-                  void quizCardVersion; // re-read localStorage after auto-generation
-                  const teasers: { topic: string; question: string }[] = [];
-                  const seenTopics: string[] = [];
-                  for (const scan of data!.recentScans) {
-                    if (seenTopics.length >= 2) break;
-                    const raw = localStorage.getItem(SCAN_CACHE_KEY(scan.id));
-                    if (!raw) continue;
-                    try {
-                      const stored = JSON.parse(raw);
-                      const problems: { question: string }[] = stored.diagnosis?.practice_problems ?? [];
-                      const qs = problems.slice(0, 2).map((p) => ({ topic: scan.label, question: p.question }));
-                      if (qs.length) { teasers.push(...qs); seenTopics.push(scan.label); }
-                    } catch {}
-                  }
-                  const shown = teasers.slice(0, 3);
-                  if (!shown.length) return (
-                    <div className="flex flex-col items-center gap-2 py-5 text-center">
-                      <BrainCircuit className="h-7 w-7 text-muted-foreground/30" />
-                      <p className="text-sm text-muted-foreground">Open a recent scan to load quiz questions.</p>
-                    </div>
-                  );
-                  return (
-                    <div className="space-y-3">
-                      <div className="relative overflow-hidden" style={{ maxHeight: "11rem" }}>
-                        <div className="space-y-2">
-                          {shown.map((q, i) => (
-                            <div key={i} className="rounded-lg border border-border bg-secondary/40 px-3 py-2.5">
-                              <p className="text-[10px] font-semibold uppercase tracking-widest text-primary mb-1">{q.topic}</p>
-                              <p className="text-xs text-foreground"><RichText text={q.question} /></p>
-                            </div>
-                          ))}
-                        </div>
-                        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-card to-transparent" />
+                ) : quizLoading ? (
+                  <div className="flex items-center justify-center gap-2 py-8">
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">Preparing quiz…</span>
+                  </div>
+                ) : quizQuestions?.length ? (
+                  <div className="space-y-3">
+                    <div className="relative overflow-hidden" style={{ maxHeight: "11rem" }}>
+                      <div className="space-y-2">
+                        {quizQuestions.slice(0, 3).map((q, i) => (
+                          <div key={i} className="rounded-lg border border-border bg-secondary/40 px-3 py-2.5">
+                            <p className="text-[10px] font-semibold uppercase tracking-widest text-primary mb-1">{q.topic}</p>
+                            <p className="text-xs text-foreground"><RichText text={q.question} /></p>
+                          </div>
+                        ))}
                       </div>
-                      <Button size="sm" className="w-full bg-primary hover:bg-primary/90 h-8 text-xs" onClick={startQuiz}>
-                        Start Quiz
-                      </Button>
+                      <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-card to-transparent" />
                     </div>
-                  );
-                })()}
+                    <Button size="sm" className="w-full bg-primary hover:bg-primary/90 h-8 text-xs" onClick={startQuiz}>
+                      Start Quiz
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-2 py-5 text-center">
+                    <BrainCircuit className="h-7 w-7 text-muted-foreground/30" />
+                    <p className="text-sm text-muted-foreground">Could not load quiz questions. Try refreshing.</p>
+                  </div>
+                )}
               </div>
             </Card>
           </div>

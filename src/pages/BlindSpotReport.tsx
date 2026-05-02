@@ -249,7 +249,7 @@ function PracticeTab({ problems, plan, onGenerateMore, isGeneratingMore, isLoadi
           const open = revealed.has(p.id);
           const canReveal = isPaid || idx === 0;
           return (
-            <div key={p.id} className="rounded-lg border border-border bg-secondary/40 p-4">
+            <div key={p.id} className="rounded-lg border border-border bg-secondary/40 p-4 animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-both" style={{ animationDelay: `${idx * 70}ms` }}>
               <div className="flex items-start justify-between gap-3">
                 <p className="text-sm font-medium text-foreground">
                   <span className="mr-2 text-muted-foreground/60">Q{idx + 1}.</span>
@@ -387,8 +387,8 @@ function ConceptTab({
   return (
     <>
       <div className="space-y-3" data-feature="root-cause-analysis-exam-mistakes" data-content="ai-analysis-breakdown,underlying-concept,targeted-practice">
-        {sections.map(({ id, label, Icon, content, locked, cardClass, labelClass, iconClass, askText }) => (
-          <div key={id}>
+        {sections.map(({ id, label, Icon, content, locked, cardClass, labelClass, iconClass, askText }, idx) => (
+          <div key={id} className="animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-both" style={{ animationDelay: `${idx * 80}ms` }}>
             <div
               className={`relative rounded-lg border p-5 ${cardClass} ${locked ? "cursor-pointer" : ""}`}
               style={{ minHeight: "8rem" }}
@@ -749,7 +749,7 @@ function StepsTab({ diagnosis, steps, revealed, setRevealed, plan, isLoading, im
         <>
           <div className="space-y-2">
             {steps.slice(0, revealed).map((step, i) => (
-              <div key={i} className="rounded-lg border border-primary/20 bg-primary/5 p-4 animate-in fade-in slide-in-from-top-1 duration-200">
+              <div key={i} className="rounded-lg border border-primary/20 bg-primary/5 p-4 animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-both" style={{ animationDelay: `${i * 60}ms` }}>
                 <div className="flex items-start gap-3">
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">
                     {i + 1}
@@ -1120,7 +1120,7 @@ const BlindSpotReport = () => {
             </div>
 
             {/* Tab content */}
-            <div className="animate-in fade-in duration-200">
+            <div key={activeTab} className="animate-in fade-in slide-in-from-bottom-3 duration-300 fill-mode-both">
               {activeTab === "steps" && (
                 <StepsTab
                   diagnosis={diagnosis as GuideDiagnosis}
