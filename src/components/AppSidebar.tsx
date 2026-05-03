@@ -27,7 +27,7 @@ const COLOR_MODE_LABELS: Record<ColorMode, string> = {
 
 const isWorkspacePath = (p: string) => p.startsWith("/workspace") || p.startsWith("/report");
 
-export default function AppSidebar({ user }: { user: User; onUserUpdate?: (u: User) => void }) {
+export default function AppSidebar({ user }: { user: User | null; onUserUpdate?: (u: User) => void }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [colorMode, setColorMode] = useState<ColorMode>(getStoredColorMode);
@@ -42,9 +42,10 @@ export default function AppSidebar({ user }: { user: User; onUserUpdate?: (u: Us
   }, [location.pathname]);
 
   useEffect(() => {
+    if (!user?.id) return;
     (supabase as any).from("profiles").select("plan").eq("id", user.id).single()
       .then(({ data }: { data: any }) => { if (data?.plan) setPlan(data.plan); });
-  }, [user.id]);
+  }, [user?.id]);
 
   function toggleCollapsed() {
     const next = !collapsed;
@@ -114,7 +115,7 @@ export default function AppSidebar({ user }: { user: User; onUserUpdate?: (u: Us
             <div className="space-y-0.5 px-3 py-1">
 
               {/* Dashboard */}
-              <Link to="/dashboard"
+              <Link to={user ? "/dashboard" : "/signup"}
                 className={cn("flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
                   isDashboard ? "bg-accent text-foreground" : "text-foreground/80 hover:bg-accent hover:text-foreground")}>
                 <LayoutDashboard className="h-4 w-4 shrink-0" />
@@ -138,7 +139,7 @@ export default function AppSidebar({ user }: { user: User; onUserUpdate?: (u: Us
                 </div>
 
                 {/* Dropdown content */}
-                {workspaceExpanded && (
+                {workspaceExpanded && user && (
                   <div className="mt-0.5 ml-3 border-l border-border pl-2 pb-1">
                     {/* Scan history — fades after ~5 items, scrollable */}
                     <div className="relative max-h-52 overflow-y-auto">
@@ -151,7 +152,7 @@ export default function AppSidebar({ user }: { user: User; onUserUpdate?: (u: Us
               </div>
 
               {/* Go Deep CTA */}
-              {plan !== "deep" && (
+              {user && plan !== "deep" && (
                 <div className="pt-3">
                   <button
                     onClick={() => navigate("/pricing", { state: { backgroundLocation: location } })}
@@ -171,30 +172,43 @@ export default function AppSidebar({ user }: { user: User; onUserUpdate?: (u: Us
               {COLOR_MODE_ICONS[colorMode]}
               <span>{COLOR_MODE_LABELS[colorMode]}</span>
             </button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-foreground/80 transition-colors hover:bg-accent hover:text-foreground">
-                  <UserCircle2 className="h-4 w-4 shrink-0" />
-                  <span className="truncate">{displayName(user)}</span>
+            {user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-foreground/80 transition-colors hover:bg-accent hover:text-foreground">
+                    <UserCircle2 className="h-4 w-4 shrink-0" />
+                    <span className="truncate">{displayName(user)}</span>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent side="top" align="start" className="w-52 border border-border bg-card">
+                  <DropdownMenuLabel className="truncate text-xs font-normal text-muted-foreground">
+                    {user.email}
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => navigate("/settings")} className="cursor-pointer gap-2">
+                    <Settings className="h-4 w-4" /> Settings
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate("/contact")} className="cursor-pointer gap-2">
+                    <Mail className="h-4 w-4" /> Contact
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={onLogout} className="cursor-pointer gap-2">
+                    <LogOut className="h-4 w-4" /> Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <div className="space-y-1.5 pt-1">
+                <button onClick={() => navigate("/signup")}
+                  className="w-full rounded-xl bg-primary px-3 py-2.5 text-center text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90">
+                  Sign up
                 </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent side="top" align="start" className="w-52 border border-border bg-card">
-                <DropdownMenuLabel className="truncate text-xs font-normal text-muted-foreground">
-                  {user.email}
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => navigate("/settings")} className="cursor-pointer gap-2">
-                  <Settings className="h-4 w-4" /> Settings
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate("/contact")} className="cursor-pointer gap-2">
-                  <Mail className="h-4 w-4" /> Contact
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={onLogout} className="cursor-pointer gap-2">
-                  <LogOut className="h-4 w-4" /> Logout
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                <button onClick={() => navigate("/login")}
+                  className="w-full rounded-xl border border-border px-3 py-2 text-center text-sm font-medium text-foreground/80 transition-colors hover:bg-accent hover:text-foreground">
+                  Log in
+                </button>
+              </div>
+            )}
           </div>
         </>
       )}

@@ -67,7 +67,7 @@ const Login = () => {
                   onClick={() => { setForgotOpen(false); setForgotSent(false); setForgotEmail(""); }}
                   className="mb-5 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
                 >
-                  <ArrowLeft className="h-3.5 w-3.5" /> Back to sign in
+                  <ArrowLeft className="h-3.5 w-3.5" /> Back to log in
                 </button>
                 {forgotSent ? (
                   <div className="text-center">
@@ -98,11 +98,11 @@ const Login = () => {
               <>
                 <div className="mb-6 flex flex-col items-center text-center">
                   <img src={gogodeepLogo} alt="Gogodeep — AI exam mistake helper for IB, AP, and A-Level STEM students" className="h-12 w-12 object-contain" />
-                  <h1 className="mt-4 text-2xl font-bold tracking-tight text-foreground">Sign in to Gogodeep</h1>
+                  <h1 className="mt-4 text-2xl font-bold tracking-tight text-foreground">Log in to Gogodeep</h1>
                   <p className="mt-2 text-sm text-muted-foreground">Enter your credentials to continue.</p>
                 </div>
 
-                <GoogleAuthButton label="Sign in with Google" />
+                <GoogleAuthButton label="Log in with Google" />
 
                 <div className="my-5 flex items-center gap-3">
                   <div className="flex-1 h-px bg-border" />
@@ -135,7 +135,7 @@ const Login = () => {
                   {formError && <p className="text-xs text-destructive">{formError}</p>}
                   <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={isLoading}>
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Sign in
+                    Log in
                   </Button>
                 </form>
 

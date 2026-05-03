@@ -52,7 +52,7 @@ const ResetPassword = () => {
             {done ? (
               <>
                 <h1 className="mt-4 text-2xl font-bold text-foreground">Password updated</h1>
-                <p className="mt-2 text-sm text-muted-foreground">Redirecting you to sign in…</p>
+                <p className="mt-2 text-sm text-muted-foreground">Redirecting you to log in…</p>
               </>
             ) : !ready ? (
               <>

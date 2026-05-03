@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { Helmet } from "react-helmet-async";
 import { useNavigate, Link } from "react-router-dom";
-import { Upload, Loader2, Waves, ArrowRight, Lock } from "lucide-react";
+import { Upload, Loader2, Waves, ArrowRight, Lock, AlertTriangle } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { whaleToast } from "@/lib/whaleToast";
@@ -76,8 +76,9 @@ const DiagnosticLab = () => {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [remainingCredits, setRemainingCredits] = useState<number | null>(null);
   const resetCountdown = useUtcResetCountdown();
-  const [showLoginGate, setShowLoginGate] = useState(false);
   const pendingNavRef = useRef<{ imageUrl: string; diagnosis: unknown } | null>(null);
+  const [cooldownActive, setCooldownActive] = useState(false);
+  const cooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -86,9 +87,11 @@ const DiagnosticLab = () => {
     const { data: { user } } = await supabase.auth.getUser();
     const key = user?.id ? `gogodeep_last_scan_${user.id}` : "gogodeep_last_scan_guest";
     const last = parseInt(localStorage.getItem(key) ?? "0", 10);
-    const remaining = Math.ceil((SCAN_COOLDOWN_MS - (Date.now() - last)) / 1000);
+    const remaining = SCAN_COOLDOWN_MS - (Date.now() - last);
     if (remaining > 0) {
-      whaleToast.error(`Easy there! Give me ${remaining}s before the next scan.`);
+      setCooldownActive(true);
+      if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
+      cooldownTimerRef.current = setTimeout(() => setCooldownActive(false), remaining);
       return false;
     }
     localStorage.setItem(key, String(Date.now()));
@@ -104,7 +107,7 @@ const DiagnosticLab = () => {
         data: { user: preCheckUser },
       } = await supabase.auth.getUser();
       if (!preCheckUser?.id && localStorage.getItem(GUEST_SCAN_KEY)) {
-        setShowLoginGate(true);
+        navigate("/signup");
         return;
       }
 
@@ -408,9 +411,15 @@ const DiagnosticLab = () => {
                 isAnalyzing && "cursor-not-allowed"
               )}
             >
-              <input type="file" accept="image/*" className="hidden" onChange={onFileInput} disabled={isAnalyzing} />
+              <input type="file" accept="image/*" className="hidden" onChange={onFileInput} disabled={isAnalyzing || cooldownActive} />
               {isAnalyzing ? (
                 <WhaleScanLoader complete={scanComplete} />
+              ) : cooldownActive ? (
+                <div className="flex flex-col items-center gap-3 px-6 text-center">
+                  <AlertTriangle className="h-9 w-9 text-yellow-500" />
+                  <p className="text-sm font-semibold text-foreground">Wait a moment</p>
+                  <p className="text-xs text-muted-foreground">Try again in a few seconds.</p>
+                </div>
               ) : (
                 <div className="flex flex-col items-center gap-4 px-6 text-center">
                   {isDragging ? (
@@ -477,27 +486,6 @@ const DiagnosticLab = () => {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showLoginGate} onOpenChange={setShowLoginGate}>
-        <DialogContent className="border border-border bg-card sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-foreground">Sign up to keep going</DialogTitle>
-            <DialogDescription className="text-muted-foreground">
-              It only takes 10 seconds. Sign up free to save this scan and keep going.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="mt-2 flex flex-col gap-2">
-            <Link to="/signup" state={{ pendingReport: pendingNavRef.current }}>
-              <Button className="w-full bg-primary hover:bg-primary/90">
-                Sign up free
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
-            <Link to="/login" state={{ pendingReport: pendingNavRef.current }}>
-              <Button variant="outline" className="w-full border-border">Already have an account? Log in</Button>
-            </Link>
-          </div>
-        </DialogContent>
-      </Dialog>
 
     </EducatorLayout>
   );

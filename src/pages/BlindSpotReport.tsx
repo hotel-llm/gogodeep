@@ -223,7 +223,7 @@ function PracticeTab({ problems, plan, onGenerateMore, isGeneratingMore, isLoadi
   isLoadingPractice: boolean;
   onAskWhale: (text: string) => void;
 }) {
-  const isPaid = FREE_FOR_ALL || plan === "intermediate" || plan === "deep";
+  const isPaid = true; // concept tab open to all
   const [revealed, setRevealed] = useState<Set<number>>(new Set());
   const [upgradeType, setUpgradeType] = useState<"paid" | null>(null);
 
@@ -247,7 +247,7 @@ function PracticeTab({ problems, plan, onGenerateMore, isGeneratingMore, isLoadi
       <div className="space-y-3">
         {problems.map((p, idx) => {
           const open = revealed.has(p.id);
-          const canReveal = isPaid || idx === 0;
+          const canReveal = true;
           return (
             <div key={p.id} className="rounded-lg border border-border bg-secondary/40 p-4 animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-both" style={{ animationDelay: `${idx * 70}ms` }}>
               <div className="flex items-start justify-between gap-3">
@@ -317,7 +317,7 @@ function ConceptTab({
   legacyConcept?: string; plan: string; onMasterClick: () => void; isLoadingConcept?: boolean;
   onAskWhale: (text: string) => void;
 }) {
-  const isPaid = FREE_FOR_ALL || plan === "intermediate" || plan === "deep";
+  const isPaid = true; // concept tab open to all
   const [showUpgrade, setShowUpgrade] = useState(false);
 
   // Legacy fallback for old cached scans
@@ -703,7 +703,7 @@ function WhaleChatPanel({ diagnosis, onClose, pendingMessage, onMessageHandled }
   );
 }
 
-function StepsTab({ diagnosis, steps, revealed, setRevealed, plan, isLoading, imageSrc, inputText, onImageClick, onAskWhale }: {
+function StepsTab({ diagnosis, steps, revealed, setRevealed, plan, isLoading, imageSrc, inputText, onImageClick, onAskWhale, onRetry }: {
   diagnosis: GuideDiagnosis;
   steps: string[];
   revealed: number;
@@ -714,8 +714,9 @@ function StepsTab({ diagnosis, steps, revealed, setRevealed, plan, isLoading, im
   inputText?: string | null;
   onImageClick?: () => void;
   onAskWhale: (text: string) => void;
+  onRetry?: () => void;
 }) {
-  const isPaid = FREE_FOR_ALL || plan === "intermediate" || plan === "deep";
+  const isPaid = true; // concept tab open to all
 
   if (isLoading) {
     return (
@@ -744,7 +745,10 @@ function StepsTab({ diagnosis, steps, revealed, setRevealed, plan, isLoading, im
         </div>
       ) : null}
       {steps.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No steps available for this scan.</p>
+        <div className="flex flex-col items-center gap-3 py-8 text-center">
+          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Loading steps…</p>
+        </div>
       ) : (
         <>
           <div className="space-y-2">
@@ -905,20 +909,16 @@ const BlindSpotReport = () => {
   }, []);
 
   // Lazy load steps if they are missing from the diagnosis (always fetch — credit-independent)
-  useEffect(() => {
-    const existingSteps = Array.isArray((diagnosis as any)?.steps) ? (diagnosis as any).steps as string[] : [];
-    if (existingSteps.length > 0) return;   // already have steps
-    if (lazySteps !== null) return;         // already fetched
+  const fetchSteps = useCallback(() => {
     if (loadingSteps) return;
     const topic = (diagnosis as any)?.concept_label ?? (diagnosis as any)?.underlying_concept ?? (diagnosis as any)?.error_tag ?? (diagnosis as any)?.question_summary ?? "STEM";
     const questionSummary = (diagnosis as any)?.question_summary ?? (diagnosis as any)?.what_happened ?? "";
-    const complexity = parseInt(localStorage.getItem("gogodeep_complexity") ?? "2", 10);
     setLoadingSteps(true);
     supabase.functions.invoke("diagnose-image", {
-      body: { text: questionSummary || topic, mode: "guide_steps", complexity },
+      body: { text: questionSummary || topic, mode: "guide_steps", complexity: 2 },
     }).then(({ data, error }) => {
       setLoadingSteps(false);
-      if (error || (data as any)?.error) return; // silent — don't toast, steps pane handles empty state
+      if (error || (data as any)?.error) return;
       const steps: string[] = Array.isArray((data as any)?.steps) ? (data as any).steps : [];
       if (steps.length) {
         setLazySteps(steps);
@@ -936,6 +936,13 @@ const BlindSpotReport = () => {
         }
       }
     });
+  }, [diagnosis, loadingSteps, scanId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const existingSteps = Array.isArray((diagnosis as any)?.steps) ? (diagnosis as any).steps as string[] : [];
+    if (existingSteps.length > 0) return;
+    if (lazySteps !== null) return;
+    fetchSteps();
   }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Lazy load concept when Concept tab is first clicked
@@ -974,7 +981,7 @@ const BlindSpotReport = () => {
     if (loadingPractice || lazyPractice !== null) return;
     if (Array.isArray((diagnosis as any)?.practice_problems) && (diagnosis as any).practice_problems.length > 0) return;
     const topic = (diagnosis as any)?.concept_label ?? (diagnosis as any)?.question_summary ?? "STEM";
-    const practice_count = (!FREE_FOR_ALL && plan === "free") ? 1 : 3;
+    const practice_count = 3;
     setLoadingPractice(true);
     supabase.functions.invoke("diagnose-image", {
       body: { mode: "more_practice", topic, practice_count, start_id: 1 },
@@ -1133,6 +1140,7 @@ const BlindSpotReport = () => {
                   inputText={inputText}
                   onImageClick={() => setLightboxOpen(true)}
                   onAskWhale={askWhale}
+                  onRetry={fetchSteps}
                 />
               )}
               {activeTab === "error" && <IdentifyErrorTab diagnosis={diagnosis as IdentifyDiagnosis} />}

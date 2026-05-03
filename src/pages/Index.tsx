@@ -153,6 +153,15 @@ type QuizState = {
   selectedMcIdx: number | null;
 };
 
+type QuizHistoryEntry = {
+  id: string;
+  date: string;
+  score: number;
+  total: number;
+  elapsedSecs: number;
+  topics: string[];
+};
+
 type QuizConfig = {
   numQuestions: number;
   typed: boolean;
@@ -178,6 +187,16 @@ const Dashboard = ({ user }: { user: User }) => {
   const [elapsedSecs, setElapsedSecs] = useState(0);
   const [quizKey, setQuizKey] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const resumeElapsedRef = useRef(0);
+  const [confirmRestart, setConfirmRestart] = useState(false);
+  const [showQuizHistory, setShowQuizHistory] = useState(false);
+  const [quizHistory, setQuizHistory] = useState<QuizHistoryEntry[]>(() => {
+    try { return JSON.parse(localStorage.getItem(`gogodeep_qh_${user.id}`) ?? "[]"); } catch { return []; }
+  });
+  const [nextQuizQuestions, setNextQuizQuestions] = useState<QuizQuestion[] | null>(null);
+  const [generatingNext, setGeneratingNext] = useState(false);
+  const QUIZ_SAVE_KEY = `gogodeep_qs_${user.id}`;
+  const QUIZ_HIST_KEY = `gogodeep_qh_${user.id}`;
   const [scanAtBottom, setScanAtBottom] = useState(false);
   const [quoteOffset, setQuoteOffset] = useState(0);
   const scanScrollRef = useRef<HTMLDivElement>(null);
@@ -303,11 +322,68 @@ const Dashboard = ({ user }: { user: User }) => {
   const quizActive = !!quiz && !quiz.showStats;
   useEffect(() => {
     if (!quizActive) { if (timerRef.current) clearInterval(timerRef.current); return; }
-    setElapsedSecs(0);
-    const startTs = Date.now();
+    const resumeFrom = resumeElapsedRef.current;
+    resumeElapsedRef.current = 0;
+    setElapsedSecs(resumeFrom);
+    const startTs = Date.now() - resumeFrom * 1000;
     timerRef.current = setInterval(() => setElapsedSecs(Math.floor((Date.now() - startTs) / 1000)), 500);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [quizActive, quizKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Restore in-progress quiz on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(QUIZ_SAVE_KEY);
+      if (!saved) return;
+      const { quiz: savedQuiz, elapsed } = JSON.parse(saved);
+      if (savedQuiz && !savedQuiz.showStats && savedQuiz.questions?.length) {
+        resumeElapsedRef.current = elapsed ?? 0;
+        setQuizKey((k) => k + 1);
+        setQuiz(savedQuiz);
+      }
+    } catch {}
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Save quiz progress whenever active quiz changes
+  useEffect(() => {
+    if (!quiz || quiz.showStats) return;
+    try { localStorage.setItem(QUIZ_SAVE_KEY, JSON.stringify({ quiz, elapsed: elapsedSecs })); } catch {}
+  }, [quiz, elapsedSecs]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // On quiz completion: save history, clear progress, handle deep/free
+  useEffect(() => {
+    if (!quiz?.showStats) return;
+    try { localStorage.removeItem(QUIZ_SAVE_KEY); } catch {}
+    const entry: QuizHistoryEntry = {
+      id: crypto.randomUUID(),
+      date: new Date().toISOString(),
+      score: quiz.results.filter((r) => r === "correct").length,
+      total: quiz.questions.length,
+      elapsedSecs,
+      topics: [...new Set(quiz.questions.map((q) => q.topic))],
+    };
+    const newHistory = [entry, ...quizHistory].slice(0, 30);
+    setQuizHistory(newHistory);
+    try { localStorage.setItem(QUIZ_HIST_KEY, JSON.stringify(newHistory)); } catch {}
+
+    // Deep users: pre-generate next quiz
+    if (data?.plan === "deep" && data.recentScans.length >= 3) {
+      const topics = data.recentScans.slice(0, 5).map((s) => s.label).filter(Boolean);
+      if (!topics.length) return;
+      setGeneratingNext(true);
+      setNextQuizQuestions(null);
+      supabase.functions.invoke("generate-quiz", { body: { topics } }).then(({ data: result, error }) => {
+        setGeneratingNext(false);
+        if (error || !Array.isArray(result?.questions) || !result.questions.length) return;
+        const questions: QuizQuestion[] = (result.questions as { topic: string; question: string; options: string[]; correct: number; explanation?: string }[]).map((q) => {
+          const correctAnswer = q.options[q.correct];
+          const shuffled = [...q.options].sort(() => Math.random() - 0.5);
+          return { topic: q.topic, question: q.question, answer: q.explanation ? `${correctAnswer}\n\n${q.explanation}` : correctAnswer, mode: "mc" as const, mcOptions: shuffled, mcCorrectIdx: shuffled.indexOf(correctAnswer) };
+        });
+        setNextQuizQuestions(questions);
+      });
+    }
+  }, [quiz?.showStats]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const QUIZ_DAY_KEY = "gogodeep_quiz_day";
   const QUIZ_COUNT_KEY = "gogodeep_quiz_count";
@@ -363,10 +439,14 @@ const Dashboard = ({ user }: { user: User }) => {
     setQuiz({ questions: final, current: 0, revealed: false, userInput: "", results: [], currentResult: null, showStats: false, selectedMcIdx: null });
   };
 
-  const startQuiz = () => {
-    if (!quizQuestions?.length) return;
+  const startQuiz = (questions?: QuizQuestion[]) => {
+    const qs = questions ?? quizQuestions;
+    if (!qs?.length) return;
+    try { localStorage.removeItem(QUIZ_SAVE_KEY); } catch {}
+    setNextQuizQuestions(null);
+    setConfirmRestart(false);
     setQuizKey((k) => k + 1);
-    setQuiz({ questions: quizQuestions, current: 0, revealed: false, userInput: "", results: [], currentResult: null, showStats: false, selectedMcIdx: null });
+    setQuiz({ questions: qs, current: 0, revealed: false, userInput: "", results: [], currentResult: null, showStats: false, selectedMcIdx: null });
   };
 
   const navigate = useNavigate();
@@ -396,20 +476,27 @@ const Dashboard = ({ user }: { user: User }) => {
           <div className="mb-10 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Dashboard</p>
-              <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-foreground">
-                {[
-                  "Today is your day",
-                  "Make yourself proud today",
-                  "Let's get to work",
-                  "One step closer",
-                  "Show up. Show out",
-                  "Your future self is watching",
-                  "Make today count",
-                  "Time to level up",
-                  "No excuses today",
-                  "Outwork yesterday",
-                ][new Date().getUTCDay() * 3 % 10]}, {username}
-              </h1>
+              {!loading && data?.totalScans === 0 ? (
+                <>
+                  <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-foreground">Do your first scan now</h1>
+                  <p className="mt-1 text-sm text-muted-foreground">Screenshot a problem you're stuck on, and get a full breakdown in seconds.</p>
+                </>
+              ) : (
+                <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-foreground">
+                  {[
+                    "Today is your day",
+                    "Make yourself proud today",
+                    "Let's get to work",
+                    "One step closer",
+                    "Show up. Show out",
+                    "Your future self is watching",
+                    "Make today count",
+                    "Time to level up",
+                    "No excuses today",
+                    "Outwork yesterday",
+                  ][new Date().getUTCDay() * 3 % 10]}, {username}
+                </h1>
+              )}
             </div>
             <div
               role="button"
@@ -888,7 +975,7 @@ const DEMO_PRACTICE = [
   },
 ];
 
-type DemoTab = "steps" | "concept" | "practice" | "model";
+type DemoTab = "steps" | "concept" | "practice";
 
 const ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp", "image/heic", "image/heif"];
 
@@ -989,7 +1076,7 @@ const DemoPanel = () => {
             <div className="w-56">
               <div className="mb-2 flex items-center gap-2">
                 <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
-                <span className="text-xs text-muted-foreground transition-all duration-300">{LOADING_MSGS[loadingMsgIdx]}</span>
+                <span className="text-sm text-muted-foreground transition-all duration-300">{LOADING_MSGS[loadingMsgIdx]}</span>
               </div>
               <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
                 <div className="h-full rounded-full bg-primary animate-loading-fill" />
@@ -1006,29 +1093,23 @@ const DemoPanel = () => {
                 { value: "steps", label: "Step by Step" },
                 { value: "concept", label: "Concept" },
                 { value: "practice", label: "Practice" },
-                { value: "model", label: "Model" },
               ];
               const demoTabIdx = demoTabs.findIndex((t) => t.value === tab);
               return (
                 <div className="relative mb-3 flex gap-1 rounded-lg border border-border bg-secondary p-1">
                   <div
                     className="absolute bottom-1 top-1 rounded-md bg-card shadow-sm transition-transform duration-200 ease-out"
-                    style={{ width: "calc((100% - 8px) / 4)", transform: `translateX(calc(${demoTabIdx} * 100%))` }}
+                    style={{ width: "calc((100% - 8px) / 3)", transform: `translateX(calc(${demoTabIdx} * 100%))` }}
                   />
                   {demoTabs.map(({ value, label }) => (
                     <button
                       key={value}
                       onClick={() => { setTab(value); lastInteractionRef.current = Date.now(); }}
-                      className={`relative z-10 flex flex-1 items-center justify-center gap-1 rounded-md py-1.5 text-[10px] font-semibold transition-colors duration-200 ${
+                      className={`relative z-10 flex flex-1 items-center justify-center gap-1 rounded-md py-1.5 text-xs font-semibold transition-colors duration-200 ${
                         tab === value ? "text-foreground" : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
                       <span className="truncate">{label}</span>
-                      {value === "model" && (
-                        <span className="absolute -right-1 -top-2 rounded-sm bg-blue-500 px-1 py-px text-[8px] font-bold uppercase leading-none text-white">
-                          beta
-                        </span>
-                      )}
                     </button>
                   ))}
                 </div>
@@ -1037,41 +1118,34 @@ const DemoPanel = () => {
 
             {tab === "steps" && (
               <div className="flex-1 space-y-2 overflow-y-auto pr-0.5">
-                {/* Triangle diagram — vertices: A(25,98) B(125,98) C(125,28); tan(35°)=70/100 ✓ */}
                 <div className="flex justify-center rounded-lg border border-border bg-secondary/30 py-2">
                   <svg viewBox="0 0 170 115" className="w-44 h-28">
                     <polygon points="25,98 125,98 125,28" fill="none" stroke="hsl(var(--foreground) / 0.5)" strokeWidth="1.5" />
-                    {/* right-angle box at B(125,98) */}
                     <rect x="114" y="87" width="11" height="11" fill="none" stroke="hsl(var(--foreground) / 0.4)" strokeWidth="1.2" />
-                    {/* 35° arc at A — from base (43,98) to hyp (39.7,87.7) counterclockwise */}
                     <path d="M 43,98 A 18,18 0 0,0 39.7,87.7" fill="none" stroke="#5b7fef" strokeWidth="1.3" />
-                    {/* 35° label — along angle bisector, r=27 from A */}
-                    <text x="50" y="91" fontSize="9" fill="#5b7fef" fontWeight="600">35°</text>
-                    {/* hyp label — centred on hyp midpoint (75,63), outside triangle */}
-                    <text x="75" y="52" fontSize="9" fill="hsl(var(--foreground) / 0.55)" textAnchor="middle" transform="rotate(-35,75,52)">hyp = 10 cm</text>
-                    {/* opposite label — right of vertical side */}
-                    <text x="133" y="66" fontSize="9" fill="#4ade80" fontWeight="600">x = ?</text>
-                    {/* base label — below horizontal */}
-                    <text x="75" y="111" fontSize="9" fill="hsl(var(--foreground) / 0.3)" textAnchor="middle">adj</text>
+                    <text x="50" y="91" fontSize="10" fill="#5b7fef" fontWeight="600">35°</text>
+                    <text x="75" y="52" fontSize="10" fill="hsl(var(--foreground) / 0.55)" textAnchor="middle" transform="rotate(-35,75,52)">hyp = 10 cm</text>
+                    <text x="133" y="66" fontSize="10" fill="#4ade80" fontWeight="600">x = ?</text>
+                    <text x="75" y="111" fontSize="10" fill="hsl(var(--foreground) / 0.3)" textAnchor="middle">adj</text>
                   </svg>
                 </div>
-                <div className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-primary"><RichText text="Find the opposite side" /></div>
+                <div className="mb-1 text-xs font-semibold uppercase tracking-widest text-primary"><RichText text="Find the opposite side" /></div>
                 {PHYSICS_STEPS.slice(0, revealedSteps).map((step, i) => (
                   <div key={i} className="flex items-start gap-2.5 rounded-lg border border-primary/20 bg-primary/5 p-3">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">{i + 1}</span>
-                    <div className="text-xs leading-relaxed text-foreground"><RichText text={step} /></div>
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">{i + 1}</span>
+                    <div className="text-sm leading-relaxed text-foreground"><RichText text={step} /></div>
                   </div>
                 ))}
                 {revealedSteps < PHYSICS_STEPS.length && (
                   <button
                     onClick={() => { setRevealedSteps((v) => v + 1); lastInteractionRef.current = Date.now(); }}
-                    className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-lg border border-border py-2 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+                    className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-lg border border-border py-2 text-xs font-semibold text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
                   >
                     Next step <ChevronRight className="h-3 w-3" />
                   </button>
                 )}
                 {revealedSteps >= PHYSICS_STEPS.length && (
-                  <p className="pt-1 text-center text-[10px] text-muted-foreground/50">All steps revealed.</p>
+                  <p className="pt-1 text-center text-xs text-muted-foreground/50">All steps revealed.</p>
                 )}
               </div>
             )}
@@ -1080,41 +1154,41 @@ const DemoPanel = () => {
               <div className="flex-1 space-y-2 overflow-y-auto">
                 <div className="rounded-lg border border-border bg-secondary/40 p-3">
                   <div className="mb-1.5 flex items-center gap-1.5">
-                    <Microscope className="h-3 w-3 text-primary" />
-                    <p className="text-[10px] font-semibold uppercase tracking-widest text-primary">In this problem</p>
+                    <Microscope className="h-3.5 w-3.5 text-primary" />
+                    <p className="text-xs font-semibold uppercase tracking-widest text-primary">In this problem</p>
                   </div>
-                  <div className="text-xs leading-relaxed text-muted-foreground"><RichText text={PHYSICS_WHAT_HAPPENED} /></div>
+                  <div className="text-sm leading-relaxed text-muted-foreground"><RichText text={PHYSICS_WHAT_HAPPENED} /></div>
                 </div>
                 <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
                   <div className="mb-1.5 flex items-center gap-1.5">
-                    <Lightbulb className="h-3 w-3 text-primary" />
-                    <p className="text-[10px] font-semibold uppercase tracking-widest text-primary">The concept</p>
+                    <Lightbulb className="h-3.5 w-3.5 text-primary" />
+                    <p className="text-xs font-semibold uppercase tracking-widest text-primary">The concept</p>
                   </div>
-                  <div className="text-xs leading-relaxed text-muted-foreground"><RichText text={PHYSICS_CORE_CONCEPT} /></div>
+                  <div className="text-sm leading-relaxed text-muted-foreground"><RichText text={PHYSICS_CORE_CONCEPT} /></div>
                 </div>
                 <div className="rounded-lg border border-border bg-secondary/60 p-3">
                   <div className="mb-1.5 flex items-center gap-1.5">
-                    <ArrowRight className="h-3 w-3 text-primary" />
-                    <p className="text-[10px] font-semibold uppercase tracking-widest text-primary">When you see this</p>
+                    <ArrowRight className="h-3.5 w-3.5 text-primary" />
+                    <p className="text-xs font-semibold uppercase tracking-widest text-primary">When you see this</p>
                   </div>
-                  <div className="text-xs leading-relaxed text-muted-foreground"><RichText text={PHYSICS_RECOGNITION_CUE} /></div>
+                  <div className="text-sm leading-relaxed text-muted-foreground"><RichText text={PHYSICS_RECOGNITION_CUE} /></div>
                 </div>
               </div>
             )}
 
             {tab === "practice" && (
               <div className="flex-1 space-y-2 overflow-y-auto">
-                <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-primary">Practice Questions</p>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-primary">Practice Questions</p>
                 {PHYSICS_PRACTICE.map((item, i) => (
                   <div key={i} className="rounded-lg border border-primary/20 bg-primary/5 p-3">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-start gap-2">
-                        <span className="mt-0.5 shrink-0 text-xs font-bold text-primary">{i + 1}.</span>
-                        <div className="text-xs leading-relaxed text-foreground"><RichText text={item.q} /></div>
+                        <span className="mt-0.5 shrink-0 text-sm font-bold text-primary">{i + 1}.</span>
+                        <div className="text-sm leading-relaxed text-foreground"><RichText text={item.q} /></div>
                       </div>
                       <button
                         onClick={() => { lastInteractionRef.current = Date.now(); setRevealedAnswers((prev) => { const next = new Set(prev); next.has(i) ? next.delete(i) : next.add(i); return next; }); }}
-                        className="shrink-0 text-[10px] font-semibold text-primary underline underline-offset-2 hover:text-primary/80"
+                        className="shrink-0 text-xs font-semibold text-primary underline underline-offset-2 hover:text-primary/80"
                       >
                         {revealedAnswers.has(i) ? "Hide" : "Answer"}
                       </button>
@@ -1123,8 +1197,8 @@ const DemoPanel = () => {
                       <div className="mt-2 space-y-1">
                         {item.steps.map((step, si) => (
                           <div key={si} className="flex items-start gap-2 rounded border border-primary/20 bg-card px-2.5 py-1.5">
-                            <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-primary-foreground">{si + 1}</span>
-                            <div className="text-[11px] leading-relaxed text-foreground"><RichText text={step} /></div>
+                            <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">{si + 1}</span>
+                            <div className="text-xs leading-relaxed text-foreground"><RichText text={step} /></div>
                           </div>
                         ))}
                       </div>
@@ -1134,11 +1208,6 @@ const DemoPanel = () => {
               </div>
             )}
 
-            {tab === "model" && (
-              <div className="flex-1 min-h-0 overflow-hidden rounded-lg border border-border">
-                <UnitCircle />
-              </div>
-            )}
           </div>
         )}
 

@@ -143,7 +143,8 @@ function AppLayout() {
 
   const backgroundLocation = (location.state as any)?.backgroundLocation;
   const effectivePath = (backgroundLocation ?? location).pathname;
-  const showSidebar = user != null && SIDEBAR_ROUTES.some((r) => effectivePath.startsWith(r));
+  const showSidebar = SIDEBAR_ROUTES.some((r) => effectivePath.startsWith(r));
+  const showNav = !showSidebar && effectivePath === "/";
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
     () => localStorage.getItem("main_sidebar_collapsed") === "true"
   );
@@ -157,10 +158,10 @@ function AppLayout() {
   return (
     <>
       {showSidebar ? (
-        <AppSidebar user={user} onUserUpdate={setUser} />
-      ) : (
+        <AppSidebar user={user ?? null} onUserUpdate={setUser} />
+      ) : showNav ? (
         <AppNav user={user ?? null} />
-      )}
+      ) : null}
       <div className={showSidebar ? (sidebarCollapsed ? "md:ml-14 transition-[margin] duration-200" : "md:ml-64 transition-[margin] duration-200") : ""}>
         <AnimatedRoutes />
       </div>

@@ -4,7 +4,7 @@ import { FREE_FOR_ALL } from "@/lib/featureFlags";
 export const SCAN_CACHE_KEY = (id: string) => `gogodeep_scan_${id}`;
 
 export const SCAN_LIMITS: Record<string, number | null> = {
-  free: 3,
+  free: 5,
   intermediate: 10,
   deep: null,
 };
