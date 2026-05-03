@@ -125,7 +125,7 @@ Deno.serve(async (req: Request) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          from: "Gogodeep <noreply@gogodeep.com>",
+          from: "Gogodeep <noreply@auth.gogodeep.com>",
           to: [user.email],
           subject: `${scanCount} scan${scanCount === 1 ? "" : "s"} this week${topTopic ? ` · focus: ${topTopic}` : ""}`,
           html,

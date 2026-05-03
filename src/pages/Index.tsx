@@ -947,10 +947,15 @@ const DemoPanel = () => {
 
         {/* Phase 0: empty state */}
         {phase === 0 && (
-          <div className="flex h-full items-center justify-center">
-            <div className="flex flex-col items-center gap-2.5 opacity-20 select-none">
-              <Upload className="h-9 w-9 text-muted-foreground" />
-              <p className="text-xs text-muted-foreground">Drop your question here</p>
+          <div className="flex h-full items-center justify-center select-none">
+            <div className="flex flex-col items-center gap-3">
+              <p className="text-2xl font-extrabold tracking-tight text-foreground">Drop a screenshot</p>
+              <p className="text-sm text-muted-foreground">of any problem</p>
+              {/* Simple curved arrow pointing down */}
+              <svg width="28" height="40" viewBox="0 0 28 40" fill="none" className="text-primary mt-1">
+                <path d="M14 2 C14 2 14 28 14 30" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                <path d="M6 24 L14 34 L22 24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
             </div>
           </div>
         )}
@@ -1157,6 +1162,60 @@ const FAQ_ITEMS = [
   },
 ];
 
+function GoButton() {
+  const [extraOs, setExtraOs] = useState(0);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const handleEnter = () => {
+    setExtraOs(0);
+    intervalRef.current = setInterval(() => {
+      setExtraOs((n) => (n < 10 ? n + 1 : n));
+    }, 70);
+  };
+
+  const handleLeave = () => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    setExtraOs(0);
+  };
+
+  const isCharging = extraOs > 0;
+
+  return (
+    <Link to="/workspace">
+      <button
+        onMouseEnter={handleEnter}
+        onMouseLeave={handleLeave}
+        className={`relative h-16 min-w-[180px] rounded-2xl px-10 text-xl font-bold text-white transition-all duration-300 overflow-hidden select-none
+          ${isCharging
+            ? "bg-gradient-to-r from-yellow-500 via-orange-500 to-yellow-400 shadow-[0_0_40px_8px_rgba(234,179,8,0.5)] scale-105"
+            : "bg-primary shadow-[0_0_24px_4px_rgba(91,127,239,0.3)] hover:scale-105"
+          }`}
+      >
+        <span className="relative z-10 flex items-end gap-0.5 justify-center leading-none">
+          <span>G</span>
+          <span className={`transition-colors duration-200 ${isCharging ? "text-yellow-100" : ""}`}>
+            o{"o".repeat(extraOs)}
+          </span>
+          {!isCharging && (
+            <span className="flex items-end mb-0.5 ml-0.5">
+              {[0, 1, 2].map((i) => (
+                <span
+                  key={i}
+                  className="inline-block animate-bounce text-white/80"
+                  style={{ animationDelay: `${i * 160}ms`, animationDuration: "900ms" }}
+                >
+                  .
+                </span>
+              ))}
+            </span>
+          )}
+          {isCharging && <span className="ml-1 text-yellow-100 animate-pulse">⚡</span>}
+        </span>
+      </button>
+    </Link>
+  );
+}
+
 function FaqSection() {
   const [open, setOpen] = useState<number | null>(null);
   return (
@@ -1307,16 +1366,10 @@ const Landing = () => {
                   than the answer.
                 </h1>
                 <p className="mt-8 max-w-md text-xl leading-relaxed text-muted-foreground">
-                  Screenshot a question → get a step-by-step solution, the underlying concept explained, and practice designed to fill the exact gap.
+                  Screenshot a problem. Turn it into a complete learning loop: step-by-step solution, concept deep-dive, and gap-targeted practice.
                 </p>
                 <div className="mt-10">
-                  <Link to="/workspace" className="group relative inline-block">
-                    <span className="absolute inset-0 rounded-2xl bg-primary opacity-0 blur-xl transition-all duration-500 group-hover:opacity-70 group-hover:scale-110 pointer-events-none" />
-                    <Button className="relative h-16 px-12 text-lg font-semibold rounded-2xl bg-primary transition-all duration-300 group-hover:shadow-[0_0_40px_8px_rgba(91,127,239,0.55)] group-hover:scale-105">
-                      Get Started — It's Free
-                      <ArrowRight className="ml-2 h-5 w-5 transition-transform duration-300 group-hover:translate-x-1" />
-                    </Button>
-                  </Link>
+                  <GoButton />
                 </div>
               </div>
 

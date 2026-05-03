@@ -3,7 +3,7 @@ import { Helmet } from "react-helmet-async";
 import { useLocation, Link, useNavigate } from "react-router-dom";
 import {
   BookOpen, ArrowLeft, TriangleAlert, Lightbulb, ClipboardList,
-  ChevronRight, ArrowRight, FileSearch, Lock, Loader2, Waves, CheckCircle2, Layers, X, Send, ChevronsRight, ChevronLeft,
+  ChevronRight, ArrowRight, FileSearch, Lock, Loader2, Waves, CheckCircle2, Layers, X, Send, ChevronsRight, ChevronLeft, Smile,
 } from "lucide-react";
 import { UnitCircle, LawOfSinesCosines, TrigIdentities, PythagoreanTheorem, QuadraticEquations, TheDerivative, DefiniteIntegrals, LimitsAndContinuity, TaylorSeries, DifferentialEquations, LinearRegression, BinomialDistribution, Vectors2D, ComplexNumbers, Logarithms, ConicSections, MatrixTransformations, SequencesSeries, Optimization, SimilarTriangles, Inequalities } from "@/components/interact/MathModels2";
 import { NormalDistribution } from "@/components/interact/MathCSModels";
@@ -386,6 +386,16 @@ function ConceptTab({
 
   return (
     <>
+      {/* Explain like I'm 5 — always at the top of the concept tab */}
+      {!isLoadingConcept && (
+        <button
+          onClick={() => onAskWhale("Explain this concept like I'm 5 years old, using a simple everyday analogy")}
+          className="mb-3 flex w-full items-center gap-3 rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 text-left transition-colors hover:bg-primary/20 hover:border-primary/50"
+        >
+          <Smile className="h-4 w-4 text-primary shrink-0" />
+          <span className="text-sm font-medium text-foreground">Explain like I'm 5</span>
+        </button>
+      )}
       <div className="space-y-3" data-feature="root-cause-analysis-exam-mistakes" data-content="ai-analysis-breakdown,underlying-concept,targeted-practice">
         {sections.map(({ id, label, Icon, content, locked, cardClass, labelClass, iconClass, askText }, idx) => (
           <div key={id} className="animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-both" style={{ animationDelay: `${idx * 80}ms` }}>
@@ -438,16 +448,6 @@ function ConceptTab({
                 </>
               )}
             </div>
-            {/* Explain like I'm 5 — inserted after The concept card */}
-            {id === "concept" && !locked && !isLoadingConcept && (
-              <button
-                onClick={() => onAskWhale("Explain this concept like I'm 5 years old, using a simple everyday example")}
-                className="mt-2 flex w-full items-center gap-2 rounded-lg border border-border bg-secondary/40 px-4 py-3 text-left text-sm text-muted-foreground transition-colors hover:border-primary/30 hover:bg-secondary hover:text-foreground"
-              >
-                <span className="text-base">🧒</span>
-                <span className="font-medium">Explain like I'm 5</span>
-              </button>
-            )}
           </div>
         ))}
         <Button className="w-full bg-primary hover:bg-primary/90" onClick={onMasterClick}>

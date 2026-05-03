@@ -67,19 +67,12 @@ function WhaleScanLoader({ complete }: { complete: boolean }) {
   );
 }
 
-const COMPLEXITY_KEY = "gogodeep_complexity";
-const COMPLEXITY_LABELS = ["", "Simple", "Standard", "Advanced", "Expert"] as const;
-
 const DiagnosticLab = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [scanComplete, setScanComplete] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [textInput, setTextInput] = useState("");
-  const [complexity, setComplexity] = useState<number>(() => {
-    const stored = parseInt(localStorage.getItem(COMPLEXITY_KEY) ?? "2", 10);
-    return stored >= 1 && stored <= 4 ? stored : 2;
-  });
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [remainingCredits, setRemainingCredits] = useState<number | null>(null);
   const resetCountdown = useUtcResetCountdown();
@@ -89,7 +82,8 @@ const DiagnosticLab = () => {
   const queryClient = useQueryClient();
 
   const analyzeImage = useCallback(
-    async (file: File, complexityLevel = complexity) => {
+    async (file: File) => {
+      const complexityLevel = 2;
       // Check if guest already used their free scan
       const {
         data: { user: preCheckUser },
@@ -222,7 +216,7 @@ const DiagnosticLab = () => {
         setScanComplete(false);
       }
     },
-    [navigate, queryClient, complexity]
+    [navigate, queryClient]
   );
 
   const analyzeText = useCallback(async () => {
@@ -250,7 +244,7 @@ const DiagnosticLab = () => {
       }
 
       const { data, error } = await supabase.functions.invoke("diagnose-image", {
-        body: { text: trimmed, mode: "guide_steps", complexity },
+        body: { text: trimmed, mode: "guide_steps", complexity: 2 },
       });
 
       if (error) {
@@ -320,7 +314,7 @@ const DiagnosticLab = () => {
       setIsAnalyzing(false);
       setScanComplete(false);
     }
-  }, [textInput, navigate, queryClient, complexity]);
+  }, [textInput, navigate, queryClient]);
 
   useEffect(() => {
     const file = pendingFileStore.get();
@@ -385,33 +379,6 @@ const DiagnosticLab = () => {
         <link rel="canonical" href="https://gogodeep.com/workspace" />
       </Helmet>
       <div className="mx-auto max-w-2xl mt-12" data-feature="ai-scanner-for-hard-stem-questions" data-input-type="handwritten-notes,photo-upload,exam-working">
-        <div className="flex justify-end mb-2">
-          <div className="flex flex-col items-end gap-1">
-            <span className="text-xs text-muted-foreground flex items-center gap-1">
-              Complexity <span className="inline-block w-16 text-right text-primary font-semibold">{COMPLEXITY_LABELS[complexity]}</span>
-              <span className="group relative">
-                <span className="flex h-3.5 w-3.5 cursor-default items-center justify-center rounded-full border border-muted-foreground/40 text-[9px] font-bold text-muted-foreground/60 leading-none select-none">?</span>
-                <span className="pointer-events-none absolute right-0 top-5 z-50 w-48 rounded-lg border border-border bg-card px-3 py-2 text-[11px] leading-relaxed text-muted-foreground opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100">
-                  Controls how technical the explanations are.
-                </span>
-              </span>
-            </span>
-            <input
-              type="range"
-              min={1}
-              max={4}
-              step={1}
-              value={complexity}
-              disabled={isAnalyzing}
-              onChange={(e) => {
-                const v = Number(e.target.value);
-                setComplexity(v);
-                localStorage.setItem(COMPLEXITY_KEY, String(v));
-              }}
-              className="w-24 accent-primary disabled:cursor-not-allowed"
-            />
-          </div>
-        </div>
         <div className="rounded-xl border border-border bg-card">
           <div className="p-5 sm:p-6">
             <label
