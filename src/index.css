@@ -245,6 +245,31 @@
   to   { transform: translateX(0); }
 }
 
+@keyframes gradientShift {
+  0%   { background-position: 0% 0%; }
+  25%  { background-position: 100% 0%; }
+  50%  { background-position: 100% 100%; }
+  75%  { background-position: 0% 100%; }
+  100% { background-position: 0% 0%; }
+}
+
+@keyframes gradientFrantic {
+  0%   { background-position: 0% 0%; }
+  20%  { background-position: 100% 50%; }
+  40%  { background-position: 50% 100%; }
+  60%  { background-position: 0% 50%; }
+  80%  { background-position: 100% 0%; }
+  100% { background-position: 0% 0%; }
+}
+
+@keyframes goShake {
+  0%   { transform: scale(1.05) translateX(0) rotate(0deg); }
+  25%  { transform: scale(1.05) translateX(-4px) rotate(-1deg); }
+  50%  { transform: scale(1.05) translateX(4px) rotate(1deg); }
+  75%  { transform: scale(1.05) translateX(-3px) rotate(-0.5deg); }
+  100% { transform: scale(1.05) translateX(3px) rotate(0.5deg); }
+}
+
 @keyframes liquid-drift {
   0%, 100% { transform: translate(0%, 0%) scale(1); }
   25% { transform: translate(10%, -15%) scale(1.1); }

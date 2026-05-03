@@ -1113,8 +1113,8 @@ const BlindSpotReport = () => {
                     activeTab === value ? "text-foreground" : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  <Icon className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
-                  <span className="truncate">{label}</span>
+                  <Icon className="h-4 w-4 sm:h-3.5 sm:w-3.5 shrink-0" />
+                  <span className="hidden sm:inline truncate">{label}</span>
                 </button>
               ))}
             </div>

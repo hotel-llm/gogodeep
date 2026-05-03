@@ -438,6 +438,19 @@ const Dashboard = ({ user }: { user: User }) => {
             </div>
           </div>
 
+          {/* First-scan onboarding banner */}
+          {!loading && data?.totalScans === 0 && (
+            <div className="mb-6 flex flex-col sm:flex-row items-center justify-between gap-4 rounded-xl border border-primary/30 bg-primary/5 px-5 py-4">
+              <div>
+                <p className="text-sm font-semibold text-foreground">You haven't done your first scan yet</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Drop a screenshot of any problem — get a full breakdown in seconds.</p>
+              </div>
+              <Button className="bg-primary hover:bg-primary/90 shrink-0 h-10 px-6 text-sm font-semibold" onClick={() => navigate("/workspace")}>
+                Do your first scan →
+              </Button>
+            </div>
+          )}
+
           {/* Stat row */}
           <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 
@@ -1163,14 +1176,16 @@ const FAQ_ITEMS = [
 ];
 
 function GoButton() {
+  const MAX_OS = 14;
+  const FADE_COUNT = 5;
   const [extraOs, setExtraOs] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const handleEnter = () => {
     setExtraOs(0);
     intervalRef.current = setInterval(() => {
-      setExtraOs((n) => (n < 10 ? n + 1 : n));
-    }, 70);
+      setExtraOs((n) => (n < MAX_OS ? n + 1 : n));
+    }, 60);
   };
 
   const handleLeave = () => {
@@ -1179,37 +1194,43 @@ function GoButton() {
   };
 
   const isCharging = extraOs > 0;
+  const maxed = extraOs >= MAX_OS;
+  const totalOs = extraOs + 1;
 
   return (
     <Link to="/workspace">
       <button
         onMouseEnter={handleEnter}
         onMouseLeave={handleLeave}
-        className={`relative h-16 min-w-[180px] rounded-2xl px-10 text-xl font-bold text-white transition-all duration-300 overflow-hidden select-none
+        style={isCharging ? {
+          backgroundImage: "linear-gradient(135deg, #1d4ed8, #4f46e5, #7c3aed, #6d28d9, #2563eb, #818cf8, #3b82f6, #7c3aed, #1d4ed8)",
+          backgroundSize: "600% 600%",
+          animation: maxed
+            ? "gradientFrantic 0.35s linear infinite"
+            : "gradientShift 1.4s linear infinite",
+        } : {}}
+        className={`relative h-16 min-w-[200px] rounded-2xl px-10 text-xl font-bold text-white select-none overflow-hidden
+          transition-[box-shadow,transform] duration-300
           ${isCharging
-            ? "bg-gradient-to-r from-yellow-500 via-orange-500 to-yellow-400 shadow-[0_0_40px_8px_rgba(234,179,8,0.5)] scale-105"
-            : "bg-primary shadow-[0_0_24px_4px_rgba(91,127,239,0.3)] hover:scale-105"
+            ? "shadow-[0_0_50px_12px_rgba(99,102,241,0.6)] scale-105"
+            : "bg-primary shadow-[0_0_24px_4px_rgba(91,127,239,0.3)] hover:scale-105 hover:shadow-[0_0_36px_8px_rgba(91,127,239,0.45)]"
           }`}
       >
-        <span className="relative z-10 flex items-end gap-0.5 justify-center leading-none">
-          <span>G</span>
-          <span className={`transition-colors duration-200 ${isCharging ? "text-yellow-100" : ""}`}>
-            o{"o".repeat(extraOs)}
-          </span>
+        <span className="relative z-10 flex items-end gap-0 justify-center leading-none tracking-tight">
+          <span>Go</span>
+          {Array.from({ length: extraOs }, (_, i) => {
+            const distFromEnd = extraOs - 1 - i;
+            const opacity = distFromEnd < FADE_COUNT ? (distFromEnd + 0.5) / FADE_COUNT : 1;
+            return <span key={i} style={{ opacity, transition: "opacity 60ms" }}>o</span>;
+          })}
           {!isCharging && (
             <span className="flex items-end mb-0.5 ml-0.5">
               {[0, 1, 2].map((i) => (
-                <span
-                  key={i}
-                  className="inline-block animate-bounce text-white/80"
-                  style={{ animationDelay: `${i * 160}ms`, animationDuration: "900ms" }}
-                >
-                  .
-                </span>
+                <span key={i} className="inline-block animate-bounce text-white/80"
+                  style={{ animationDelay: `${i * 160}ms`, animationDuration: "900ms" }}>.</span>
               ))}
             </span>
           )}
-          {isCharging && <span className="ml-1 text-yellow-100 animate-pulse">⚡</span>}
         </span>
       </button>
     </Link>
@@ -1334,7 +1355,7 @@ const Landing = () => {
         {/* ── Hero ── */}
         <section className="container py-14 md:py-20" data-topic="ai-exam-mistake-helper" data-subjects="physics-hl,math-hl-aa,ap-calculus-bc,ap-statistics">
           <div className="mx-auto max-w-6xl">
-            <div className="grid items-center gap-12 lg:grid-cols-2">
+            <div className="grid items-center gap-8 lg:grid-cols-2">
 
               {/* Left */}
               <div className="relative flex flex-col items-start -mt-6">
@@ -1359,13 +1380,13 @@ const Landing = () => {
                     }} />
                   ))}
                 </div>
-                <h1 className="relative text-6xl font-extrabold tracking-tight text-foreground md:text-7xl lg:text-[5.25rem] whitespace-nowrap">
+                <h1 className="relative text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl md:text-6xl lg:text-7xl xl:text-[5.25rem]">
                   Go <span style={{ fontFamily: "'Fraunces', serif", fontStyle: "italic", fontOpticalSizing: "auto", paddingRight: "0.08em", backgroundImage: "linear-gradient(to bottom, hsl(225 90% 70%), hsl(225 75% 50%) 70%, hsl(225 60% 25%))", WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent", color: "transparent", display: "inline-block", transform: `translateY(${deeperY}px)`, transition: "transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94)" } as React.CSSProperties}>deeper</span>
                 </h1>
-                <h1 className="relative text-4xl font-extrabold tracking-tight text-foreground md:text-5xl lg:text-[3.75rem] whitespace-nowrap">
+                <h1 className="relative text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl md:text-4xl lg:text-5xl xl:text-[3.75rem]">
                   than the answer.
                 </h1>
-                <p className="mt-8 max-w-md text-xl leading-relaxed text-muted-foreground">
+                <p className="mt-6 max-w-md text-base sm:text-lg md:text-xl leading-relaxed text-muted-foreground">
                   Screenshot a problem. Turn it into a complete learning loop: step-by-step solution, concept deep-dive, and gap-targeted practice.
                 </p>
                 <div className="mt-10">
@@ -1373,8 +1394,8 @@ const Landing = () => {
                 </div>
               </div>
 
-              {/* Right — live demo */}
-              <div className="flex flex-col gap-2">
+              {/* Right — live demo (hidden on mobile) */}
+              <div className="hidden lg:flex flex-col gap-2">
                 <p className="text-right text-xs font-semibold uppercase tracking-[0.15em] text-primary">Drop a screenshot now ↓</p>
                 <DemoPanel />
               </div>

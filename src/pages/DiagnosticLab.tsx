@@ -81,9 +81,24 @@ const DiagnosticLab = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
+  const SCAN_COOLDOWN_MS = 10_000;
+  const checkCooldown = async (): Promise<boolean> => {
+    const { data: { user } } = await supabase.auth.getUser();
+    const key = user?.id ? `gogodeep_last_scan_${user.id}` : "gogodeep_last_scan_guest";
+    const last = parseInt(localStorage.getItem(key) ?? "0", 10);
+    const remaining = Math.ceil((SCAN_COOLDOWN_MS - (Date.now() - last)) / 1000);
+    if (remaining > 0) {
+      whaleToast.error(`Easy there! Give me ${remaining}s before the next scan.`);
+      return false;
+    }
+    localStorage.setItem(key, String(Date.now()));
+    return true;
+  };
+
   const analyzeImage = useCallback(
     async (file: File) => {
       const complexityLevel = 2;
+      if (!await checkCooldown()) return;
       // Check if guest already used their free scan
       const {
         data: { user: preCheckUser },
@@ -222,6 +237,7 @@ const DiagnosticLab = () => {
   const analyzeText = useCallback(async () => {
     const trimmed = textInput.trim();
     if (!trimmed) return;
+    if (!await checkCooldown()) return;
 
     // Check if guest already used their free scan
     const {
@@ -378,7 +394,7 @@ const DiagnosticLab = () => {
         <meta name="description" content="Upload a photo of your exam working or handwritten notes. Gogodeep analyses hard STEM questions, finds your error, and guides you step by step. Supports Physics HL, Math HL AA, AP Calculus BC, and AP Statistics." />
         <link rel="canonical" href="https://gogodeep.com/workspace" />
       </Helmet>
-      <div className="mx-auto max-w-2xl mt-12" data-feature="ai-scanner-for-hard-stem-questions" data-input-type="handwritten-notes,photo-upload,exam-working">
+      <div className="mx-auto max-w-2xl mt-6 sm:mt-12" data-feature="ai-scanner-for-hard-stem-questions" data-input-type="handwritten-notes,photo-upload,exam-working">
         <div className="rounded-xl border border-border bg-card">
           <div className="p-5 sm:p-6">
             <label

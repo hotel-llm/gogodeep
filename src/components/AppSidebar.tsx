@@ -71,7 +71,7 @@ export default function AppSidebar({ user }: { user: User; onUserUpdate?: (u: Us
 
   return (
     <aside className={cn(
-      "fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-border bg-card transition-[width] duration-200 overflow-hidden",
+      "hidden md:flex fixed left-0 top-0 z-50 h-screen flex-col border-r border-border bg-card transition-[width] duration-200 overflow-hidden",
       collapsed ? "w-14" : "w-64"
     )}>
 
