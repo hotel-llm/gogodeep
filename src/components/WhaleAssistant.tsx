@@ -131,7 +131,11 @@ export default function WhaleAssistant() {
       bubbleQueue.current.push({ message, type });
       processQueue();
     }
-    function scanDoneHandler() { setHasDoneScan(true); }
+    function scanDoneHandler(e: Event) {
+      setHasDoneScan(true);
+      const detail = (e as CustomEvent).detail;
+      if (detail?.context) setStepContext(detail.context);
+    }
     window.addEventListener("whale-notify", handler);
     window.addEventListener("whale-scan-done", scanDoneHandler);
     return () => {

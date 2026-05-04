@@ -571,15 +571,23 @@ function WhaleChatPanel({ diagnosis, onClose, pendingMessage, onMessageHandled }
   onMessageHandled?: () => void;
 }) {
   const conceptLabel = (diagnosis as any)?.concept_label ?? "";
+  const questionSummary = (diagnosis as any)?.question_summary ?? "";
   const whatHappened = (diagnosis as any)?.what_happened ?? "";
   const coreConcept = (diagnosis as any)?.core_concept ?? "";
-  const greeting = conceptLabel
-    ? `I've read your scan on ${conceptLabel}. What would you like to understand better?`
+  const underlyingConcept = (diagnosis as any)?.underlying_concept ?? "";
+  const errorTag = (diagnosis as any)?.error_tag ?? "";
+  const topic = conceptLabel || questionSummary;
+  const greeting = topic
+    ? `I've read your scan on **${topic}**. What would you like to understand better?`
     : "I've read your scan. What would you like to understand better?";
   const stepContext = [
-    conceptLabel && `Concept: ${conceptLabel}`,
+    "The user has a scan loaded. Answer questions based on this context and do not ask them to upload a screenshot.",
+    topic && `Topic: ${topic}`,
+    questionSummary && `Question: ${questionSummary}`,
     whatHappened && `Problem context: ${whatHappened}`,
     coreConcept && `Core concept: ${coreConcept}`,
+    underlyingConcept && `Underlying concept: ${underlyingConcept}`,
+    errorTag && `Error identified: ${errorTag}`,
   ].filter(Boolean).join("\n");
 
   const SUGGESTIONS = [

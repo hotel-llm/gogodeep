@@ -451,15 +451,24 @@ const Dashboard = ({ user }: { user: User }) => {
 
   const navigate = useNavigate();
 
-  function handleScanClick(scanId: string) {
+  async function handleScanClick(scanId: string) {
     const raw = localStorage.getItem(SCAN_CACHE_KEY(scanId));
     if (raw) {
       try {
-        navigate("/report", { state: JSON.parse(raw) });
+        navigate("/report", { state: { ...JSON.parse(raw), scanId } });
         return;
       } catch {}
     }
-    navigate("/workspace");
+    const { data, error } = await (supabase as any)
+      .from("error_logs")
+      .select("diagnosis")
+      .eq("id", scanId)
+      .single();
+    if (error || !data?.diagnosis) {
+      navigate("/workspace");
+      return;
+    }
+    navigate("/report", { state: { diagnosis: data.diagnosis, mode: (data.diagnosis as any)?.mode ?? "guide", scanId } });
   }
 
   return (
@@ -476,27 +485,20 @@ const Dashboard = ({ user }: { user: User }) => {
           <div className="mb-10 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Dashboard</p>
-              {!loading && data?.totalScans === 0 ? (
-                <>
-                  <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-foreground">Do your first scan now</h1>
-                  <p className="mt-1 text-sm text-muted-foreground">Screenshot a problem you're stuck on, and get a full breakdown in seconds.</p>
-                </>
-              ) : (
-                <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-foreground">
-                  {[
-                    "Today is your day",
-                    "Make yourself proud today",
-                    "Let's get to work",
-                    "One step closer",
-                    "Show up. Show out",
-                    "Your future self is watching",
-                    "Make today count",
-                    "Time to level up",
-                    "No excuses today",
-                    "Outwork yesterday",
-                  ][new Date().getUTCDay() * 3 % 10]}, {username}
-                </h1>
-              )}
+              <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-foreground">
+                {[
+                  "Today is your day",
+                  "Make yourself proud today",
+                  "Let's get to work",
+                  "One step closer",
+                  "Show up. Show out",
+                  "Your future self is watching",
+                  "Make today count",
+                  "Time to level up",
+                  "No excuses today",
+                  "Outwork yesterday",
+                ][new Date().getUTCDay() * 3 % 10]}, {username}
+              </h1>
             </div>
             <div
               role="button"

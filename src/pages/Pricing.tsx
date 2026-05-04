@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { Check, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,72 +8,6 @@ import { whaleToast } from "@/lib/whaleToast";
 import { cn } from "@/lib/utils";
 
 type Billing = "monthly" | "annual";
-
-function GoButton({ loading, onClick }: { loading: boolean; onClick: () => void }) {
-  const MAX_OS = 14;
-  const FADE_COUNT = 5;
-  const [extraOs, setExtraOs] = useState(0);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const handleEnter = () => {
-    if (loading) return;
-    setExtraOs(0);
-    intervalRef.current = setInterval(() => {
-      setExtraOs((n) => (n < MAX_OS ? n + 1 : n));
-    }, 60);
-  };
-
-  const handleLeave = () => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    setExtraOs(0);
-  };
-
-  const isCharging = extraOs > 0;
-  const maxed = extraOs >= MAX_OS;
-
-  return (
-    <button
-      onClick={onClick}
-      disabled={loading}
-      onMouseEnter={handleEnter}
-      onMouseLeave={handleLeave}
-      style={isCharging ? {
-        backgroundImage: "linear-gradient(135deg, #1d4ed8, #4f46e5, #7c3aed, #6d28d9, #2563eb, #818cf8, #3b82f6, #7c3aed, #1d4ed8)",
-        backgroundSize: "600% 600%",
-        animation: maxed ? "gradientFrantic 0.35s linear infinite" : "gradientShift 1.4s linear infinite",
-      } : {}}
-      className={cn(
-        "relative w-full h-11 rounded-xl px-6 text-base font-bold text-white select-none overflow-hidden transition-[box-shadow,transform] duration-300 disabled:opacity-50",
-        isCharging
-          ? "shadow-[0_0_40px_8px_rgba(99,102,241,0.5)] scale-[1.02]"
-          : "bg-primary shadow-[0_0_16px_2px_rgba(91,127,239,0.25)] hover:scale-[1.02] hover:shadow-[0_0_24px_4px_rgba(91,127,239,0.4)]"
-      )}
-    >
-      {loading ? (
-        <span className="flex items-center justify-center gap-2">
-          <Loader2 className="h-4 w-4 animate-spin" /> Redirecting…
-        </span>
-      ) : (
-        <span className="relative z-10 flex items-end gap-0 justify-center leading-none tracking-tight">
-          <span>Go</span>
-          {Array.from({ length: extraOs }, (_, i) => {
-            const distFromEnd = extraOs - 1 - i;
-            const opacity = distFromEnd < FADE_COUNT ? (distFromEnd + 0.5) / FADE_COUNT : 1;
-            return <span key={i} style={{ opacity, transition: "opacity 60ms" }}>o</span>;
-          })}
-          {!isCharging && (
-            <span className="flex items-end mb-0.5 ml-0.5">
-              {[0, 1, 2].map((i) => (
-                <span key={i} className="inline-block animate-bounce text-white/80"
-                  style={{ animationDelay: `${i * 160}ms`, animationDuration: "900ms" }}>.</span>
-              ))}
-            </span>
-          )}
-        </span>
-      )}
-    </button>
-  );
-}
 
 const FEATURES = [
   "Unlimited scans",
@@ -234,13 +168,14 @@ const Pricing = () => {
 
             {/* CTA */}
             <div className="px-8 pb-6 space-y-2">
-              {isDeep ? (
-                <div className="w-full rounded-xl border border-border bg-secondary/40 py-3 text-center text-sm font-semibold text-muted-foreground">
-                  You're already on Deep
-                </div>
-              ) : (
-                <GoButton loading={loading} onClick={handleUpgrade} />
-              )}
+              <Button
+                onClick={handleUpgrade}
+                disabled={loading || isDeep}
+                className="w-full bg-primary hover:bg-primary/90 text-base font-semibold h-11"
+              >
+                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isDeep ? "You're already on Deep" : "Go Deep"}
+              </Button>
 
               {isDeep && (
                 <Button

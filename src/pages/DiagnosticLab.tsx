@@ -177,11 +177,19 @@ const DiagnosticLab = () => {
         } = await supabase.auth.getUser();
 
         const topic = (data as any)?.concept_label ?? (data as any)?.question_summary ?? null;
+        const whaleScanContext = [
+          "The user has a scan loaded. Answer questions based on this context and do not ask them to upload a screenshot.",
+          topic && `Topic: ${topic}`,
+          (data as any)?.question_summary && `Question: ${(data as any).question_summary}`,
+          (data as any)?.what_happened && `Problem context: ${(data as any).what_happened}`,
+          (data as any)?.core_concept && `Core concept: ${(data as any).core_concept}`,
+          (data as any)?.underlying_concept && `Underlying concept: ${(data as any).underlying_concept}`,
+        ].filter(Boolean).join("\n");
 
         if (!user?.id) {
           // Guest gets 1 free scan — navigate directly to report, no DB insert
           localStorage.setItem(GUEST_SCAN_KEY, "1");
-          window.dispatchEvent(new CustomEvent("whale-scan-done"));
+          window.dispatchEvent(new CustomEvent("whale-scan-done", { detail: { context: whaleScanContext } }));
           try {
             sessionStorage.setItem(SESSION_REPORT_KEY, JSON.stringify({ diagnosis: data, mode: "guide", guest: true }));
           } catch { /* ignore */ }
@@ -223,6 +231,7 @@ const DiagnosticLab = () => {
         try {
           sessionStorage.setItem(SESSION_REPORT_KEY, JSON.stringify({ diagnosis: data, mode: "guide", scanId }));
         } catch { /* ignore */ }
+        window.dispatchEvent(new CustomEvent("whale-scan-done", { detail: { context: whaleScanContext } }));
         setScanComplete(true);
         await new Promise((r) => setTimeout(r, 580));
         navigate("/report", { state: { imageUrl: url, diagnosis: data, mode: "guide", scanId } });
@@ -283,11 +292,19 @@ const DiagnosticLab = () => {
       } = await supabase.auth.getUser();
 
       const topic = (data as any)?.concept_label ?? (data as any)?.question_summary ?? null;
+      const whaleScanContext = [
+        "The user has a scan loaded. Answer questions based on this context and do not ask them to upload a screenshot.",
+        topic && `Topic: ${topic}`,
+        (data as any)?.question_summary && `Question: ${(data as any).question_summary}`,
+        (data as any)?.what_happened && `Problem context: ${(data as any).what_happened}`,
+        (data as any)?.core_concept && `Core concept: ${(data as any).core_concept}`,
+        (data as any)?.underlying_concept && `Underlying concept: ${(data as any).underlying_concept}`,
+      ].filter(Boolean).join("\n");
 
       if (!user?.id) {
         // Guest gets 1 free scan — navigate directly to report, no DB insert
         localStorage.setItem(GUEST_SCAN_KEY, "1");
-        window.dispatchEvent(new CustomEvent("whale-scan-done"));
+        window.dispatchEvent(new CustomEvent("whale-scan-done", { detail: { context: whaleScanContext } }));
         try {
           sessionStorage.setItem(SESSION_REPORT_KEY, JSON.stringify({ diagnosis: data, mode: "guide", guest: true, inputText: trimmed }));
         } catch { /* ignore */ }
@@ -324,6 +341,7 @@ const DiagnosticLab = () => {
       try {
         sessionStorage.setItem(SESSION_REPORT_KEY, JSON.stringify({ diagnosis: data, mode: "guide", scanId, inputText: trimmed }));
       } catch { /* ignore */ }
+      window.dispatchEvent(new CustomEvent("whale-scan-done", { detail: { context: whaleScanContext } }));
       setScanComplete(true);
       await new Promise((r) => setTimeout(r, 580));
       navigate("/report", { state: { imageUrl: null, inputText: trimmed, diagnosis: data, mode: "guide", scanId } });
