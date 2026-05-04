@@ -4,15 +4,75 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const WHALE_CREDIT_LIMIT = 100;
+
+// Variable cost: 8–15 credits based on message length, giving uneven %
+function messageCost(text: string): number {
+  return 8 + Math.min(Math.floor(text.length / 60), 7);
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+  const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+
   try {
     const { messages, stepContext } = await req.json();
 
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+    // ── Auth & credit check ──────────────────────────────────────────────────
+    const authHeader = req.headers.get("authorization");
+    const jwt = authHeader?.replace("Bearer ", "");
+
+    let userId: string | null = null;
+    let plan = "free";
+    let currentCredits = 0;
+    const today = new Date().toISOString().split("T")[0];
+
+    if (jwt) {
+      // Identify user from JWT
+      const userRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+        headers: { "Authorization": `Bearer ${jwt}`, "apikey": SERVICE_KEY },
+      });
+      const userData = await userRes.json();
+      userId = userData?.id ?? null;
+
+      if (userId) {
+        // Fetch profile
+        const profileRes = await fetch(
+          `${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}&select=plan,whale_chat_credits,whale_chat_date`,
+          { headers: { "Authorization": `Bearer ${SERVICE_KEY}`, "apikey": SERVICE_KEY } }
+        );
+        const profiles = await profileRes.json();
+        const profile = Array.isArray(profiles) ? profiles[0] : null;
+
+        if (profile) {
+          plan = profile.plan ?? "free";
+          const isNewDay = profile.whale_chat_date !== today;
+          currentCredits = isNewDay ? 0 : (profile.whale_chat_credits ?? 0);
+        }
+      }
+    }
+
+    // Enforce limit for non-deep users
+    const lastMessage = messages[messages.length - 1]?.content ?? "";
+    const cost = messageCost(lastMessage);
+
+    if (plan !== "deep" && userId && currentCredits >= WHALE_CREDIT_LIMIT) {
+      return new Response(
+        JSON.stringify({
+          error: "daily_limit_reached",
+          creditsUsed: currentCredits,
+          creditsLimit: WHALE_CREDIT_LIMIT,
+        }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ── AI call ──────────────────────────────────────────────────────────────
     if (!ANTHROPIC_API_KEY) {
       return new Response(
         JSON.stringify({ error: "ANTHROPIC_API_KEY is not configured" }),
@@ -56,8 +116,28 @@ Answer academic questions (maths, physics, chemistry, biology, etc.) using the s
     }
 
     const reply = data.content?.[0]?.text ?? "";
+
+    // ── Increment credits after successful response ───────────────────────────
+    const newCredits = currentCredits + cost;
+    if (userId && plan !== "deep") {
+      await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`, {
+        method: "PATCH",
+        headers: {
+          "Authorization": `Bearer ${SERVICE_KEY}`,
+          "apikey": SERVICE_KEY,
+          "Content-Type": "application/json",
+          "Prefer": "return=minimal",
+        },
+        body: JSON.stringify({ whale_chat_credits: newCredits, whale_chat_date: today }),
+      });
+    }
+
     return new Response(
-      JSON.stringify({ reply }),
+      JSON.stringify({
+        reply,
+        creditsUsed: plan === "deep" ? 0 : newCredits,
+        creditsLimit: WHALE_CREDIT_LIMIT,
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
