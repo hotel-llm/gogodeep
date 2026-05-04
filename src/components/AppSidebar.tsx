@@ -12,6 +12,11 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import HistorySidebar from "@/components/HistorySidebar";
 
@@ -33,6 +38,7 @@ export default function AppSidebar({ user }: { user: User | null; onUserUpdate?:
   const [colorMode, setColorMode] = useState<ColorMode>(getStoredColorMode);
   const [plan, setPlan] = useState<string>("free");
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem("main_sidebar_collapsed") === "true");
+  const [logoutOpen, setLogoutOpen] = useState(false);
   const [workspaceExpanded, setWorkspaceExpanded] = useState(
     () => isWorkspacePath(location.pathname)
   );
@@ -71,6 +77,7 @@ export default function AppSidebar({ user }: { user: User | null; onUserUpdate?:
   const isWorkspace = isWorkspacePath(location.pathname);
 
   return (
+    <>
     <aside className={cn(
       "hidden md:flex fixed left-0 top-0 z-50 h-screen flex-col border-r border-border bg-card transition-[width] duration-200 overflow-hidden",
       collapsed ? "w-14" : "w-64"
@@ -192,7 +199,7 @@ export default function AppSidebar({ user }: { user: User | null; onUserUpdate?:
                     <Mail className="h-4 w-4" /> Contact
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={onLogout} className="cursor-pointer gap-2">
+                  <DropdownMenuItem onClick={() => setLogoutOpen(true)} className="cursor-pointer gap-2">
                     <LogOut className="h-4 w-4" /> Logout
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -213,5 +220,19 @@ export default function AppSidebar({ user }: { user: User | null; onUserUpdate?:
         </>
       )}
     </aside>
+
+    <AlertDialog open={logoutOpen} onOpenChange={setLogoutOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Log out?</AlertDialogTitle>
+          <AlertDialogDescription>You'll need to sign in again to access your account.</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={onLogout}>Log out</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

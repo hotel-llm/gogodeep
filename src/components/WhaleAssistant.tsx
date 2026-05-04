@@ -8,6 +8,24 @@ import { cn } from "@/lib/utils";
 import { RichText } from "@/components/RichText";
 
 const WHALE_IMG = "/whale-e.png";
+const WHALE_DAILY_LIMIT = 8;
+
+function getWhaleCredits() {
+  const today = new Date().toDateString();
+  if (localStorage.getItem("whale_chat_date") !== today) {
+    localStorage.setItem("whale_chat_date", today);
+    localStorage.setItem("whale_chat_used", "0");
+    return 0;
+  }
+  return parseInt(localStorage.getItem("whale_chat_used") ?? "0", 10);
+}
+
+function incrementWhaleCredits() {
+  const next = getWhaleCredits() + 1;
+  localStorage.setItem("whale_chat_date", new Date().toDateString());
+  localStorage.setItem("whale_chat_used", String(next));
+  return next;
+}
 
 function WhaleAvatar({ className }: { className?: string }) {
   const [err, setErr] = useState(false);
@@ -58,6 +76,7 @@ export default function WhaleAssistant() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [whaleCreditsUsed, setWhaleCreditsUsed] = useState(getWhaleCredits);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const [bubble, setBubble] = useState<{ message: string; type: "success" | "error" } | null>(null);
   const [bubbleFading, setBubbleFading] = useState(false);
@@ -259,6 +278,20 @@ export default function WhaleAssistant() {
   async function send() {
     const text = input.trim();
     if (!text || loading) return;
+
+    if (plan !== null && plan !== "deep") {
+      const credits = getWhaleCredits();
+      if (credits >= WHALE_DAILY_LIMIT) {
+        setMessages((prev) => [...prev, {
+          role: "assistant",
+          content: "You've reached your daily Whal-E limit. Come back tomorrow, or upgrade to Deep for unlimited chats.",
+        }]);
+        return;
+      }
+      const newUsed = incrementWhaleCredits();
+      setWhaleCreditsUsed(newUsed);
+    }
+
     const next: Message[] = [...messages, { role: "user", content: text }];
     setMessages(next);
     setInput("");
@@ -433,6 +466,35 @@ export default function WhaleAssistant() {
           {/* Input */}
           <div className="shrink-0 border-t border-border p-3">
             <div className="flex items-end gap-2">
+              {plan !== null && plan !== "deep" && (() => {
+                const pct = Math.min(whaleCreditsUsed / WHALE_DAILY_LIMIT, 1);
+                const r = 7;
+                const circ = 2 * Math.PI * r;
+                const filled = pct * circ;
+                const isOut = whaleCreditsUsed >= WHALE_DAILY_LIMIT;
+                const strokeColor = isOut ? "#ef4444" : pct >= 0.75 ? "#f59e0b" : "hsl(var(--primary))";
+                return (
+                  <div className="group relative shrink-0 self-center cursor-default">
+                    <svg width="18" height="18" viewBox="0 0 18 18" className="block">
+                      <circle cx="9" cy="9" r={r} fill="none" strokeWidth="2.5" stroke="hsl(var(--border))" />
+                      {filled > 0 && (
+                        <circle
+                          cx="9" cy="9" r={r}
+                          fill="none"
+                          strokeWidth="2.5"
+                          stroke={strokeColor}
+                          strokeDasharray={`${filled} ${circ - filled}`}
+                          strokeLinecap="round"
+                          transform="rotate(-90 9 9)"
+                        />
+                      )}
+                    </svg>
+                    <div className="pointer-events-none absolute bottom-full left-1/2 mb-2 -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-card px-2 py-1 text-xs text-foreground shadow-md opacity-0 transition-opacity group-hover:opacity-100">
+                      {isOut ? "Daily limit reached. Resets at midnight." : `${Math.round(pct * 100)}% used today`}
+                    </div>
+                  </div>
+                );
+              })()}
               <textarea
                 ref={inputRef}
                 rows={1}
@@ -445,7 +507,7 @@ export default function WhaleAssistant() {
               />
               <button
                 onClick={send}
-                disabled={!input.trim() || loading}
+                disabled={!input.trim() || loading || (plan !== null && plan !== "deep" && whaleCreditsUsed >= WHALE_DAILY_LIMIT)}
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground transition-opacity disabled:opacity-40 hover:bg-primary/90"
               >
                 <Send className="h-4 w-4" />

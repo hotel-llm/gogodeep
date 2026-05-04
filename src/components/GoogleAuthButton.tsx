@@ -10,7 +10,7 @@ export function GoogleAuthButton({ label = "Continue with Google" }: { label?: s
     setLoading(true);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${window.location.origin}/` },
+      options: { redirectTo: `${window.location.origin}/dashboard` },
     });
     if (error) {
       whaleToast.error(error.message);

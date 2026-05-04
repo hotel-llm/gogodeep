@@ -529,8 +529,8 @@ const Dashboard = ({ user }: { user: User }) => {
           {!loading && data?.totalScans === 0 && (
             <div className="mb-6 flex flex-col sm:flex-row items-center justify-between gap-4 rounded-xl border border-primary/30 bg-primary/5 px-5 py-4">
               <div>
-                <p className="text-sm font-semibold text-foreground">You haven't done your first scan yet</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Drop a screenshot of any problem — get a full breakdown in seconds.</p>
+                <p className="text-sm font-semibold text-foreground">Do your first scan now</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Screenshot a problem you're stuck on, and get a full breakdown in seconds.</p>
               </div>
               <Button className="bg-primary hover:bg-primary/90 shrink-0 h-10 px-6 text-sm font-semibold" onClick={() => navigate("/workspace")}>
                 Do your first scan →
@@ -903,9 +903,9 @@ const PHYSICS_STEPS = [
   "Calculate: $x = 10 \\times 0.574 \\approx 5.74\\text{ cm}$.",
 ];
 
-const PHYSICS_WHAT_HAPPENED = "The triangle has hypotenuse $10\\text{ cm}$ and an angle of $35°$. We need the side opposite that angle.\n\nSOH–CAH–TOA gives us:\n$$\\sin\\theta = \\dfrac{\\text{opp}}{\\text{hyp}}$$\nSubstituting: $\\text{opp} = 10 \\times \\sin(35°) \\approx 5.74\\text{ cm}$.";
-const PHYSICS_CORE_CONCEPT = "SOH–CAH–TOA is the shortcut for right-triangle trig:\n$$\\sin\\theta = \\frac{\\text{opp}}{\\text{hyp}}, \\quad \\cos\\theta = \\frac{\\text{adj}}{\\text{hyp}}, \\quad \\tan\\theta = \\frac{\\text{opp}}{\\text{adj}}$$\nPick the ratio that connects the side you know to the side you want.\n\nThe unit circle extends these definitions beyond $90°$ by placing the angle on a circle of radius $1$.";
-const PHYSICS_RECOGNITION_CUE = "When a problem gives a right triangle with one angle and one side, reach for SOH–CAH–TOA.\n\nIdentify which two sides are involved:\n**opp + hyp** → use sine\n**adj + hyp** → use cosine\n**opp + adj** → use tangent\n\nRearrange to isolate the unknown, then evaluate with a calculator.";
+const PHYSICS_ELI5 = "Imagine you're on a ramp going up a hill. You know ==how steep the angle is== and ==how long the ramp is==. You want to find out how high you'd climb.\n\nA right triangle has three sides. The **longest one** is the ramp — we call it the **hypotenuse**. The side going straight up is what we want.\n\nThere's a simple recipe: ==sin(angle) = height ÷ ramp length==. So to find the height, multiply the ramp length by sin of the angle.\n\nHere: ramp = **10 cm**, angle = **35°**, so height = 10 × sin(35°) ≈ **5.74 cm**.";
+const PHYSICS_CORE_CONCEPT = "==SOH–CAH–TOA== is the shortcut for right-triangle trig:\n$$\\sin\\theta = \\frac{\\text{opp}}{\\text{hyp}}, \\quad \\cos\\theta = \\frac{\\text{adj}}{\\text{hyp}}, \\quad \\tan\\theta = \\frac{\\text{opp}}{\\text{adj}}$$\nPick the ratio that ==connects the side you know to the side you want==.\n\nThe **unit circle** extends these definitions beyond $90°$ by placing the angle on a circle of radius $1$.";
+const PHYSICS_RECOGNITION_CUE = "When a problem gives a right triangle with **one angle** and **one side**, reach for ==SOH–CAH–TOA==.\n\nIdentify which two sides are involved:\n**opp + hyp** → use ==sine==\n**adj + hyp** → use ==cosine==\n**opp + adj** → use ==tangent==\n\nRearrange to isolate the unknown, then evaluate with a calculator.";
 
 const PHYSICS_PRACTICE = [
   {
@@ -1154,24 +1154,24 @@ const DemoPanel = () => {
               <div className="flex-1 space-y-2 overflow-y-auto">
                 <div className="rounded-lg border border-border bg-secondary/40 p-3">
                   <div className="mb-1.5 flex items-center gap-1.5">
-                    <Microscope className="h-3.5 w-3.5 text-primary" />
-                    <p className="text-xs font-semibold uppercase tracking-widest text-primary">In this problem</p>
+                    <Zap className="h-3.5 w-3.5 text-primary" />
+                    <p className="text-xs font-semibold uppercase tracking-widest text-primary">Explain like I'm 5</p>
                   </div>
-                  <div className="text-sm leading-relaxed text-muted-foreground"><RichText text={PHYSICS_WHAT_HAPPENED} /></div>
+                  <div className="text-sm leading-relaxed text-foreground"><RichText text={PHYSICS_ELI5} /></div>
                 </div>
                 <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
                   <div className="mb-1.5 flex items-center gap-1.5">
                     <Lightbulb className="h-3.5 w-3.5 text-primary" />
                     <p className="text-xs font-semibold uppercase tracking-widest text-primary">The concept</p>
                   </div>
-                  <div className="text-sm leading-relaxed text-muted-foreground"><RichText text={PHYSICS_CORE_CONCEPT} /></div>
+                  <div className="text-sm leading-relaxed text-foreground"><RichText text={PHYSICS_CORE_CONCEPT} /></div>
                 </div>
                 <div className="rounded-lg border border-border bg-secondary/60 p-3">
                   <div className="mb-1.5 flex items-center gap-1.5">
                     <ArrowRight className="h-3.5 w-3.5 text-primary" />
                     <p className="text-xs font-semibold uppercase tracking-widest text-primary">When you see this</p>
                   </div>
-                  <div className="text-sm leading-relaxed text-muted-foreground"><RichText text={PHYSICS_RECOGNITION_CUE} /></div>
+                  <div className="text-sm leading-relaxed text-foreground"><RichText text={PHYSICS_RECOGNITION_CUE} /></div>
                 </div>
               </div>
             )}

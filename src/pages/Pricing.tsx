@@ -13,7 +13,6 @@ const FEATURES = [
   "Unlimited scans",
   "Unlimited practice questions",
   "Unlimited recap quizzes",
-  "Underlying concepts",
   "Whal-E AI tutor",
 ];
 
@@ -161,6 +160,11 @@ const Pricing = () => {
                 <span className="text-[11px] opacity-60">$0.27 / day</span>
               </button>
             </div>
+
+            {/* Value prop */}
+            <p className="px-8 pb-3 text-center text-xs text-muted-foreground">
+              Less than the average cost of a single tutoring session.
+            </p>
 
             {/* CTA */}
             <div className="px-8 pb-6 space-y-2">

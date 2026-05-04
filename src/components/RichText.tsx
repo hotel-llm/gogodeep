@@ -12,7 +12,7 @@ export function RichText({ text, block = false }: { text: string; block?: boolea
   // bare superscripts like x^2 / x^{n+1} that the model forgot to wrap in $,
   // **bold**, *italic*, \n.
   // The bare-^ patterns come AFTER the $-patterns so dollar-wrapped math takes priority.
-  const re = /(\$\$[\s\S]+?\$\$|\$[^$\n]+?\$|\w+\^(?:\{[^}]+\}|\w+)|\*\*[^*\n]+\*\*|\*[^*\n]+\*|\n)/g;
+  const re = /(\$\$[\s\S]+?\$\$|\$[^$\n]+?\$|\w+\^(?:\{[^}]+\}|\w+)|==[^=\n]+=+|\*\*[^*\n]+\*\*|\*[^*\n]+\*|\n)/g;
   const nodes: React.ReactNode[] = [];
   let last = 0;
   let m: RegExpExecArray | null;
@@ -48,6 +48,8 @@ export function RichText({ text, block = false }: { text: string; block?: boolea
       } catch {
         nodes.push(<span key={key++}>{raw}</span>);
       }
+    } else if (raw.startsWith("==")) {
+      nodes.push(<span key={key++} className="text-primary">{raw.slice(2, -2)}</span>);
     } else if (raw.startsWith("**")) {
       nodes.push(<strong key={key++}>{raw.slice(2, -2)}</strong>);
     } else if (raw.startsWith("*")) {
