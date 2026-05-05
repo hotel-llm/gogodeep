@@ -905,7 +905,8 @@ const BlindSpotReport = () => {
   useEffect(() => {
     let mounted = true;
     supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user || !mounted) return;
+      if (!mounted) return;
+      if (!user) { setPlanLoaded(true); return; }
       const { data } = await (supabase as any)
         .from("profiles")
         .select("plan")

@@ -725,7 +725,7 @@ const Dashboard = ({ user }: { user: User }) => {
                       </div>
                       <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-card to-transparent" />
                     </div>
-                    <Button size="sm" className="w-full bg-primary hover:bg-primary/90 h-8 text-xs" onClick={startQuiz}>
+                    <Button size="sm" className="w-full bg-primary hover:bg-primary/90 h-8 text-xs" onClick={() => startQuiz()}>
                       Start Quiz
                     </Button>
                   </div>

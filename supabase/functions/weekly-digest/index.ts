@@ -71,50 +71,65 @@ Deno.serve(async (req: Request) => {
       const html = `<!DOCTYPE html>
 <html>
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="background:#09090b;margin:0;padding:40px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,sans-serif;">
-  <div style="max-width:500px;margin:0 auto;">
+<body style="margin:0;padding:48px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,sans-serif;background:#1e3a5f;">
 
-    <p style="color:#3b82f6;font-size:13px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;margin:0 0 32px;">Gogodeep</p>
+  <!-- Outer wrapper centres the card -->
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;margin:0 auto;">
+    <tr><td>
 
-    <h1 style="color:#f8fafc;font-size:24px;font-weight:800;margin:0 0 8px;line-height:1.2;">Your week in review, ${username}</h1>
-    <p style="color:#64748b;font-size:15px;margin:0 0 32px;line-height:1.5;">Here's what Gogodeep learned about your understanding this week.</p>
+      <!-- Logo -->
+      <p style="text-align:center;margin:0 0 24px;font-size:13px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:#93c5fd;">GOGODEEP</p>
 
-    <!-- Stats row -->
-    <div style="display:flex;gap:12px;margin-bottom:16px;">
-      <div style="flex:1;background:#18181b;border:1px solid #27272a;border-radius:12px;padding:20px;">
-        <p style="color:#64748b;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;margin:0 0 4px;">This week</p>
-        <p style="color:#f8fafc;font-size:28px;font-weight:800;margin:0;line-height:1;">${scanCount}</p>
-        <p style="color:#64748b;font-size:12px;margin:4px 0 0;">scan${scanCount === 1 ? "" : "s"}</p>
+      <!-- Card -->
+      <div style="background:#0f1f35;border-radius:20px;padding:36px 32px;box-shadow:0 8px 40px rgba(0,0,0,0.4);">
+
+        <!-- Header -->
+        <h1 style="color:#f8fafc;font-size:26px;font-weight:800;margin:0 0 8px;line-height:1.25;text-align:center;">${username}, here's your week</h1>
+        <p style="color:#64748b;font-size:14px;margin:0 0 32px;line-height:1.6;text-align:center;">Here's what Gogodeep learned about your understanding this week.</p>
+
+        <!-- Stats row: scans + most scanned side by side -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px;">
+          <tr>
+            <td width="48%" style="background:#162d4a;border:1px solid #1e3f5c;border-radius:12px;padding:18px 20px;vertical-align:top;">
+              <p style="color:#64748b;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;margin:0 0 6px;">This week</p>
+              <p style="color:#f8fafc;font-size:32px;font-weight:800;margin:0;line-height:1;">${scanCount}</p>
+              <p style="color:#64748b;font-size:12px;margin:4px 0 0;">scan${scanCount === 1 ? "" : "s"}</p>
+            </td>
+            <td width="4%"></td>
+            <td width="48%" style="background:#162d4a;border:1px solid #1e3f5c;border-radius:12px;padding:18px 20px;vertical-align:top;">
+              <p style="color:#64748b;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;margin:0 0 6px;">Most scanned</p>
+              <p style="color:#f8fafc;font-size:15px;font-weight:700;margin:0;line-height:1.3;">${topTopic ?? "—"}</p>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Weak areas -->
+        ${topWeakAreas.length ? `
+        <div style="background:#162d4a;border:1px solid #1e3f5c;border-radius:12px;padding:20px 24px;margin-bottom:28px;">
+          <p style="color:#64748b;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;margin:0 0 14px;">Your recurring weak areas</p>
+          ${topWeakAreas.map(t => `
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+            <div style="width:6px;height:6px;border-radius:50%;background:#3b82f6;flex-shrink:0;"></div>
+            <span style="color:#cbd5e1;font-size:14px;">${t}</span>
+          </div>`).join("")}
+        </div>` : ""}
+
+        <!-- CTA -->
+        <a href="${siteUrl}/workspace" style="display:block;background:#3b82f6;color:#ffffff;text-align:center;padding:15px 24px;border-radius:12px;font-weight:700;font-size:15px;text-decoration:none;letter-spacing:0.01em;">
+          Scan something today →
+        </a>
+
       </div>
-      ${conceptualCount > 0 ? `
-      <div style="flex:1;background:#18181b;border:1px solid #27272a;border-radius:12px;padding:20px;">
-        <p style="color:#64748b;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;margin:0 0 4px;">Gaps found</p>
-        <p style="color:#f8fafc;font-size:28px;font-weight:800;margin:0;line-height:1;">${conceptualCount}</p>
-        <p style="color:#64748b;font-size:12px;margin:4px 0 0;">conceptual</p>
-      </div>` : ""}
-    </div>
 
-    ${topTopic ? `
-    <div style="background:#18181b;border:1px solid #27272a;border-radius:12px;padding:20px;margin-bottom:16px;">
-      <p style="color:#64748b;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;margin:0 0 6px;">Most scanned this week</p>
-      <p style="color:#f8fafc;font-size:16px;font-weight:600;margin:0;">${topTopic}</p>
-    </div>` : ""}
+      <!-- Footer -->
+      <p style="color:#4a6785;font-size:12px;text-align:center;margin:24px 0 0;line-height:1.6;">
+        You're getting this because you have a Gogodeep account.<br>
+        <a href="${siteUrl}" style="color:#4a6785;text-decoration:underline;">Unsubscribe</a>
+      </p>
 
-    <div style="background:#18181b;border:1px solid #27272a;border-radius:12px;padding:20px;margin-bottom:28px;">
-      <p style="color:#64748b;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;margin:0 0 12px;">Your recurring weak areas</p>
-      <ul style="margin:0;padding:0 0 0 16px;">${weakAreasHtml}</ul>
-    </div>
+    </td></tr>
+  </table>
 
-    <a href="${siteUrl}/workspace" style="display:block;background:#3b82f6;color:#ffffff;text-align:center;padding:14px 24px;border-radius:10px;font-weight:700;font-size:15px;text-decoration:none;margin-bottom:28px;">
-      Scan something today →
-    </a>
-
-    <p style="color:#3f3f46;font-size:12px;text-align:center;margin:0;line-height:1.6;">
-      You're getting this because you have a Gogodeep account.<br>
-      <a href="${siteUrl}" style="color:#3f3f46;text-decoration:underline;">Unsubscribe</a>
-    </p>
-
-  </div>
 </body>
 </html>`;
 
