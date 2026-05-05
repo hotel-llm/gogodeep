@@ -564,11 +564,37 @@ function WhaleMd({ text }: { text: string }) {
 
 type ChatMsg = { role: "user" | "assistant"; content: string };
 
-function WhaleChatPanel({ diagnosis, onClose, pendingMessage, onMessageHandled }: {
+const WHALE_CREDIT_LIMIT = 100;
+
+function WhaleCreditCircle({ used, limit }: { used: number; limit: number }) {
+  const pct = Math.min(used / limit, 1);
+  const r = 8;
+  const circ = 2 * Math.PI * r;
+  const filled = pct * circ;
+  const isOut = used >= limit;
+  const stroke = isOut ? "#ef4444" : pct >= 0.75 ? "#f59e0b" : "hsl(var(--primary))";
+  return (
+    <div className="group relative shrink-0 self-center cursor-default">
+      <svg width="22" height="22" viewBox="0 0 22 22">
+        <circle cx="11" cy="11" r={r} fill="none" strokeWidth="3" stroke="hsl(var(--border))" />
+        {filled > 0 && (
+          <circle cx="11" cy="11" r={r} fill="none" strokeWidth="3" stroke={stroke}
+            strokeDasharray={`${filled} ${circ - filled}`} strokeLinecap="round" transform="rotate(-90 11 11)" />
+        )}
+      </svg>
+      <div className="pointer-events-none absolute bottom-full left-1/2 mb-2 -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-card px-2 py-1 text-xs text-foreground shadow-md opacity-0 transition-opacity group-hover:opacity-100 z-10">
+        {isOut ? "Daily limit reached. Resets at midnight." : `${100 - Math.round(pct * 100)}% left`}
+      </div>
+    </div>
+  );
+}
+
+function WhaleChatPanel({ diagnosis, onClose, pendingMessage, onMessageHandled, plan }: {
   diagnosis: Diagnosis | undefined;
   onClose: () => void;
   pendingMessage?: string | null;
   onMessageHandled?: () => void;
+  plan: string;
 }) {
   const conceptLabel = (diagnosis as any)?.concept_label ?? "";
   const questionSummary = (diagnosis as any)?.question_summary ?? "";
@@ -600,8 +626,20 @@ function WhaleChatPanel({ diagnosis, onClose, pendingMessage, onMessageHandled }
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(true);
+  const [creditsUsed, setCreditsUsed] = useState(0);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (plan === "deep") return;
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return;
+      const { data } = await (supabase as any).from("profiles").select("whale_chat_credits,whale_chat_date").eq("id", user.id).single();
+      if (!data) return;
+      const today = new Date().toISOString().split("T")[0];
+      setCreditsUsed(data.whale_chat_date === today ? (data.whale_chat_credits ?? 0) : 0);
+    });
+  }, [plan]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
@@ -622,8 +660,15 @@ function WhaleChatPanel({ diagnosis, onClose, pendingMessage, onMessageHandled }
       const { data, error } = await supabase.functions.invoke("chat-assistant", {
         body: { messages: next, stepContext },
       });
+      if ((data as any)?.error === "daily_limit_reached") {
+        setCreditsUsed(WHALE_CREDIT_LIMIT);
+        setMessages((prev) => [...prev, { role: "assistant", content: "You've reached your daily Whal-E limit. Come back tomorrow, or upgrade to Deep for unlimited chats." }]);
+        setLoading(false);
+        return;
+      }
       const reply = (!error && (data as any)?.reply) ? (data as any).reply : "Something went wrong. Try again.";
       setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
+      if ((data as any)?.creditsUsed !== undefined) setCreditsUsed((data as any).creditsUsed);
     } catch {
       setMessages((prev) => [...prev, { role: "assistant", content: "Something went wrong. Try again." }]);
     }
@@ -689,7 +734,8 @@ function WhaleChatPanel({ diagnosis, onClose, pendingMessage, onMessageHandled }
 
       {/* Input */}
       <div className="shrink-0 border-t border-border p-3">
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          {plan !== "deep" && <WhaleCreditCircle used={creditsUsed} limit={WHALE_CREDIT_LIMIT} />}
           <input
             ref={inputRef}
             value={input}
@@ -700,7 +746,7 @@ function WhaleChatPanel({ diagnosis, onClose, pendingMessage, onMessageHandled }
           />
           <button
             onClick={() => send(input)}
-            disabled={!input.trim() || loading}
+            disabled={!input.trim() || loading || (plan !== "deep" && creditsUsed >= WHALE_CREDIT_LIMIT)}
             className="rounded-xl bg-primary p-2 text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40"
           >
             <Send className="h-4 w-4" />
@@ -826,20 +872,29 @@ const BlindSpotReport = () => {
   }
   const [splitLeft, setSplitLeft] = useState(60);
   const splitContainerRef = useRef<HTMLDivElement>(null);
+  const leftPaneRef = useRef<HTMLDivElement>(null);
+  const rightPaneRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
 
   useEffect(() => {
     function onMove(e: MouseEvent) {
       if (!dragging.current || !splitContainerRef.current) return;
       const rect = splitContainerRef.current.getBoundingClientRect();
-      const pct = ((e.clientX - rect.left) / rect.width) * 100;
-      setSplitLeft(Math.min(Math.max(pct, 35), 78));
+      const pct = Math.min(Math.max(((e.clientX - rect.left) / rect.width) * 100, 35), 78);
+      // Update DOM directly — no React state, no easing lag
+      if (leftPaneRef.current) leftPaneRef.current.style.width = `${pct}%`;
+      if (rightPaneRef.current) rightPaneRef.current.style.width = `calc(${100 - pct}% - 6px)`;
     }
     function onUp() {
-      if (dragging.current) {
-        dragging.current = false;
-        document.body.style.cursor = "";
-        document.body.style.userSelect = "";
+      if (!dragging.current) return;
+      dragging.current = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      // Sync React state once on release so other logic stays consistent
+      if (splitContainerRef.current && leftPaneRef.current) {
+        const rect = splitContainerRef.current.getBoundingClientRect();
+        const pct = (leftPaneRef.current.getBoundingClientRect().width / rect.width) * 100;
+        setSplitLeft(Math.min(Math.max(pct, 35), 78));
       }
     }
     window.addEventListener("mousemove", onMove);
@@ -1111,8 +1166,9 @@ const BlindSpotReport = () => {
 
         {/* ── Left: tabs ───────────────────────────────────────────────────── */}
         <div
+          ref={leftPaneRef}
           style={{ width: whaleOpen ? `${splitLeft}%` : "100%" }}
-          className="flex min-w-0 flex-col overflow-y-auto transition-[width] duration-300 ease-in-out"
+          className="flex min-w-0 flex-col overflow-y-auto"
         >
           <div className="p-6 space-y-4">
             {/* Tab bar */}
@@ -1193,12 +1249,13 @@ const BlindSpotReport = () => {
           }}
         />
 
-        {/* ── Right: Whal-E chat (always in DOM, width transitions) ──────────── */}
+        {/* ── Right: Whal-E chat ───────────────────────────────────────────── */}
         <div
+          ref={rightPaneRef}
           style={{ width: whaleOpen ? `calc(${100 - splitLeft}% - 6px)` : "0" }}
-          className="min-w-0 shrink-0 overflow-hidden transition-[width] duration-300 ease-in-out"
+          className="min-w-0 shrink-0 overflow-hidden"
         >
-          <WhaleChatPanel diagnosis={diagnosis} onClose={() => setWhaleOpen(false)} pendingMessage={pendingWhaleMessage} onMessageHandled={() => setPendingWhaleMessage(null)} />
+          <WhaleChatPanel diagnosis={diagnosis} onClose={() => setWhaleOpen(false)} pendingMessage={pendingWhaleMessage} onMessageHandled={() => setPendingWhaleMessage(null)} plan={plan} />
         </div>
 
         {/* ── Pull tab when Whal-E is closed ───────────────────────────────── */}

@@ -35,7 +35,7 @@ function CreditCircle({ used, limit }: { used: number; limit: number }) {
         )}
       </svg>
       <div className="pointer-events-none absolute bottom-full left-1/2 mb-2 -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-card px-2 py-1 text-xs text-foreground shadow-md opacity-0 transition-opacity group-hover:opacity-100 z-10">
-        {isOut ? "Daily limit reached. Resets at midnight." : `${displayPct}% used today`}
+        {isOut ? "Daily limit reached. Resets at midnight." : `${100 - displayPct}% left`}
       </div>
     </div>
   );

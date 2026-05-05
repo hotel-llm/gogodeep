@@ -225,7 +225,7 @@ export default function AppSidebar({ user }: { user: User | null; onUserUpdate?:
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Log out?</AlertDialogTitle>
-          <AlertDialogDescription>You'll need to sign in again to access your account.</AlertDialogDescription>
+          <AlertDialogDescription>You'll need to sign in again.</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
