@@ -305,6 +305,7 @@ export default function WhaleAssistant() {
     const next: Message[] = [...messages, { role: "user", content: text }];
     setMessages(next);
     setInput("");
+    if (inputRef.current) inputRef.current.value = "";
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("chat-assistant", {

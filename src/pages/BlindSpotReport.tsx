@@ -654,6 +654,7 @@ function WhaleChatPanel({ diagnosis, onClose, pendingMessage, onMessageHandled, 
     if (!text || loading) return;
     setShowSuggestions(false);
     setInput("");
+    if (inputRef.current) inputRef.current.value = "";
     const next: ChatMsg[] = [...messages, { role: "user", content: text }];
     setMessages(next);
     setLoading(true);
