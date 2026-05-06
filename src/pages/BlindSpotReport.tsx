@@ -582,7 +582,7 @@ function WhaleCreditCircle({ used, limit }: { used: number; limit: number }) {
             strokeDasharray={`${filled} ${circ - filled}`} strokeLinecap="round" transform="rotate(-90 11 11)" />
         )}
       </svg>
-      <div className="pointer-events-none absolute bottom-full left-1/2 mb-2 -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-card px-2 py-1 text-xs text-foreground shadow-md opacity-0 transition-opacity group-hover:opacity-100 z-10">
+      <div className="pointer-events-none absolute left-full top-1/2 ml-2 -translate-y-1/2 whitespace-nowrap rounded-md border border-border bg-card px-2 py-1 text-xs text-foreground shadow-md opacity-0 transition-opacity group-hover:opacity-100 z-50">
         {isOut ? "Daily limit reached. Resets at midnight." : `${100 - Math.round(pct * 100)}% left`}
       </div>
     </div>
@@ -653,6 +653,7 @@ function WhaleChatPanel({ diagnosis, onClose, pendingMessage, onMessageHandled, 
   async function send(text: string) {
     if (!text || loading) return;
     setShowSuggestions(false);
+    setInput("");
     const next: ChatMsg[] = [...messages, { role: "user", content: text }];
     setMessages(next);
     setLoading(true);
@@ -881,7 +882,6 @@ const BlindSpotReport = () => {
       if (!dragging.current || !splitContainerRef.current) return;
       const rect = splitContainerRef.current.getBoundingClientRect();
       const pct = Math.min(Math.max(((e.clientX - rect.left) / rect.width) * 100, 35), 78);
-      // Update DOM directly — no React state, no easing lag
       if (leftPaneRef.current) leftPaneRef.current.style.width = `${pct}%`;
       if (rightPaneRef.current) rightPaneRef.current.style.width = `calc(${100 - pct}% - 6px)`;
     }
@@ -890,7 +890,9 @@ const BlindSpotReport = () => {
       dragging.current = false;
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
-      // Sync React state once on release so other logic stays consistent
+      // Re-enable transition after drag ends
+      if (leftPaneRef.current) leftPaneRef.current.style.transition = "";
+      if (rightPaneRef.current) rightPaneRef.current.style.transition = "";
       if (splitContainerRef.current && leftPaneRef.current) {
         const rect = splitContainerRef.current.getBoundingClientRect();
         const pct = (leftPaneRef.current.getBoundingClientRect().width / rect.width) * 100;
@@ -1168,7 +1170,7 @@ const BlindSpotReport = () => {
         <div
           ref={leftPaneRef}
           style={{ width: whaleOpen ? `${splitLeft}%` : "100%" }}
-          className="flex min-w-0 flex-col overflow-y-auto"
+          className="flex min-w-0 flex-col overflow-y-auto transition-[width] duration-300 ease-in-out"
         >
           <div className="p-6 space-y-4">
             {/* Tab bar */}
@@ -1246,6 +1248,9 @@ const BlindSpotReport = () => {
             dragging.current = true;
             document.body.style.cursor = "col-resize";
             document.body.style.userSelect = "none";
+            // Kill transition during drag so it follows mouse instantly
+            if (leftPaneRef.current) leftPaneRef.current.style.transition = "none";
+            if (rightPaneRef.current) rightPaneRef.current.style.transition = "none";
           }}
         />
 
@@ -1253,7 +1258,7 @@ const BlindSpotReport = () => {
         <div
           ref={rightPaneRef}
           style={{ width: whaleOpen ? `calc(${100 - splitLeft}% - 6px)` : "0" }}
-          className="min-w-0 shrink-0 overflow-hidden"
+          className="min-w-0 shrink-0 overflow-hidden transition-[width] duration-300 ease-in-out"
         >
           <WhaleChatPanel diagnosis={diagnosis} onClose={() => setWhaleOpen(false)} pendingMessage={pendingWhaleMessage} onMessageHandled={() => setPendingWhaleMessage(null)} plan={plan} />
         </div>

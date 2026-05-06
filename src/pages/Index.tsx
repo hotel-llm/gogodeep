@@ -330,20 +330,6 @@ const Dashboard = ({ user }: { user: User }) => {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [quizActive, quizKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Restore in-progress quiz on mount
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(QUIZ_SAVE_KEY);
-      if (!saved) return;
-      const { quiz: savedQuiz, elapsed } = JSON.parse(saved);
-      if (savedQuiz && !savedQuiz.showStats && savedQuiz.questions?.length) {
-        resumeElapsedRef.current = elapsed ?? 0;
-        setQuizKey((k) => k + 1);
-        setQuiz(savedQuiz);
-      }
-    } catch {}
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
   // Save quiz progress whenever active quiz changes
   useEffect(() => {
     if (!quiz || quiz.showStats) return;
@@ -806,10 +792,20 @@ const Dashboard = ({ user }: { user: User }) => {
               <div className="flex flex-col">
                 {/* Header — Reset on left, counter+timer centred, X from Dialog is top-right */}
                 <div className="flex items-center border-b border-border px-4 py-3 pr-12">
-                  <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-muted-foreground mr-3 shrink-0"
-                    onClick={() => startQuizWithConfig({ numQuestions: 5, typed: false, multipleChoice: true, trueOrFalse: false, selectedConcepts: [] })}>
-                    <RefreshCw className="mr-1.5 h-3 w-3" /> Reset
-                  </Button>
+                  {confirmRestart ? (
+                    <div className="flex items-center gap-1.5 mr-3 shrink-0">
+                      <span className="text-xs text-muted-foreground">Restart?</span>
+                      <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+                        onClick={() => { setConfirmRestart(false); startQuiz(); }}>Yes</Button>
+                      <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-muted-foreground"
+                        onClick={() => setConfirmRestart(false)}>No</Button>
+                    </div>
+                  ) : (
+                    <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-muted-foreground mr-3 shrink-0"
+                      onClick={() => setConfirmRestart(true)}>
+                      <RefreshCw className="mr-1.5 h-3 w-3" /> Reset
+                    </Button>
+                  )}
                   <div className="flex flex-1 items-center justify-center gap-4">
                     <span className="text-xs font-semibold text-muted-foreground">{quiz.current + 1} / {quiz.questions.length}</span>
                     <span className="font-mono text-sm font-semibold text-foreground">{formatTime(elapsedSecs)}</span>
@@ -1230,7 +1226,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "Is it really free?",
-    a: "Yes, Gogodeep is completely free.",
+    a: "Yes, Gogodeep is free to use. There is also a paid Deep plan that unlocks unlimited scans, unlimited Whal-E use, and unlimited practice questions.",
   },
   {
     q: "Will it just give me the answer?",

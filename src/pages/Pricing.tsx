@@ -13,7 +13,7 @@ const FEATURES = [
   "Unlimited scans",
   "Unlimited practice questions",
   "Unlimited recap quizzes",
-  "Whal-E AI tutor",
+  "Unlimited Whal-E use",
 ];
 
 const Pricing = () => {
