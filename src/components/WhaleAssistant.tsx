@@ -34,7 +34,7 @@ function CreditCircle({ used, limit }: { used: number; limit: number }) {
           />
         )}
       </svg>
-      <div className="pointer-events-none absolute bottom-full left-1/2 mb-2 -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-card px-2 py-1 text-xs text-foreground shadow-md opacity-0 transition-opacity group-hover:opacity-100 z-10">
+      <div className="pointer-events-none absolute left-full top-1/2 ml-2 -translate-y-1/2 whitespace-nowrap rounded-md border border-border bg-card px-2 py-1 text-xs text-foreground shadow-md opacity-0 transition-opacity group-hover:opacity-100 z-[9999]">
         {isOut ? "Daily limit reached. Resets at midnight." : `${100 - displayPct}% left`}
       </div>
     </div>
@@ -85,6 +85,7 @@ export default function WhaleAssistant() {
   const [open, setOpen] = useState(false);
   const [justClosed, setJustClosed] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [upgradeLimitMode, setUpgradeLimitMode] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [stepContext, setStepContext] = useState<string | null>(null);
   const [input, setInput] = useState("");
@@ -302,10 +303,19 @@ export default function WhaleAssistant() {
     const text = input.trim();
     if (!text || loading) return;
 
+    if (plan !== null && plan !== "deep" && whaleCreditsUsed >= WHALE_CREDIT_LIMIT) {
+      setUpgradeLimitMode(true);
+      setShowUpgrade(true);
+      return;
+    }
+
     const next: Message[] = [...messages, { role: "user", content: text }];
     setMessages(next);
     setInput("");
-    if (inputRef.current) inputRef.current.value = "";
+    if (inputRef.current) {
+      inputRef.current.value = "";
+      inputRef.current.style.height = "auto";
+    }
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("chat-assistant", {
@@ -388,20 +398,22 @@ export default function WhaleAssistant() {
       </button>
 
       {/* Upgrade dialog */}
-      <Dialog open={showUpgrade} onOpenChange={setShowUpgrade}>
+      <Dialog open={showUpgrade} onOpenChange={(v) => { setShowUpgrade(v); if (!v) setUpgradeLimitMode(false); }}>
         <DialogContent className="border border-border bg-card sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-3 text-foreground">
               <WhaleAvatar className="h-9 w-9 shrink-0" />
-              Meet Whal-E
+              {upgradeLimitMode ? "Daily limit reached" : "Meet Whal-E"}
             </DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              Whal-E is your personal study assistant — ask him anything about a concept, a question you're stuck on, or how to navigate Gogodeep. Available on Intermediate and Deep plans.
+              {upgradeLimitMode
+                ? "You've used all your daily Whal-E messages. Upgrade to Deep for unlimited chats — no daily cap, ever."
+                : "Whal-E is your personal study assistant — ask him anything about a concept, a question you're stuck on, or how to navigate Gogodeep. Available on Intermediate and Deep plans."}
             </DialogDescription>
           </DialogHeader>
           <div className="mt-4 flex justify-end">
             <Button className="bg-primary hover:bg-primary/90" onClick={() => navigate("/pricing")}>
-              View plans
+              {upgradeLimitMode ? "Get Deep" : "View plans"}
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
@@ -494,10 +506,15 @@ export default function WhaleAssistant() {
                 rows={1}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
+                onInput={(e) => {
+                  const el = e.currentTarget;
+                  el.style.height = "auto";
+                  el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+                }}
                 onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
                 placeholder="Ask anything…"
                 className="flex-1 resize-none rounded-xl border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-                style={{ maxHeight: 96 }}
+                style={{ maxHeight: 120, overflowY: "auto" }}
               />
               <button
                 onClick={send}

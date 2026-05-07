@@ -112,16 +112,16 @@ Deno.serve(async (req: Request) => {
     if (mode === "guide_concept") {
       const contextText = what_happened ? `Problem context: ${what_happened}\n\n` : "";
       const data = await callAnthropic({
-        system: `You are an expert STEM tutor. Explain concepts concisely.${complexityInstruction(complexity)} Use LaTeX: $...$ inline, $$...$$ display.`,
-        messages: [{ role: "user", content: [{ type: "text", text: `${contextText}Topic: ${topic ?? "STEM"}\n\nExplain the underlying concept and recognition cue.` }] }],
+        system: `You are a friendly STEM tutor explaining to a 12-year-old. Use simple everyday analogies and plain language — no jargon. Use LaTeX: $...$ inline, $$...$$ display.`,
+        messages: [{ role: "user", content: [{ type: "text", text: `${contextText}Topic: ${topic ?? "STEM"}\n\nExplain the underlying concept like the student is 5 years old, using a simple analogy. Then give a recognition cue.` }] }],
         tools: [{
           name: "concept_explanation",
           description: "Return the concept explanation and recognition cue.",
           input_schema: {
             type: "object",
             properties: {
-              core_concept: { type: "string", description: "2-3 sentences. State the core rule, the key 'why', and the most common misconception. General terms only — no reference to this specific problem. Under 50 words." },
-              recognition_cue: { type: "string", description: "2 sentences. Begin with 'When you see...' — state the signal and the first step to take. Under 50 words." },
+              core_concept: { type: "string", description: "2-3 sentences explaining the concept using a simple everyday analogy a child could understand. No jargon. No reference to this specific problem. Under 60 words." },
+              recognition_cue: { type: "string", description: "2 sentences. Begin with 'When you see...' — state the signal and the first step to take. Plain language. Under 50 words." },
             },
             required: ["core_concept", "recognition_cue"],
           },
@@ -177,8 +177,8 @@ Deno.serve(async (req: Request) => {
     const practiceCount = practice_count ?? 3;
 
     const systemPrompt = isGuide
-      ? `You are an expert STEM tutor. Break down the student's question step by step. If the image is NOT a STEM question or is too blurry, set input_status accordingly. You MUST use the guide_question tool.${MATH}`
-      : `You are an expert STEM tutor specializing in diagnosing errors in student work. Identify the EXACT point where the logic breaks down. If the image is NOT STEM student working or is too blurry, set input_status accordingly. You MUST use the diagnose_error tool.${MATH}`;
+      ? `You are an expert STEM tutor. Break down the student's question step by step. For core_concept: explain using a simple everyday analogy a child could understand — no jargon, plain language only. If the image is NOT a STEM question or is too blurry, set input_status accordingly. You MUST use the guide_question tool.${MATH}`
+      : `You are an expert STEM tutor specializing in diagnosing errors in student work. Identify the EXACT point where the logic breaks down. For core_concept: explain using a simple everyday analogy a child could understand — no jargon, plain language only. If the image is NOT STEM student working or is too blurry, set input_status accordingly. You MUST use the diagnose_error tool.${MATH}`;
 
     const tools = isGuide ? [{
       name: "guide_question",
@@ -189,7 +189,7 @@ Deno.serve(async (req: Request) => {
           concept_label: { type: "string", description: "2-3 word concept label." },
           question_summary: { type: "string", description: "One sentence describing the question." },
           what_happened: { type: "string", description: "2-3 sentences about this specific problem. Reference actual numbers/expressions." },
-          core_concept: { type: "string", description: "2-3 sentences. Core rule in general terms, key 'why', most common misconception." },
+          core_concept: { type: "string", description: "2-3 sentences explaining the concept using a simple everyday analogy a child could understand. No jargon. Plain language only. Under 60 words." },
           recognition_cue: { type: "string", description: "2 sentences. 'When you see...' signal, first step, top trap." },
           steps: { type: "array", items: { type: "string" }, description: "Step-by-step solution. $...$ inline math, $$...$$ display." },
           practice_problems: {
@@ -211,7 +211,7 @@ Deno.serve(async (req: Request) => {
           error_tag: { type: "string", description: "Short label, e.g. 'Sign Error'. Use 'All correct' if correct." },
           explanation: { type: "string", description: "2-3 sentences: where and why the logic broke down." },
           what_happened: { type: "string", description: "2-3 sentences about this specific problem. Reference actual numbers/steps." },
-          core_concept: { type: "string", description: "2-3 sentences. Core rule in general terms, key 'why', most common misconception." },
+          core_concept: { type: "string", description: "2-3 sentences explaining the concept using a simple everyday analogy a child could understand. No jargon. Plain language only. Under 60 words." },
           recognition_cue: { type: "string", description: "2 sentences. 'When you see...' signal, first step, top trap." },
           practice_problems: {
             type: "array",

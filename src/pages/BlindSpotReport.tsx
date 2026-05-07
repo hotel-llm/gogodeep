@@ -362,8 +362,8 @@ function ConceptTab({
   const sections = [
     {
       id: "concept",
-      label: "The concept",
-      Icon: Lightbulb,
+      label: "Explain like I'm 5",
+      Icon: Smile,
       content: coreConcept,
       locked: !isPaid,
       cardClass: "border-primary/20 bg-primary/5",
@@ -386,16 +386,6 @@ function ConceptTab({
 
   return (
     <>
-      {/* Explain like I'm 5 — always at the top of the concept tab */}
-      {!isLoadingConcept && (
-        <button
-          onClick={() => onAskWhale("Explain this concept like I'm 5 years old, using a simple everyday analogy")}
-          className="mb-3 flex w-full items-center gap-3 rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 text-left transition-colors hover:bg-primary/20 hover:border-primary/50"
-        >
-          <Smile className="h-4 w-4 text-primary shrink-0" />
-          <span className="text-sm font-medium text-foreground">Explain like I'm 5</span>
-        </button>
-      )}
       <div className="space-y-3" data-feature="root-cause-analysis-exam-mistakes" data-content="ai-analysis-breakdown,underlying-concept,targeted-practice">
         {sections.map(({ id, label, Icon, content, locked, cardClass, labelClass, iconClass, askText }, idx) => (
           <div key={id} className="animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-both" style={{ animationDelay: `${idx * 80}ms` }}>
@@ -622,13 +612,15 @@ function WhaleChatPanel({ diagnosis, onClose, pendingMessage, onMessageHandled, 
     "Give me a tip to remember this for exams",
   ];
 
+  const navigate = useNavigate();
   const [messages, setMessages] = useState<ChatMsg[]>([{ role: "assistant", content: greeting }]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [creditsUsed, setCreditsUsed] = useState(0);
+  const [showLimitDialog, setShowLimitDialog] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (plan === "deep") return;
@@ -652,9 +644,16 @@ function WhaleChatPanel({ diagnosis, onClose, pendingMessage, onMessageHandled, 
 
   async function send(text: string) {
     if (!text || loading) return;
+    if (plan !== "deep" && creditsUsed >= WHALE_CREDIT_LIMIT) {
+      setShowLimitDialog(true);
+      return;
+    }
     setShowSuggestions(false);
     setInput("");
-    if (inputRef.current) inputRef.current.value = "";
+    if (inputRef.current) {
+      inputRef.current.value = "";
+      inputRef.current.style.height = "auto";
+    }
     const next: ChatMsg[] = [...messages, { role: "user", content: text }];
     setMessages(next);
     setLoading(true);
@@ -736,25 +735,52 @@ function WhaleChatPanel({ diagnosis, onClose, pendingMessage, onMessageHandled, 
 
       {/* Input */}
       <div className="shrink-0 border-t border-border p-3">
-        <div className="flex items-center gap-2">
+        <div className="flex items-end gap-2">
           {plan !== "deep" && <WhaleCreditCircle used={creditsUsed} limit={WHALE_CREDIT_LIMIT} />}
-          <input
+          <textarea
             ref={inputRef}
+            rows={1}
             value={input}
             onChange={(e) => { setInput(e.target.value); if (e.target.value) setShowSuggestions(false); }}
+            onInput={(e) => {
+              const el = e.currentTarget;
+              el.style.height = "auto";
+              el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+            }}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); } }}
             placeholder="Ask anything…"
-            className="flex-1 rounded-xl border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none"
+            className="flex-1 resize-none rounded-xl border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none"
+            style={{ maxHeight: 120, overflowY: "auto" }}
           />
           <button
             onClick={() => send(input)}
-            disabled={!input.trim() || loading || (plan !== "deep" && creditsUsed >= WHALE_CREDIT_LIMIT)}
+            disabled={!input.trim() || loading}
             className="rounded-xl bg-primary p-2 text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40"
           >
             <Send className="h-4 w-4" />
           </button>
         </div>
       </div>
+
+      {/* Get Deep dialog when daily limit is reached */}
+      <Dialog open={showLimitDialog} onOpenChange={setShowLimitDialog}>
+        <DialogContent className="border border-border bg-card sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-foreground">
+              <img src="/whale-e.png" alt="" className="whale-img h-7 w-7 object-contain" />
+              Daily limit reached
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              You've used all your daily Whal-E messages. Upgrade to Deep for unlimited chats — no daily cap, ever.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-4 flex justify-end">
+            <Button className="bg-primary hover:bg-primary/90" onClick={() => navigate("/pricing")}>
+              Get Deep
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
