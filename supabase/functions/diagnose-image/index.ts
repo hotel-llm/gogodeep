@@ -25,10 +25,11 @@ Deno.serve(async (req: Request) => {
     }
 
     function stepsDescription(level: number): string {
-      if (level === 1) return "Complete step-by-step solution written in plain language for a beginner. Each step must be very small and self-contained — no skipped reasoning. Prefer words over formulas where possible. $...$ for inline math, $$...$$ for display equations.";
-      if (level === 3) return "Complete step-by-step solution using precise academic terminology. Each step is a clear, concise instruction referencing relevant rules or theorems by name. $...$ for inline math, $$...$$ for display equations.";
-      if (level === 4) return "Rigorous step-by-step solution with full formal notation. Concise and dense — no hand-holding. Include theorem names, edge cases, and proof reasoning where relevant. $...$ for inline math, $$...$$ for display equations.";
-      return "Complete step-by-step solution. Each step is one clear instruction. $...$ for inline math, $$...$$ for display equations.";
+      const common = " Each step must perform actual calculation, reasoning, or manipulation — never output an introduction or summary step (e.g. 'Understand the conditions' is forbidden). Never output an empty string. $...$ for inline math, $$...$$ for display equations.";
+      if (level === 1) return `Complete step-by-step solution in plain language for a beginner. Break the working into clear sub-steps, each doing real reasoning or arithmetic. Prefer words over formulas where possible.${common}`;
+      if (level === 3) return `Complete step-by-step solution using precise academic terminology. Each step is a clear, concise instruction referencing relevant rules or theorems by name.${common}`;
+      if (level === 4) return `Rigorous step-by-step solution with full formal notation. Concise and dense — include theorem names, edge cases, and proof reasoning where relevant.${common}`;
+      return `Complete step-by-step solution. Each step is one clear instruction that does concrete work.${common}`;
     }
 
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
@@ -56,7 +57,7 @@ Deno.serve(async (req: Request) => {
     // ── guide_steps: steps + metadata only, no concept or practice ──────────
     if (mode === "guide_steps") {
       const data = await callAnthropic({
-        system: `You are an expert STEM tutor. Break down the student's question step by step and generate 3 practice problems with multiple-choice options. If the image is NOT a STEM question or is too blurry, set input_status accordingly. You MUST use the guide_steps tool.${complexityInstruction(complexity)}${MATH}`,
+        system: `You are an expert STEM tutor. Break down the student's question step by step and generate 3 practice problems with multiple-choice options. If the image is NOT a STEM question or is too blurry, set input_status accordingly. You MUST use the guide_steps tool. IMPORTANT: Every step in the steps array must perform concrete work (calculation, reasoning, substitution, etc.) — do NOT produce steps that merely introduce, list, or name what follows. Do NOT produce empty steps.${complexityInstruction(complexity)}${MATH}`,
         messages: [{
           role: "user",
           content: text

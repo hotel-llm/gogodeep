@@ -1136,7 +1136,7 @@ const BlindSpotReport = () => {
     );
   }
 
-  const effectiveSteps = lazySteps ?? (Array.isArray((diagnosis as any).steps) ? (diagnosis as any).steps as string[] : []);
+  const effectiveSteps = (lazySteps ?? (Array.isArray((diagnosis as any).steps) ? (diagnosis as any).steps as string[] : [])).filter((s: string) => s.trim());
   const basePractice = lazyPractice ?? (Array.isArray(diagnosis.practice_problems) ? diagnosis.practice_problems : []);
   const practice = [...basePractice, ...extraProblems];
   const effectiveConcept = lazyConceptData?.core_concept ?? (diagnosis as any)?.core_concept;
